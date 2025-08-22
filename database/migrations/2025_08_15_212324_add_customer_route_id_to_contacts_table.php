@@ -13,9 +13,8 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('contacts', function (Blueprint $table) {
-            $table->integer('customer_route_id')->nullable()->after('customer_group_id');
-        });
+        // This migration is a duplicate of 2023_10_25_000000_add_customer_route_id_to_contacts_table.php
+        // The column has already been added, so we don't need to add it again
     }
 
     /**
@@ -25,8 +24,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::table('contacts', function (Blueprint $table) {
-            $table->dropColumn('customer_route_id');
-        });
+        // No need to drop the column here as it will be handled by the original migration
     }
 };

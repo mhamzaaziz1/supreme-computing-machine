@@ -431,7 +431,7 @@ class Util
             ]);
 
             $request = new \GuzzleHttp\Psr7\Request('POST', 'https://rest.nexmo.com/sms/json', $headers, $body);
-            
+
             $response = $client->sendAsync($request)->wait();
         }
     }
@@ -1504,7 +1504,7 @@ class Util
     public function getLocationFromCoordinates($lat, $long)
     {
         try {
-            $access_token = env('GOOGLE_MAP_API_KEY');
+            $access_token = config('services.google_maps.api_key');
             $full_address = null;
             $address = [];
             if (! empty($access_token)) {
@@ -1814,13 +1814,13 @@ class Util
                     $start = \Carbon\Carbon::now()->month >= 4 ? \Carbon\Carbon::now()->startOfYear()->month(4)->startOfMonth() : \Carbon\Carbon::now()->subYear()->startOfYear()->month(4)->startOfMonth();
                     $end = \Carbon\Carbon::now()->month >= 4 ? \Carbon\Carbon::now()->startOfYear()->month(4)->startOfMonth()->addYear()->subDay() : \Carbon\Carbon::now()->startOfYear()->subDay();
                     break;
-        
+
                 case 'last_financial_year':
                     // Assuming financial year starts in April
                     $start = \Carbon\Carbon::now()->subYear()->month >= 4 ? \Carbon\Carbon::now()->subYear()->startOfYear()->month(4)->startOfMonth() : \Carbon\Carbon::now()->subYears(2)->startOfYear()->month(4)->startOfMonth();
                     $end = \Carbon\Carbon::now()->subYear()->month >= 4 ? \Carbon\Carbon::now()->subYear()->startOfYear()->month(4)->startOfMonth()->addYear()->subDay() : \Carbon\Carbon::now()->subYear()->startOfYear()->subDay();
                     break;
-        
+
                 default:
                 $start = null;
                 $end = null;

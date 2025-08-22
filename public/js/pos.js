@@ -12,6 +12,18 @@ $(document).ready(function() {
         }
     });
 
+    // Calculate next mileage when previous mileage or oil change mileage changes
+    $('#previous_mileage, #oil_change_mileage').on('input', function() {
+        calculateNextMileage();
+    });
+
+    function calculateNextMileage() {
+        var previousMileage = parseInt($('#previous_mileage').val()) || 0;
+        var oilChangeMileage = parseInt($('#oil_change_mileage').val()) || 0;
+        var nextMileage = previousMileage + oilChangeMileage;
+        $('#next_mileage').val(nextMileage);
+    }
+
     //For edit pos form
     if ($('form#edit_pos_sell_form').length > 0) {
         pos_total_row();
@@ -143,6 +155,22 @@ $(document).ready(function() {
         if (data.price_calculation_type == 'selling_price_group') {
             $('#price_group').val(data.selling_price_group_id);
             $('#price_group').change();
+        }
+
+        // Load customer vehicles if vehicle selection field exists
+        if ($('#customer_vehicle_id').length) {
+            var customer_id = $(this).val();
+            $.ajax({
+                method: 'GET',
+                url: '/customer-vehicles-dropdown/' + customer_id,
+                dataType: 'json',
+                success: function(result) {
+                    $('#customer_vehicle_id').empty().append('<option value="">Select Vehicle</option>');
+                    $.each(result, function(key, value) {
+                        $('#customer_vehicle_id').append('<option value="' + key + '">' + value + '</option>');
+                    });
+                },
+            });
         }
         //  else {
         //     $('#price_group').val(0);
@@ -2461,7 +2489,42 @@ $(document).on('change', 'select#customer_id', function(){
         getCustomerRewardPoints();
     }
 
+    // Load customer vehicles if vehicle selection field exists
+    if ($('#customer_vehicle_id').length) {
+        var customer_id = $(this).val();
+        $.ajax({
+            method: 'GET',
+            url: '/customer-vehicles-dropdown/' + customer_id,
+            dataType: 'json',
+            success: function(result) {
+                $('#customer_vehicle_id').empty().append('<option value="">Select Vehicle</option>');
+                $.each(result, function(key, value) {
+                    $('#customer_vehicle_id').append('<option value="' + key + '">' + value + '</option>');
+                });
+            },
+        });
+    }
+
     get_sales_orders();
+});
+
+// When a vehicle is selected, fetch the last mileage record
+$(document).on('change', '#customer_vehicle_id', function(){
+    var vehicle_id = $(this).val();
+    if (vehicle_id) {
+        $.ajax({
+            method: 'GET',
+            url: '/vehicle-mileage/last-record/' + vehicle_id,
+            dataType: 'json',
+            success: function(result) {
+                if (result.previous_mileage) {
+                    $('#previous_mileage').val(result.previous_mileage);
+                    // Trigger calculation of next mileage
+                    $('#previous_mileage').trigger('input');
+                }
+            },
+        });
+    }
 });
 
 $(document).on('change', '#rp_redeemed_modal', function(){

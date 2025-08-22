@@ -421,6 +421,7 @@ $(document).ready(function() {
             columns.push({ data: 'total_rp', name: 'total_rp' });
         }
         Array.prototype.push.apply(columns, [{ data: 'customer_group', name: 'cg.name' },
+            { data: 'customer_route', name: 'cr.name' },
             { data: 'address', name: 'address', orderable: false },
             { data: 'mobile', name: 'mobile' },
             { data: 'due', searchable: false, orderable: false },
@@ -487,6 +488,10 @@ $(document).ready(function() {
                     d.customer_group_id = $('#cg_filter').val();
                 }
 
+                if ($('#cr_filter').length > 0) {
+                    d.customer_route_id = $('#cr_filter').val();
+                }
+
                 if ($('#status_filter').length > 0) {
                     d.contact_status = $('#status_filter').val();
                 }
@@ -517,7 +522,7 @@ $(document).ready(function() {
         contact_table.ajax.reload();
     });
 
-    $(document).on('change', '#has_no_sell_from, #cg_filter, #status_filter, #assigned_to', function(){
+    $(document).on('change', '#has_no_sell_from, #cg_filter, #cr_filter, #status_filter, #assigned_to', function(){
         contact_table.ajax.reload();
     });
 
@@ -1484,6 +1489,7 @@ $(document).ready(function() {
             { data: 'payment_due', name: 'payment_due' },
             { data: 'expense_for', name: 'expense_for' },
             { data: 'contact_name', name: 'c.name' },
+            { data: 'vehicle_name', name: 'scv.license_plate' },
             { data: 'additional_notes', name: 'additional_notes' },
             { data: 'added_by', name: 'usr.first_name'}
         ],

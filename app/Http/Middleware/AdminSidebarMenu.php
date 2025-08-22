@@ -47,6 +47,15 @@ class AdminSidebarMenu
             <path d="M10 12h4v4h-4z" />
           </svg>', 'active' => request()->segment(1) == 'home'])->order(5);
 
+            // Advanced Dashboard menu item
+            $menu->url(action([\App\Http\Controllers\ReportController::class, 'getBusinessAdvanceAnalytics']), __('Advanced Dashboard'), ['icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M3 12m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+            <path d="M9 8m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+            <path d="M15 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+            <path d="M4 20l14 0" />
+          </svg>', 'active' => request()->segment(2) == 'business-advance-analytics'])->order(6);
+
             //User management dropdown
             if (auth()->user()->can('user.view') || auth()->user()->can('user.create') || auth()->user()->can('roles.view')) {
                 $menu->dropdown(
@@ -71,6 +80,13 @@ class AdminSidebarMenu
                                 action([\App\Http\Controllers\SalesCommissionAgentController::class, 'index']),
                                 __('lang_v1.sales_commission_agents'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'sales-commission-agents']
+                            );
+                        }
+                        if (auth()->user()->can('user.view')) {
+                            $sub->url(
+                                action([\App\Http\Controllers\UserLocationController::class, 'index']),
+                                __('lang_v1.active_users_location'),
+                                ['icon' => '', 'active' => request()->segment(1) == 'user-locations']
                             );
                         }
                     },
@@ -108,11 +124,6 @@ class AdminSidebarMenu
                                 __('lang_v1.customer_groups'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'customer-group']
                             );
-                            $sub->url(
-                                action([\App\Http\Controllers\CustomerRouteController::class, 'index']),
-                                __('lang_v1.customer_routes'),
-                                ['icon' => '', 'active' => request()->segment(1) == 'customer-route']
-                            );
                         }
                         if (auth()->user()->can('supplier.create') || auth()->user()->can('customer.create')) {
                             $sub->url(
@@ -122,11 +133,19 @@ class AdminSidebarMenu
                             );
                         }
 
-                        if (!empty(env('GOOGLE_MAP_API_KEY'))) {
+                        if (!empty(config('services.google_maps.api_key'))) {
                             $sub->url(
                                 action([\App\Http\Controllers\ContactController::class, 'contactMap']),
                                 __('lang_v1.map'),
                                 ['icon' => 'fa fas fa-map-marker-alt', 'active' => request()->segment(1) == 'contacts' && request()->segment(2) == 'map']
+                            );
+                        }
+
+                        if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                            $sub->url(
+                                action([\App\Http\Controllers\RouteFollowupController::class, 'index']),
+                                __('lang_v1.route_followups'),
+                                ['icon' => '', 'active' => request()->segment(1) == 'route-followups']
                             );
                         }
                     },
@@ -141,6 +160,112 @@ class AdminSidebarMenu
                     <path d="M4 16h3"></path>
                   </svg>', 'id' => 'tour_step4']
                 )->order(15);
+            }
+
+            //Customer Routes menu
+            if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                $menu->url(
+                    action([\App\Http\Controllers\CustomerRouteController::class, 'index']),
+                    __('lang_v1.customer_routes'),
+                    ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path d="M3 17l4 2v-18l-4 2z"></path>
+                    <path d="M7 19l4 2v-18l-4 2z"></path>
+                    <path d="M11 21l4 2v-18l-4 2z"></path>
+                    <path d="M15 23l4 -10v-8l-4 2z"></path>
+                  </svg>', 'active' => request()->segment(1) == 'customer-route']
+                )->order(16);
+            }
+
+            //Vehicles menu
+            if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                $menu->url(
+                    action([\App\Http\Controllers\CustomerVehicleController::class, 'index']),
+                    __('lang_v1.vehicles'),
+                    ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                    <path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                    <path d="M5 9l2 -2h8l4 2"></path>
+                    <path d="M16 5l1 9"></path>
+                    <path d="M7 5l-1 9"></path>
+                    <path d="M3 17h2"></path>
+                    <path d="M19 17h2"></path>
+                  </svg>', 'active' => request()->segment(1) == 'vehicles']
+                )->order(17);
+            }
+
+            //Supply Chain Vehicles menu
+            if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                $menu->dropdown(
+                    __('lang_v1.supply_chain_vehicles'),
+                    function ($sub) {
+                        $sub->url(
+                            action([\App\Http\Controllers\SupplyChainVehicleController::class, 'index']),
+                            __('lang_v1.all_vehicles'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'supply-chain-vehicles' && empty(request()->segment(2))]
+                        );
+
+                        $sub->url(
+                            action([\App\Http\Controllers\VehicleRouteAssignmentController::class, 'index']),
+                            __('lang_v1.assign_route'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'vehicle-route-assignments']
+                        );
+
+                        $sub->url(
+                            action([\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'index']),
+                            __('lang_v1.vehicle_expenses'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'vehicle-expenses']
+                        );
+                    },
+                    ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                    <path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                    <path d="M5 9l2 -2h8l4 2"></path>
+                    <path d="M16 5l1 9"></path>
+                    <path d="M7 5l-1 9"></path>
+                    <path d="M3 17h2"></path>
+                    <path d="M19 17h2"></path>
+                  </svg>', 'active' => request()->segment(1) == 'supply-chain-vehicles' || request()->segment(1) == 'vehicle-route-assignments']
+                )->order(18);
+            }
+
+            //Geofencing menu
+            if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                $menu->dropdown(
+                    __('lang_v1.geofencing'),
+                    function ($sub) {
+                        $sub->url(
+                            action([\App\Http\Controllers\RouteSellerAssignmentController::class, 'index']),
+                            __('lang_v1.route_assignments'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'route-assignments']
+                        );
+
+                        $sub->url(
+                            action([\App\Http\Controllers\RouteVisitLogController::class, 'index']),
+                            __('lang_v1.visit_logs'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'visit-logs']
+                        );
+
+                        $sub->url(
+                            action([\App\Http\Controllers\GeofenceViolationLogController::class, 'index']),
+                            __('lang_v1.violation_logs'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'violation-logs']
+                        );
+
+                        $sub->url(
+                            action([\App\Http\Controllers\ReportController::class, 'getRouteCoverageReport']),
+                            __('lang_v1.route_coverage_report'),
+                            ['icon' => '', 'active' => request()->segment(2) == 'route-coverage-report']
+                        );
+
+                    },
+                    ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z"></path>
+                  </svg>', 'active' => in_array(request()->segment(1), ['route-assignments', 'visit-logs', 'violation-logs']) || in_array(request()->segment(2), ['route-coverage-report'])]
+                )->order(18);
             }
 
             //Products dropdown
@@ -732,6 +857,38 @@ class AdminSidebarMenu
                                 action([\App\Http\Controllers\ReportController::class, 'getServiceStaffReport']),
                                 __('restaurant.service_staff_report'),
                                 ['icon' => '', 'active' => request()->segment(2) == 'service-staff-report']
+                            );
+                        }
+
+                        if (auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own')) {
+                            $sub->url(
+                                action([\App\Http\Controllers\ReportController::class, 'getRouteFollowupReport']),
+                                __('lang_v1.route_followup_report'),
+                                ['icon' => '', 'active' => request()->segment(2) == 'route-followup-report']
+                            );
+
+                            $sub->url(
+                                action([\App\Http\Controllers\ReportController::class, 'getCustomerAdvanceAnalytics']),
+                                __('Customer Advance Analytics'),
+                                ['icon' => '', 'active' => request()->segment(2) == 'customer-advance-analytics']
+                            );
+
+                            $sub->url(
+                                action([\App\Http\Controllers\ReportController::class, 'getProductAdvanceAnalytics']),
+                                __('Product Advance Analytics'),
+                                ['icon' => '', 'active' => request()->segment(2) == 'product-advance-analytics']
+                            );
+
+                            $sub->url(
+                                action([\App\Http\Controllers\ReportController::class, 'getPurchaseAdvanceAnalytics']),
+                                __('Purchase Advance Analytics'),
+                                ['icon' => '', 'active' => request()->segment(2) == 'purchase-advance-analytics']
+                            );
+
+                            $sub->url(
+                                action([\App\Http\Controllers\SupplyChainAnalyticsController::class, 'index']),
+                                __('Supply Chain Analytics'),
+                                ['icon' => '', 'active' => request()->segment(1) == 'supply-chain-analytics']
                             );
                         }
 

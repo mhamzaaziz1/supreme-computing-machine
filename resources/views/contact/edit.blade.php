@@ -17,7 +17,7 @@
     }
   @endphp
 
-    {!! Form::open(['url' => $url, 'method' => 'PUT', 'id' => 'contact_edit_form']) !!}
+    {!! Form::open(['url' => $url, 'method' => 'PUT', 'id' => 'contact_edit_form', 'files' => true]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -135,6 +135,40 @@
                 </span>
                 {!! Form::text('mobile', $contact->mobile, ['class' => 'form-control', 'required', 'placeholder' => __('contact.mobile')]); !!}
             </div>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="form-group">
+            {!! Form::label('profile_picture', __('lang_v1.profile_picture') . ':') !!}
+            <div class="input-group">
+                <span class="input-group-addon">
+                    <i class="fa fa-image"></i>
+                </span>
+                {!! Form::file('profile_picture', ['class' => 'form-control', 'accept' => 'image/*']); !!}
+            </div>
+            @if(!empty($contact->profile_picture))
+                <div class="thumbnail mt-10">
+                    <img src="{{ asset($contact->profile_picture) }}" alt="Profile Picture" width="100">
+                </div>
+            @endif
+        </div>
+      </div>
+
+      <div class="col-md-3 business" @if($contact->contact_type == 'individual' || empty($contact->contact_type)) style="display: none;"  @endif>
+        <div class="form-group">
+            {!! Form::label('business_picture', __('lang_v1.business_picture') . ':') !!}
+            <div class="input-group">
+                <span class="input-group-addon">
+                    <i class="fa fa-building"></i>
+                </span>
+                {!! Form::file('business_picture', ['class' => 'form-control', 'accept' => 'image/*']); !!}
+            </div>
+            @if(!empty($contact->business_picture))
+                <div class="thumbnail mt-10">
+                    <img src="{{ asset($contact->business_picture) }}" alt="Business Picture" width="100">
+                </div>
+            @endif
         </div>
       </div>
       <div class="col-md-3">
@@ -499,6 +533,16 @@
         <div class="mb-10" id="map"></div>
       </div>
       {!! Form::hidden('position', $contact->position, ['id' => 'position']); !!}
+      {!! Form::hidden('latitude', $contact->latitude, ['id' => 'latitude']); !!}
+      {!! Form::hidden('longitude', $contact->longitude, ['id' => 'longitude']); !!}
+
+      <div class="col-md-12">
+          <div class="form-group">
+              {!! Form::label('map_location', __('lang_v1.map_location') . ':') !!}
+              <div id="location_map" style="height: 300px;"></div>
+              <p class="help-block">@lang('lang_v1.click_on_map_to_set_location')</p>
+          </div>
+      </div>
         @php
             $shipping_custom_label_1 = !empty($custom_labels['shipping']['custom_field_1']) ? $custom_labels['shipping']['custom_field_1'] : '';
 
@@ -606,3 +650,71 @@
 
   </div><!-- /.modal-content -->
 </div><!-- /.modal-dialog -->
+
+@php
+    $api_key = config('services.google_maps.api_key');
+@endphp
+
+@if(!empty($api_key))
+<script src="https://maps.googleapis.com/maps/api/js?key={{$api_key}}&libraries=places" defer></script>
+<script type="text/javascript">
+  $(document).ready(function(){
+    // Initialize the map when the "more info" section is shown
+    $('.more_btn').click(function() {
+      setTimeout(function() {
+        initializeLocationMap();
+      }, 500);
+    });
+
+    function initializeLocationMap() {
+      if (typeof google === 'undefined') {
+        return;
+      }
+
+      var map = new google.maps.Map(document.getElementById('location_map'), {
+        zoom: 13,
+        center: {lat: 0, lng: 0}
+      });
+
+      // Try to get current location or use saved coordinates
+      var lat = parseFloat($('#latitude').val());
+      var lng = parseFloat($('#longitude').val());
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        var initialLocation = new google.maps.LatLng(lat, lng);
+        map.setCenter(initialLocation);
+
+        // Add marker for existing location
+        var marker = new google.maps.Marker({
+          position: initialLocation,
+          map: map
+        });
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          var initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+          map.setCenter(initialLocation);
+        });
+      }
+
+      // Add click event to map
+      google.maps.event.addListener(map, 'click', function(event) {
+        // Remove previous marker if exists
+        if (marker) {
+          marker.setMap(null);
+        }
+
+        // Add marker at clicked location
+        marker = new google.maps.Marker({
+          position: event.latLng,
+          map: map
+        });
+
+        // Update hidden fields with coordinates
+        $('#latitude').val(event.latLng.lat());
+        $('#longitude').val(event.latLng.lng());
+        $('#position').val(event.latLng.lat() + ',' + event.latLng.lng());
+      });
+    }
+  });
+</script>
+@endif

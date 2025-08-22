@@ -3,7 +3,7 @@
 
 @section('content')
     @php
-        $api_key = env('GOOGLE_MAP_API_KEY');
+        $api_key = config('services.google_maps.api_key');
     @endphp
 <!-- Content Header (Page header) -->
 <section class="content-header">
@@ -90,7 +90,8 @@
                     @endphp
                     [
                         "{{$contact->name}} ({{$contact->contact_id}}) \n {{$contact_type}}", 
-                        {{$contact->position}}
+                        {{$contact->latitude}},
+                        {{$contact->longitude}}
                     ],
                 @endforeach
             ];

@@ -31,6 +31,11 @@ class PurchaseController extends Controller
      */
     protected $productUtil;
 
+    /**
+     * Period for sales history in months
+     */
+    protected $period_months = 3;
+
     protected $transactionUtil;
 
     protected $moduleUtil;
@@ -300,6 +305,11 @@ class PurchaseController extends Controller
             //Check if subscribed or not
             if (! $this->moduleUtil->isSubscribed($business_id)) {
                 return $this->moduleUtil->expiredResponse(action([\App\Http\Controllers\PurchaseController::class, 'index']));
+            }
+
+            // Check if request is from purchase requirements
+            if ($request->has('products')) {
+                return $this->createPurchaseFromRequirements($request);
             }
 
             $transaction_data = $request->only(['ref_no', 'status', 'contact_id', 'transaction_date', 'total_before_tax', 'location_id', 'discount_type', 'discount_amount', 'tax_id', 'tax_amount', 'shipping_details', 'shipping_charges', 'final_total', 'additional_notes', 'exchange_rate', 'pay_term_number', 'pay_term_type', 'purchase_order_ids']);
@@ -1432,5 +1442,246 @@ class PurchaseController extends Controller
         }
 
         return $output;
+    }
+
+    /**
+     * Calculate purchase requirements based on sales history, safety stock, and current stock
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function calculatePurchaseRequirements()
+    {
+        if (!auth()->user()->can('purchase.create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $business_id = request()->session()->get('user.business_id');
+
+            //Check if subscribed or not
+            if (!$this->moduleUtil->isSubscribed($business_id)) {
+                return $this->moduleUtil->expiredResponse();
+            }
+
+            // Get all products
+            $products = Product::where('business_id', $business_id)
+                        ->where('is_inactive', 0)
+                        ->with(['variations', 'product_tax'])
+                        ->get();
+
+            $purchase_requirements = [];
+
+            foreach ($products as $product) {
+                foreach ($product->variations as $variation) {
+                    // Step 1: Get sales history for the period
+                    $end_date = \Carbon\Carbon::now();
+                    $start_date = \Carbon\Carbon::now()->subMonths($this->period_months);
+
+                    $sales_last_period = $this->getSalesForPeriod($variation->id, $start_date, $end_date);
+
+                    // Step 2: Forecast demand (average monthly sales)
+                    $forecast_demand = $sales_last_period / $this->period_months;
+
+                    // Step 3: Calculate daily demand
+                    $daily_demand = $forecast_demand / 30;
+
+                    // Step 4: Get lead time and safety stock
+                    $lead_time = $product->lead_time_days ?? 7; // Default to 7 days if not set
+                    $safety_stock = $product->safety_stock ?? ($forecast_demand * 0.2); // Default to 20% of monthly demand
+
+                    // Step 5: Calculate Reorder Point (ROP)
+                    $rop = ($daily_demand * $lead_time) + $safety_stock;
+
+                    // Step 6: Get current stock
+                    $current_stock = $this->getCurrentStock($variation->id);
+
+                    // Step 7: Calculate Purchase Quantity
+                    $purchase_qty = max(0, ($forecast_demand + $safety_stock) - $current_stock);
+
+                    // Step 8: Add to purchase requirements if quantity > 0
+                    if ($purchase_qty > 0) {
+                        $purchase_requirements[] = [
+                            'product_id' => $product->id,
+                            'variation_id' => $variation->id,
+                            'product_name' => $product->name,
+                            'variation_name' => $variation->name != 'DUMMY' ? $variation->name : '',
+                            'sku' => $variation->sub_sku,
+                            'sales_last_period' => $sales_last_period,
+                            'forecast_demand' => $forecast_demand,
+                            'safety_stock' => $safety_stock,
+                            'current_stock' => $current_stock,
+                            'purchase_qty' => $purchase_qty,
+                            'unit' => $product->unit->short_name ?? '',
+                            'lead_time' => $lead_time,
+                            'reorder_point' => $rop
+                        ];
+                    }
+                }
+            }
+
+            $business_locations = BusinessLocation::forDropdown($business_id, false, true);
+            $suppliers = Contact::suppliersDropdown($business_id, false);
+
+            return view('purchase.purchase_requirements')
+                ->with(compact('purchase_requirements', 'business_locations', 'suppliers'));
+
+        } catch (\Exception $e) {
+            \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
+
+            return redirect()->back()->with('status', ['success' => 0, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Get sales for a product variation in a given period
+     *
+     * @param int $variation_id
+     * @param \Carbon\Carbon $start_date
+     * @param \Carbon\Carbon $end_date
+     * @return float
+     */
+    private function getSalesForPeriod($variation_id, $start_date, $end_date)
+    {
+        $business_id = request()->session()->get('user.business_id');
+
+        $sales = Transaction::join('transaction_sell_lines as tsl', 'transactions.id', '=', 'tsl.transaction_id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->where('tsl.variation_id', $variation_id)
+                ->whereBetween('transactions.transaction_date', [$start_date, $end_date])
+                ->sum('tsl.quantity');
+
+        return $sales;
+    }
+
+    /**
+     * Get current stock for a product variation
+     *
+     * @param int $variation_id
+     * @return float
+     */
+    private function getCurrentStock($variation_id)
+    {
+        $business_id = request()->session()->get('user.business_id');
+
+        $current_stock = Variation::where('id', $variation_id)
+                        ->join('products as p', 'variations.product_id', '=', 'p.id')
+                        ->where('p.business_id', $business_id)
+                        ->sum('variations.qty_available');
+
+        return $current_stock;
+    }
+
+    /**
+     * Create a purchase from purchase requirements
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    private function createPurchaseFromRequirements(Request $request)
+    {
+        $business_id = $request->session()->get('user.business_id');
+        $user_id = $request->session()->get('user.id');
+
+        $products = $request->input('products');
+        $location_id = $request->input('location_id');
+        $supplier_id = $request->input('contact_id');
+
+        // Create transaction
+        $transaction_data = [
+            'business_id' => $business_id,
+            'location_id' => $location_id,
+            'contact_id' => $supplier_id,
+            'type' => 'purchase',
+            'status' => 'ordered',
+            'transaction_date' => \Carbon\Carbon::now(),
+            'created_by' => $user_id,
+            'total_before_tax' => 0,
+            'final_total' => 0,
+            'payment_status' => 'due'
+        ];
+
+        // Generate reference number
+        $ref_count = $this->transactionUtil->setAndGetReferenceCount('purchase');
+        $transaction_data['ref_no'] = $this->transactionUtil->generateReferenceNumber('purchase', $ref_count);
+
+        DB::beginTransaction();
+
+        try {
+            // Create transaction
+            $transaction = Transaction::create($transaction_data);
+
+            $total_before_tax = 0;
+
+            // Add purchase lines
+            foreach ($products as $product) {
+                $variation = Variation::with(['product', 'product_variation'])
+                                ->where('id', $product['variation_id'])
+                                ->first();
+
+                if (!$variation) {
+                    continue;
+                }
+
+                // Get purchase price
+                $purchase_price = $variation->default_purchase_price;
+
+                // Calculate line total
+                $line_total = $purchase_price * $product['quantity'];
+                $total_before_tax += $line_total;
+
+                // Create purchase line
+                $purchase_line_data = [
+                    'transaction_id' => $transaction->id,
+                    'product_id' => $product['product_id'],
+                    'variation_id' => $product['variation_id'],
+                    'quantity' => $product['quantity'],
+                    'pp_without_discount' => $purchase_price,
+                    'purchase_price' => $purchase_price,
+                    'purchase_price_inc_tax' => $purchase_price,
+                    'item_tax' => 0,
+                    'tax_id' => null,
+                    'purchase_line_tax_id' => null,
+                    'quantity_returned' => 0,
+                    'quantity_sold' => 0,
+                    'quantity_adjusted' => 0,
+                    'mfg_quantity_used' => 0,
+                    'line_discount_type' => null,
+                    'line_discount_amount' => 0,
+                    'lot_number' => null,
+                    'exp_date' => null
+                ];
+
+                PurchaseLine::create($purchase_line_data);
+            }
+
+            // Update transaction totals
+            $transaction->total_before_tax = $total_before_tax;
+            $transaction->final_total = $total_before_tax;
+            $transaction->save();
+
+            DB::commit();
+
+            $output = [
+                'success' => 1,
+                'msg' => __('purchase.purchase_add_success'),
+                'redirect_url' => action([\App\Http\Controllers\PurchaseController::class, 'show'], [$transaction->id])
+            ];
+
+            return response()->json($output);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::emergency("File:" . $e->getFile(). "Line:" . $e->getLine(). "Message:" . $e->getMessage());
+
+            $output = [
+                'success' => 0,
+                'msg' => __('messages.something_went_wrong')
+            ];
+
+            return response()->json($output);
+        }
     }
 }

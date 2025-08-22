@@ -67,4 +67,62 @@ class CustomerRoute extends Model
     {
         return $this->hasMany(Contact::class, 'customer_route_id');
     }
+
+    /**
+     * Get the outlet sequence for this route
+     */
+    public function outletSequence()
+    {
+        return $this->hasMany(RouteOutletSequence::class, 'customer_route_id')
+                    ->orderBy('sequence_number');
+    }
+
+    /**
+     * Get the seller assignments for this route
+     */
+    public function sellerAssignments()
+    {
+        return $this->hasMany(RouteSellerAssignment::class, 'customer_route_id');
+    }
+
+    /**
+     * Get the assigned sellers for this route
+     */
+    public function assignedSellers()
+    {
+        return $this->belongsToMany(User::class, 'route_seller_assignments', 'customer_route_id', 'user_id')
+                    ->wherePivot('is_active', 1);
+    }
+
+    /**
+     * Get the visit logs for this route
+     */
+    public function visitLogs()
+    {
+        return $this->hasMany(RouteVisitLog::class, 'customer_route_id');
+    }
+
+    /**
+     * Get the violation logs for this route
+     */
+    public function violationLogs()
+    {
+        return $this->hasMany(GeofenceViolationLog::class, 'customer_route_id');
+    }
+
+    /**
+     * Get the zone restrictions for this route
+     */
+    public function zoneRestrictions()
+    {
+        return $this->hasOne(RouteZoneRestriction::class, 'customer_route_id');
+    }
+
+    /**
+     * Get the followups for this route
+     */
+    public function followups()
+    {
+        return $this->hasMany(RouteFollowup::class, 'customer_route_id');
+    }
 }

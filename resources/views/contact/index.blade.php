@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', __('lang_v1.' . $type . 's'))
 @php
-    $api_key = env('GOOGLE_MAP_API_KEY');
+    $api_key = config('services.google_maps.api_key');
 @endphp
 @if (!empty($api_key))
     @section('css')
@@ -88,6 +88,13 @@
                         {!! Form::select('cg_filter', $customer_groups, null, ['class' => 'form-control', 'id' => 'cg_filter']) !!}
                     </div>
                 </div>
+
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="cr_filter">@lang('lang_v1.customer_route'):</label>
+                        {!! Form::select('cr_filter', $customer_routes, null, ['class' => 'form-control', 'id' => 'cr_filter', 'placeholder' => __('messages.please_select')]) !!}
+                    </div>
+                </div>
             @endif
 
             @if (config('constants.enable_contact_assign') === true)
@@ -133,6 +140,16 @@
                                 <path d="M5 12l14 0" />
                                 </svg> @lang('messages.add')
                         </a>
+                        <a href="{{ action([\App\Http\Controllers\ContactController::class, 'contactMap']) }}" class="tw-dw-btn tw-bg-gradient-to-r tw-from-green-600 tw-to-teal-500 tw-font-bold tw-text-white tw-border-none tw-rounded-full ml-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-map">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3z" />
+                            <path d="M9 4v13" />
+                            <path d="M15 7v13" />
+                            </svg> @lang('lang_v1.map')
+                        </a>
                     </div>
                 @endslot
             @endif
@@ -173,6 +190,7 @@
                                         <th id="rp_col">{{ session('business.rp_name') }}</th>
                                     @endif
                                     <th>@lang('lang_v1.customer_group')</th>
+                                    <th>@lang('lang_v1.customer_route')</th>
                                     <th>@lang('business.address')</th>
                                     <th>@lang('contact.mobile')</th>
                                     <th>@lang('contact.total_sale_due')</th>
@@ -224,9 +242,9 @@
                                 <td @if ($type == 'supplier') colspan="6"
                             @elseif($type == 'customer')
                                 @if ($reward_enabled)
-                                    colspan="9"
+                                    colspan="10"
                                 @else
-                                    colspan="8" @endif
+                                    colspan="9" @endif
                                     @endif>
                                     <strong>
                                         @lang('sale.total'):

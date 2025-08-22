@@ -1,5 +1,5 @@
 <div class="row">
-	<div class="col-md-4">
+	<div class="col-md-6">
 		<div class="form-group">
 			<div class="input-group">
 				<span class="input-group-addon">
@@ -26,7 +26,10 @@
 			<small class="text-danger hide contact_due_text"><strong>@lang('account.customer_due'):</strong> <span></span></small>
 		</div>
 	</div>
-	<div class="col-md-8">
+	@include('sale_pos.partials.vehicle_selection')
+</div>
+<div class="row">
+	<div class="col-md-12">
 		<div class="form-group">
 			<div class="input-group">
 				<div class="input-group-btn">
@@ -157,7 +160,7 @@
 
 	@if(!empty($pos_settings['show_invoice_scheme']))
 		@php
-			$invoice_scheme_id = $default_invoice_schemes->id;
+			$invoice_scheme_id = !empty($default_invoice_schemes) ? $default_invoice_schemes->id : null;
 			if(!empty($default_location->invoice_scheme_id)) {
 				$invoice_scheme_id = $default_location->invoice_scheme_id;
 			}

@@ -107,39 +107,175 @@ class HomeController extends Controller
             }
         }
 
+        // Calculate forecast for next 30 days
+        $forecast_dates = [];
+        $forecast_labels = [];
+        $forecast_values = [];
+
+        // Simple moving average forecast based on last 30 days data
+        $avg_sales = array_sum($all_sell_values) / count($all_sell_values);
+
+        // Calculate trend (simple linear regression)
+        $x = range(1, count($all_sell_values));
+        $x_mean = array_sum($x) / count($x);
+        $y_mean = $avg_sales;
+
+        $numerator = 0;
+        $denominator = 0;
+
+        for ($i = 0; $i < count($all_sell_values); $i++) {
+            $numerator += ($x[$i] - $x_mean) * ($all_sell_values[$i] - $y_mean);
+            $denominator += pow(($x[$i] - $x_mean), 2);
+        }
+
+        $slope = $denominator != 0 ? $numerator / $denominator : 0;
+        $intercept = $y_mean - ($slope * $x_mean);
+
+        // Generate forecast for next 30 days
+        for ($i = 1; $i <= 30; $i++) {
+            $date = \Carbon::now()->addDays($i)->format('Y-m-d');
+            $forecast_dates[] = $date;
+            $forecast_labels[] = date('j M Y', strtotime($date)) . ' (F)';
+
+            // Calculate forecasted value using trend line
+            $forecast_value = $intercept + $slope * (count($all_sell_values) + $i);
+            // Ensure no negative values
+            $forecast_values[] = max(0, (float) $forecast_value);
+        }
+
+        // Keep historical and forecast data separate
+        $all_dates = array_merge($dates, $forecast_dates);
+        $all_labels = array_merge($labels, $forecast_labels);
+
+        // Prepare padded datasets for proper alignment
+        $padded_historical = $all_sell_values;
+        $padded_forecast = array_fill(0, count($labels), null);
+
+        // Add forecast values after the padding
+        $padded_forecast = array_merge($padded_forecast, $forecast_values);
+
         //Group sells by location
         $location_sells = [];
         foreach ($all_locations as $loc_id => $loc_name) {
-            $values = [];
+            $location_historical_values = [];
+
+            // Get historical data by location
             foreach ($dates as $date) {
                 $total_sell_on_date_location = $sells_this_fy->where('date', $date)->where('location_id', $loc_id)->sum('total_sells');
 
                 if (! empty($total_sell_on_date_location)) {
-                    $values[] = (float) $total_sell_on_date_location;
+                    $location_historical_values[] = (float) $total_sell_on_date_location;
                 } else {
-                    $values[] = 0;
+                    $location_historical_values[] = 0;
                 }
             }
+
+            // Calculate forecast for this location
+            $location_forecast_values = [];
+
+            // Simple moving average forecast based on location's historical data
+            $loc_avg_sales = array_sum($location_historical_values) / count($location_historical_values);
+
+            // Calculate trend for this location (simple linear regression)
+            $x = range(1, count($location_historical_values));
+            $x_mean = array_sum($x) / count($x);
+            $y_mean = $loc_avg_sales;
+
+            $numerator = 0;
+            $denominator = 0;
+
+            for ($i = 0; $i < count($location_historical_values); $i++) {
+                $numerator += ($x[$i] - $x_mean) * ($location_historical_values[$i] - $y_mean);
+                $denominator += pow(($x[$i] - $x_mean), 2);
+            }
+
+            $loc_slope = $denominator != 0 ? $numerator / $denominator : 0;
+            $loc_intercept = $y_mean - ($loc_slope * $x_mean);
+
+            // Generate forecast for next 30 days for this location
+            for ($i = 1; $i <= 30; $i++) {
+                // Calculate forecasted value using trend line
+                $loc_forecast_value = $loc_intercept + $loc_slope * (count($location_historical_values) + $i);
+                // Ensure no negative values
+                $location_forecast_values[] = max(0, (float) $loc_forecast_value);
+            }
+
+            // Keep historical and forecast data separate for this location
             $location_sells[$loc_id]['loc_label'] = $loc_name;
-            $location_sells[$loc_id]['values'] = $values;
+
+            // Store original values
+            $location_sells[$loc_id]['historical_values'] = $location_historical_values;
+            $location_sells[$loc_id]['forecast_values'] = $location_forecast_values;
+
+            // Create padded datasets for proper alignment
+            $location_padded_historical = $location_historical_values;
+            $location_padded_forecast = array_fill(0, count($labels), null);
+
+            // Add forecast values after the padding
+            $location_padded_forecast = array_merge($location_padded_forecast, $location_forecast_values);
+
+            // Store padded values
+            $location_sells[$loc_id]['padded_historical'] = $location_padded_historical;
+            $location_sells[$loc_id]['padded_forecast'] = $location_padded_forecast;
         }
 
         $sells_chart_1 = new CommonChart;
 
-        $sells_chart_1->labels($labels)
-                        ->options($this->__chartOptions(__(
-                            'home.total_sells',
-                            ['currency' => $currency->code]
-                            )));
+        // Set chart options with updated title to show it includes forecast
+        $chart_options = $this->__chartOptions(__(
+            'home.total_sells',
+            ['currency' => $currency->code]
+        ) . ' (' . __('home.last_30_days') . ' + ' . __('home.next_30_days_forecast') . ')');
+
+        // Add a vertical line to separate historical data from forecast
+        $chart_options['annotation'] = [
+            'annotations' => [
+                [
+                    'type' => 'line',
+                    'mode' => 'vertical',
+                    'scaleID' => 'x-axis-0',
+                    'value' => 29,
+                    'borderColor' => 'red',
+                    'borderWidth' => 2,
+                    'label' => [
+                        'enabled' => true,
+                        'content' => __('home.next_30_days_forecast'),
+                        'position' => 'top'
+                    ]
+                ]
+            ]
+        ];
+
+        // Set different colors for actual and forecast lines
+        $chart_options['elements'] = [
+            'line' => [
+                'tension' => 0.3 // Makes lines smoother
+            ]
+        ];
+
+        $sells_chart_1->labels($all_labels)
+                      ->options($chart_options);
 
         if (! empty($location_sells)) {
             foreach ($location_sells as $location_sell) {
-                $sells_chart_1->dataset($location_sell['loc_label'], 'line', $location_sell['values']);
+                // Add historical data line with padding for proper alignment
+                $sells_chart_1->dataset($location_sell['loc_label'] . ' - ' . __('home.last_30_days'), 'line', $location_sell['padded_historical'])
+                              ->options(['fill' => false]);
+
+                // Add forecast data line with padding for proper alignment
+                $sells_chart_1->dataset($location_sell['loc_label'] . ' - ' . __('home.next_30_days_forecast'), 'line', $location_sell['padded_forecast'])
+                              ->options(['fill' => false, 'borderDash' => [5, 5]]);  // Make forecast lines dashed
             }
         }
 
         if (count($all_locations) > 1) {
-            $sells_chart_1->dataset(__('report.all_locations'), 'line', $all_sell_values);
+            // Add historical data line for all locations with padding for proper alignment
+            $sells_chart_1->dataset(__('report.all_locations') . ' - ' . __('home.last_30_days'), 'line', $padded_historical)
+                          ->options(['fill' => false, 'borderWidth' => 2]);  // Make all locations line thicker
+
+            // Add forecast data line for all locations with padding for proper alignment
+            $sells_chart_1->dataset(__('report.all_locations') . ' - ' . __('home.next_30_days_forecast'), 'line', $padded_forecast)
+                          ->options(['fill' => false, 'borderWidth' => 2, 'borderDash' => [5, 5]]);  // Make forecast lines dashed and thicker
         }
 
         $labels = [];

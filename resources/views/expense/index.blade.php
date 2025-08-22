@@ -121,6 +121,7 @@
                                 <th>@lang('purchase.payment_due')
                                 <th>@lang('expense.expense_for')</th>
                                 <th>@lang('contact.contact')</th>
+                                <th>@lang('lang_v1.vehicle')</th>
                                 <th>@lang('expense.expense_note')</th>
                                 <th>@lang('lang_v1.added_by')</th>
                             </tr>

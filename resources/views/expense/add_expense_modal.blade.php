@@ -59,7 +59,13 @@
                         {!! Form::label('expense_for', __('expense.expense_for').':') !!} @show_tooltip(__('tooltip.expense_for'))
                         {!! Form::select('expense_for', $users, null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]); !!}
                     </div>
-                </div>                
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        {!! Form::label('supply_chain_vehicle_id', __('lang_v1.vehicle').' ('.__('lang_v1.optional').'):') !!}
+                        {!! Form::select('supply_chain_vehicle_id', $vehicles, $selected_vehicle_id ?? null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]); !!}
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="form-group">
                         {!! Form::label('expense_tax_id', __('product.applicable_tax') . ':' ) !!}

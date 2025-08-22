@@ -193,6 +193,9 @@ class SellPosController extends Controller
         $bl_attributes = $business_locations['attributes'];
         $business_locations = $business_locations['locations'];
 
+        // Check if default location is an oil change point
+        $is_oil_change_point = !empty($default_location) ? $default_location->is_oil_change_point : false;
+
         //set first location as default locaton
         if (empty($default_location)) {
             foreach ($business_locations as $id => $name) {
@@ -266,6 +269,7 @@ class SellPosController extends Controller
                 'edit_discount',
                 'edit_price',
                 'business_locations',
+                'is_oil_change_point',
                 'bl_attributes',
                 'business_details',
                 'taxes',
@@ -301,7 +305,7 @@ class SellPosController extends Controller
      * Display the POS screen.
      * @return \Illuminate\View\View
      */
-    
+
     public function posDisplay(){
         $business_id = request()->session()->get('user.business_id');
         $business_details = $this->businessUtil->getDetails($business_id);
@@ -607,6 +611,24 @@ class SellPosController extends Controller
 
                 // sync with zatca 
                 $this->moduleUtil->getModuleData('after_sales', ['transaction' => $transaction]);
+
+                // Save vehicle mileage data if vehicle is selected and mileage fields are not empty
+                if (!empty($input['customer_vehicle_id']) && 
+                    ($input['previous_mileage'] != '' || $input['oil_change_mileage'] != '' || $input['next_mileage'] != '')) {
+
+                    // Only save if at least one field has data
+                    if ($input['previous_mileage'] != '' || $input['oil_change_mileage'] != '' || $input['next_mileage'] != '') {
+                        \App\VehicleMileageRecord::create([
+                            'business_id' => $business_id,
+                            'customer_id' => $input['contact_id'],
+                            'vehicle_id' => $input['customer_vehicle_id'],
+                            'invoice_id' => $transaction->id,
+                            'previous_mileage' => $input['previous_mileage'] ?? null,
+                            'oil_change_mileage' => $input['oil_change_mileage'] ?? null,
+                            'next_mileage' => $input['next_mileage'] ?? null
+                        ]);
+                    }
+                }
 
                 DB::commit();
 

@@ -1867,7 +1867,7 @@ class TransactionUtil extends Util
             $output['sell_custom_field_4_value'] = $transaction['custom_field_4'];
         }
 
-        
+
 
         // location custom fields
         if (in_array('custom_field1', $location_custom_field_settings) && ! empty($location_details->custom_field1) && ! empty($custom_labels->location->custom_field_1)) {
@@ -2974,7 +2974,7 @@ class TransactionUtil extends Util
                 $query->whereIn('transactions.location_id', $permitted_locations);
             }
         }
-       
+
 
         if (! empty($filters['location_id'])) {
             $query->where('transactions.location_id', $filters['location_id']);
@@ -4037,7 +4037,7 @@ class TransactionUtil extends Util
             $sum = $tax->sub_taxes->sum('amount');
 
             $details = [];
-            
+
             foreach ($sub_taxes as $sub_tax) {
                 if ($sum != 0) {
                     $calculated_tax = ($amount / $sum) * $sub_tax->amount;
@@ -4045,7 +4045,7 @@ class TransactionUtil extends Util
                     // Handle the case where $sum is zero. For example, you might set calculated_tax to 0.
                     $calculated_tax = 0;
                 }
-            
+
                 $details[] = [
                     'id' => $sub_tax->id,
                     'name' => $sub_tax->name,
@@ -5458,7 +5458,7 @@ class TransactionUtil extends Util
         $overall_total_purchase_paid = $overall_payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount');
         $overall_total_sell_return_paid = $overall_payments->where('transaction_type', 'sell_return')->sum('amount');
         $overall_total_purchase_return_paid = $overall_payments->where('transaction_type', 'purchase_return')->sum('amount');
-        
+
         $overall_total_advance_payment = $this->__paymentQuery($contact_id, null, null, $location_id)
                                         ->select('bl.name as location_name',
                                                 't.type as transaction_type',
@@ -5690,10 +5690,10 @@ class TransactionUtil extends Util
             'user_id' => $user_id,
             'permitted_locations' => $permitted_locations
         ];
-        
+
         $modules_data = $moduleUtil->getModuleData('profitLossReportData', $module_parameters);
 
-      
+
         $data['left_side_module_data'] = [];
         $data['right_side_module_data'] = [];
         $module_total = 0;
@@ -5827,7 +5827,7 @@ class TransactionUtil extends Util
     {
         $transaction_data = $request->only(['ref_no', 'transaction_date',
             'location_id', 'final_total', 'expense_for', 'additional_notes',
-            'expense_category_id', 'tax_id', 'contact_id', ]);
+            'expense_category_id', 'tax_id', 'contact_id', 'supply_chain_vehicle_id', ]);
 
         $transaction_data['business_id'] = $business_id;
         $transaction_data['created_by'] = $user_id;
@@ -5901,6 +5901,9 @@ class TransactionUtil extends Util
         }
         if ($request->has('contact_id')) {
             $transaction_data['contact_id'] = $request->input('contact_id');
+        }
+        if ($request->has('supply_chain_vehicle_id')) {
+            $transaction_data['supply_chain_vehicle_id'] = $request->input('supply_chain_vehicle_id');
         }
         if ($request->has('transaction_date')) {
             $transaction_data['transaction_date'] = $format_data ? $this->uf_date($request->input('transaction_date'), true) : $request->input('transaction_date');

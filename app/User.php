@@ -324,4 +324,179 @@ class User extends Authenticatable
 
         return $img_src;
     }
+
+    /**
+     * Get the route assignments for this user (seller)
+     */
+    public function routeAssignments()
+    {
+        return $this->hasMany(RouteSellerAssignment::class, 'user_id');
+    }
+
+    /**
+     * Get the assigned routes for this user (seller)
+     */
+    public function assignedRoutes()
+    {
+        return $this->belongsToMany(CustomerRoute::class, 'route_seller_assignments', 'user_id', 'customer_route_id')
+                    ->wherePivot('is_active', 1);
+    }
+
+    /**
+     * Get the visit logs for this user (seller)
+     */
+    public function visitLogs()
+    {
+        return $this->hasMany(RouteVisitLog::class, 'user_id');
+    }
+
+    /**
+     * Get the violation logs for this user (seller)
+     */
+    public function violationLogs()
+    {
+        return $this->hasMany(GeofenceViolationLog::class, 'user_id');
+    }
+
+    /**
+     * Check if user is inside any of their assigned routes
+     * 
+     * @param float $latitude
+     * @param float $longitude
+     * @param int $business_id
+     * @return bool
+     */
+    public function isInsideAssignedRoutes($latitude, $longitude, $business_id)
+    {
+        // Get all assigned routes for this user
+        $assigned_routes = $this->assignedRoutes()
+                                ->where('business_id', $business_id)
+                                ->get();
+
+        // If no routes assigned, return false
+        if ($assigned_routes->isEmpty()) {
+            return false;
+        }
+
+        // Check if user is inside any of the assigned routes
+        foreach ($assigned_routes as $route) {
+            // Get all outlets in this route
+            $outlets = $route->customers()
+                            ->whereNotNull('latitude')
+                            ->whereNotNull('longitude')
+                            ->get();
+
+            // Check if user is inside any outlet's geofence
+            foreach ($outlets as $outlet) {
+                if ($this->isInsideGeofence($latitude, $longitude, $outlet)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user is inside a specific outlet's geofence
+     * 
+     * @param float $latitude
+     * @param float $longitude
+     * @param \App\Contact $outlet
+     * @return bool
+     */
+    public function isInsideGeofence($latitude, $longitude, $outlet)
+    {
+        // If outlet has no geofence, return false
+        if (empty($outlet->geofence_type)) {
+            return false;
+        }
+
+        // Check based on geofence type
+        if ($outlet->geofence_type == 'radius') {
+            // Calculate distance between user and outlet
+            $distance = $this->calculateDistance(
+                $latitude, 
+                $longitude, 
+                $outlet->latitude, 
+                $outlet->longitude
+            );
+
+            // Check if distance is within radius
+            return $distance <= $outlet->geofence_radius;
+        } elseif ($outlet->geofence_type == 'polygon') {
+            // Check if point is inside polygon
+            return $this->isPointInPolygon(
+                $latitude, 
+                $longitude, 
+                $outlet->geofence_polygon
+            );
+        }
+
+        return false;
+    }
+
+    /**
+     * Calculate distance between two points in meters
+     * 
+     * @param float $lat1
+     * @param float $lon1
+     * @param float $lat2
+     * @param float $lon2
+     * @return float Distance in meters
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        // Earth radius in meters
+        $earth_radius = 6371000;
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat/2) * sin($dLat/2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon/2) * sin($dLon/2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+        $distance = $earth_radius * $c;
+
+        return $distance;
+    }
+
+    /**
+     * Check if a point is inside a polygon
+     * 
+     * @param float $lat
+     * @param float $lon
+     * @param array $polygon Array of [lat, lng] points
+     * @return bool
+     */
+    private function isPointInPolygon($lat, $lon, $polygon)
+    {
+        if (empty($polygon)) {
+            return false;
+        }
+
+        $vertices_count = count($polygon);
+        if ($vertices_count < 3) {
+            return false;
+        }
+
+        $inside = false;
+        for ($i = 0, $j = $vertices_count - 1; $i < $vertices_count; $j = $i++) {
+            $xi = $polygon[$i][0];
+            $yi = $polygon[$i][1];
+            $xj = $polygon[$j][0];
+            $yj = $polygon[$j][1];
+
+            $intersect = (($yi > $lat) != ($yj > $lat)) &&
+                ($lon < ($xj - $xi) * ($lat - $yi) / ($yj - $yi) + $xi);
+
+            if ($intersect) {
+                $inside = !$inside;
+            }
+        }
+
+        return $inside;
+    }
 }

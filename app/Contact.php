@@ -26,6 +26,10 @@ class Contact extends Authenticatable
      */
     protected $casts = [
         'shipping_custom_field_details' => 'array',
+        'geofence_polygon' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'geofence_radius' => 'float',
     ];
 
     /**
@@ -407,5 +411,21 @@ class Contact extends Authenticatable
     public function customerRoute()
     {
         return $this->belongsTo(\App\CustomerRoute::class);
+    }
+
+    /**
+     * Get the vehicles associated with the contact.
+     */
+    public function vehicles()
+    {
+        return $this->hasMany(\App\CustomerVehicle::class);
+    }
+
+    /**
+     * Get the followups associated with the contact.
+     */
+    public function routeFollowups()
+    {
+        return $this->hasMany(\App\RouteFollowup::class);
     }
 }

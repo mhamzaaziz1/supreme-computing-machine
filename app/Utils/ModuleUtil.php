@@ -55,6 +55,15 @@ class ModuleUtil extends Util
      */
     public function getModuleData($function_name, $arguments = null, $get_data_from_modules = [])
     {
+        // Check if a callback has been registered for this function name
+        if (isset($this->$function_name) && is_callable($this->$function_name)) {
+            if (! empty($arguments)) {
+                return call_user_func($this->$function_name, $arguments);
+            } else {
+                return call_user_func($this->$function_name);
+            }
+        }
+
         $modules = Module::toCollection()->toArray();
 
         $installed_modules = [];
@@ -546,5 +555,17 @@ class ModuleUtil extends Util
         }
 
         return $module_data;
+    }
+
+    /**
+     * Register a callback function for a dashboard widget
+     *
+     * @param string $function_name
+     * @param callable $callback
+     * @return void
+     */
+    public function addDashboardWidget($function_name, $callback)
+    {
+        $this->$function_name = $callback;
     }
 }

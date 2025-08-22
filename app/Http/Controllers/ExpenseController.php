@@ -63,6 +63,7 @@ class ExpenseController extends Controller
                         ->leftJoin('users AS U', 'transactions.expense_for', '=', 'U.id')
                         ->leftJoin('users AS usr', 'transactions.created_by', '=', 'usr.id')
                         ->leftJoin('contacts AS c', 'transactions.contact_id', '=', 'c.id')
+                        ->leftJoin('supply_chain_vehicles AS scv', 'transactions.supply_chain_vehicle_id', '=', 'scv.id')
                         ->leftJoin(
                             'transaction_payments AS TP',
                             'transactions.id',
@@ -96,6 +97,8 @@ class ExpenseController extends Controller
                             'c.name as contact_name',
                             'c.contact_id as contact_id', 
                             'c.supplier_business_name as supplier_business_name', 
+                            'scv.license_plate as vehicle_name',
+                            'transactions.supply_chain_vehicle_id',
                             'transactions.type'
                         )
                         ->with(['recurring_parent'])
@@ -275,6 +278,22 @@ class ExpenseController extends Controller
 
                     return $ref_no;
                 })
+                ->editColumn('vehicle_name', function ($row) {
+                    if (!empty($row->vehicle_name)) {
+                        return $row->vehicle_name;
+                    } else if (!empty($row->supply_chain_vehicle_id)) {
+                        // If vehicle_id exists but license_plate is empty, try to get vehicle details
+                        $vehicle = \App\SupplyChainVehicle::find($row->supply_chain_vehicle_id);
+                        if ($vehicle) {
+                            $display_name = $vehicle->make . ' ' . $vehicle->model;
+                            if (!empty($vehicle->year)) {
+                                $display_name .= ' (' . $vehicle->year . ')';
+                            }
+                            return $display_name;
+                        }
+                    }
+                    return '';
+                })
                 ->rawColumns(['final_total', 'action', 'payment_status', 'contact_name', 'payment_due', 'ref_no', 'recur_details'])
                 ->make(true);
         }
@@ -337,6 +356,12 @@ class ExpenseController extends Controller
 
         $contacts = Contact::contactDropdown($business_id, false, false);
 
+        // Get vehicles for dropdown
+        $vehicles = \App\SupplyChainVehicle::forDropdown($business_id);
+
+        // Get pre-selected vehicle ID if provided
+        $selected_vehicle_id = request()->input('supply_chain_vehicle_id');
+
         //Accounts
         $accounts = [];
         if ($this->moduleUtil->isModuleEnabled('account')) {
@@ -345,11 +370,11 @@ class ExpenseController extends Controller
 
         if (request()->ajax()) {
             return view('expense.add_expense_modal')
-                ->with(compact('expense_categories', 'business_locations', 'users', 'taxes', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'contacts'));
+                ->with(compact('expense_categories', 'business_locations', 'users', 'taxes', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'contacts', 'vehicles', 'selected_vehicle_id'));
         }
 
         return view('expense.create')
-            ->with(compact('expense_categories', 'business_locations', 'users', 'taxes', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'contacts'));
+            ->with(compact('expense_categories', 'business_locations', 'users', 'taxes', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'contacts', 'vehicles', 'selected_vehicle_id'));
     }
 
     /**
@@ -459,6 +484,9 @@ class ExpenseController extends Controller
 
         $contacts = Contact::contactDropdown($business_id, false, false);
 
+        // Get vehicles for dropdown
+        $vehicles = \App\SupplyChainVehicle::forDropdown($business_id);
+
         //Sub-category
         $sub_categories = [];
 
@@ -470,7 +498,7 @@ class ExpenseController extends Controller
         }
 
         return view('expense.edit')
-            ->with(compact('expense', 'expense_categories', 'business_locations', 'users', 'taxes', 'contacts', 'sub_categories'));
+            ->with(compact('expense', 'expense_categories', 'business_locations', 'users', 'taxes', 'contacts', 'sub_categories', 'vehicles'));
     }
 
     /**
@@ -574,7 +602,7 @@ class ExpenseController extends Controller
         if (!auth()->user()->can('expense.add')) {
             abort(403, 'Unauthorized action.');
         }
-        
+
         $business_id = request()->session()->get('user.business_id');
 
         $payment_types = $this->transactionUtil->payment_types(null, false, $business_id);

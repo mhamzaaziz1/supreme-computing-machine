@@ -10,14 +10,18 @@
       $url = $store_action;
       $type = 'lead';
       $customer_groups = [];
+      $customer_routes = [];
     } else {
       $url = action([\App\Http\Controllers\ContactController::class, 'store']);
       $type = isset($selected_type) ? $selected_type : '';
       $sources = [];
       $life_stages = [];
+      if(!isset($customer_routes)) {
+        $customer_routes = [];
+      }
     }
   @endphp
-    {!! Form::open(['url' => $url, 'method' => 'post', 'id' => $form_id ]) !!}
+    {!! Form::open(['url' => $url, 'method' => 'post', 'id' => $form_id, 'files' => true ]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -138,6 +142,30 @@
 
             <div class="col-md-3">
                 <div class="form-group">
+                    {!! Form::label('profile_picture', __('lang_v1.profile_picture') . ':') !!}
+                    <div class="input-group">
+                        <span class="input-group-addon">
+                            <i class="fa fa-image"></i>
+                        </span>
+                        {!! Form::file('profile_picture', ['class' => 'form-control', 'accept' => 'image/*']); !!}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 business">
+                <div class="form-group">
+                    {!! Form::label('business_picture', __('lang_v1.business_picture') . ':') !!}
+                    <div class="input-group">
+                        <span class="input-group-addon">
+                            <i class="fa fa-building"></i>
+                        </span>
+                        {!! Form::file('business_picture', ['class' => 'form-control', 'accept' => 'image/*']); !!}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group">
                     {!! Form::label('alternate_number', __('contact.alternate_contact_number') . ':') !!}
                     <div class="input-group">
                         <span class="input-group-addon">
@@ -245,7 +273,17 @@
 
             <div id="more_div" class="hide">
                 {!! Form::hidden('position', null, ['id' => 'position']); !!}
+                {!! Form::hidden('latitude', null, ['id' => 'latitude']); !!}
+                {!! Form::hidden('longitude', null, ['id' => 'longitude']); !!}
                 <div class="col-md-12"><hr/></div>
+
+                <div class="col-md-12">
+                    <div class="form-group">
+                        {!! Form::label('map_location', __('lang_v1.map_location') . ':') !!}
+                        <div id="location_map" style="height: 300px;"></div>
+                        <p class="help-block">@lang('lang_v1.click_on_map_to_set_location')</p>
+                    </div>
+                </div>
 
                 <div class="col-md-4">
                     <div class="form-group">
@@ -606,3 +644,61 @@
 
   </div><!-- /.modal-content -->
 </div><!-- /.modal-dialog -->
+
+@php
+    $api_key = config('services.google_maps.api_key');
+@endphp
+
+@if(!empty($api_key))
+<script src="https://maps.googleapis.com/maps/api/js?key={{$api_key}}&libraries=places" defer></script>
+<script type="text/javascript">
+  $(document).ready(function(){
+    // Initialize the map when the "more info" section is shown
+    $('.more_btn').click(function() {
+      setTimeout(function() {
+        initializeLocationMap();
+      }, 500);
+    });
+
+    function initializeLocationMap() {
+      if (typeof google === 'undefined') {
+        return;
+      }
+
+      var map = new google.maps.Map(document.getElementById('location_map'), {
+        zoom: 13,
+        center: {lat: 0, lng: 0}
+      });
+
+      // Try to get current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          var initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+          map.setCenter(initialLocation);
+        });
+      }
+
+      var marker = null;
+
+      // Add click event to map
+      google.maps.event.addListener(map, 'click', function(event) {
+        // Remove previous marker if exists
+        if (marker) {
+          marker.setMap(null);
+        }
+
+        // Add marker at clicked location
+        marker = new google.maps.Marker({
+          position: event.latLng,
+          map: map
+        });
+
+        // Update hidden fields with coordinates
+        $('#latitude').val(event.latLng.lat());
+        $('#longitude').val(event.latLng.lng());
+        $('#position').val(event.latLng.lat() + ',' + event.latLng.lng());
+      });
+    }
+  });
+</script>
+@endif

@@ -59,7 +59,7 @@ return [
     'google_recaptcha_key' => env('GOOGLE_RECAPTCHA_KEY'),
     'google_recaptcha_secret' => env('GOOGLE_RECAPTCHA_SECRET'),
     'enable_recaptcha' => env('ENABLE_RECAPTCHA', false),
-    
+
     'mpdf_temp_path' => storage_path('app/pdf'), //Temporary path used by mpdf
 
     'document_upload_mimes_types' => ['application/pdf' => '.pdf',
@@ -86,4 +86,17 @@ return [
     'show_payment_type_on_contact_pay' => false,
     'enable_gst_report_india' => env('ENABLE_GST_REPORT_INDIA', false),
     'enable_secondary_unit' => false, //Experimental feature, may depreciate
+
+    /*
+    |--------------------------------------------------------------------------
+    | Geofencing Constants
+    |--------------------------------------------------------------------------
+    */
+    'max_gps_accuracy' => 100, // Maximum allowed GPS accuracy in meters
+    'default_geofence_radius' => 100, // Default radius for new geofences in meters
+    'min_visit_duration' => 5, // Minimum visit duration in minutes
+    'enable_mock_location_detection' => true, // Whether to detect and block mock locations
+    'enable_geofence_enforcement' => true, // Whether to enforce geofencing restrictions
+    'enable_route_sequence_enforcement' => false, // Whether to enforce route sequence
+    'enable_visit_proof' => false, // Whether to require proof of visit (photo/OTP)
 ];

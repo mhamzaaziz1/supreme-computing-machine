@@ -407,5 +407,22 @@ class Transaction extends Model
         return $sales_orders;
     }
 
-   
+    /**
+     * Get the supply chain vehicle associated with the transaction.
+     */
+    public function supplyChainVehicle()
+    {
+        return $this->belongsTo(\App\SupplyChainVehicle::class, 'supply_chain_vehicle_id');
+    }
+
+    /**
+     * Scope a query to only include vehicle expenses.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeVehicleExpenses($query)
+    {
+        return $query->where('type', 'expense')->whereNotNull('supply_chain_vehicle_id');
+    }
 }

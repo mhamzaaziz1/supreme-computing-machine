@@ -62,7 +62,7 @@ class AppServiceProvider extends ServiceProvider
             $adapter = new DropboxAdapter(new DropboxClient(
                 $config['authorization_token']
             ));
- 
+
             return new FilesystemAdapter(
                 new Filesystem($adapter, $config),
                 $adapter,
@@ -138,12 +138,12 @@ class AppServiceProvider extends ServiceProvider
 
         //Blade directive to format number into required format.
         Blade::directive('num_format', function ($expression) {
-            return "number_format($expression, session('business.currency_precision', 2), session('currency')['decimal_separator'], session('currency')['thousand_separator'])";
+            return "number_format(is_numeric($expression) ? $expression : 0, session('business.currency_precision', 2), session('currency')['decimal_separator'], session('currency')['thousand_separator'])";
         });
 
         //Blade directive to format quantity values into required format.
         Blade::directive('format_quantity', function ($expression) {
-            return "number_format($expression, session('business.quantity_precision', 2), session('currency')['decimal_separator'], session('currency')['thousand_separator'])";
+            return "number_format(is_numeric($expression) ? $expression : 0, session('business.quantity_precision', 2), session('currency')['decimal_separator'], session('currency')['thousand_separator'])";
         });
 
         //Blade directive to return appropiate class according to transaction status

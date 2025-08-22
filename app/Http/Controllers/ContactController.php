@@ -88,12 +88,17 @@ class ContactController extends Controller
         $users = User::forDropdown($business_id);
 
         $customer_groups = [];
+        $customer_routes = [];
         if ($type == 'customer') {
             $customer_groups = CustomerGroup::forDropdown($business_id);
+            $customer_routes = CustomerRoute::where('business_id', $business_id)
+                ->where('is_active', 1)
+                ->orderBy('name')
+                ->pluck('name', 'id');
         }
 
         return view('contact.index')
-            ->with(compact('type', 'reward_enabled', 'customer_groups', 'users'));
+            ->with(compact('type', 'reward_enabled', 'customer_groups', 'users', 'customer_routes'));
     }
 
     /**
@@ -358,6 +363,10 @@ class ContactController extends Controller
             $query->where('contacts.customer_group_id', request()->input('customer_group_id'));
         }
 
+        if (! empty(request()->input('customer_route_id'))) {
+            $query->where('contacts.customer_route_id', request()->input('customer_route_id'));
+        }
+
         if (! empty(request()->input('contact_status'))) {
             $query->where('contacts.contact_status', request()->input('contact_status'));
         }
@@ -593,7 +602,23 @@ class ContactController extends Controller
             }
 
             $input = $request->only(['type', 'supplier_business_name',
-                'prefix', 'first_name', 'middle_name', 'last_name', 'tax_number', 'pay_term_number', 'pay_term_type', 'mobile', 'landline', 'alternate_number', 'city', 'state', 'country', 'address_line_1', 'address_line_2', 'customer_group_id', 'customer_route_id', 'zip_code', 'contact_id', 'custom_field1', 'custom_field2', 'custom_field3', 'custom_field4', 'custom_field5', 'custom_field6', 'custom_field7', 'custom_field8', 'custom_field9', 'custom_field10', 'email', 'shipping_address', 'position', 'dob', 'shipping_custom_field_details', 'assigned_to_users', 'land_mark', 'street_name', 'building_number', 'additional_number']);
+                'prefix', 'first_name', 'middle_name', 'last_name', 'tax_number', 'pay_term_number', 'pay_term_type', 'mobile', 'landline', 'alternate_number', 'city', 'state', 'country', 'address_line_1', 'address_line_2', 'customer_group_id', 'customer_route_id', 'zip_code', 'contact_id', 'custom_field1', 'custom_field2', 'custom_field3', 'custom_field4', 'custom_field5', 'custom_field6', 'custom_field7', 'custom_field8', 'custom_field9', 'custom_field10', 'email', 'shipping_address', 'position', 'latitude', 'longitude', 'dob', 'shipping_custom_field_details', 'assigned_to_users', 'land_mark', 'street_name', 'building_number', 'additional_number']);
+
+            // Handle profile picture upload
+            if ($request->hasFile('profile_picture')) {
+                $file = $request->file('profile_picture');
+                $name = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/contact_pictures'), $name);
+                $input['profile_picture'] = 'uploads/contact_pictures/' . $name;
+            }
+
+            // Handle business picture upload
+            if ($request->hasFile('business_picture')) {
+                $file = $request->file('business_picture');
+                $name = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/business_pictures'), $name);
+                $input['business_picture'] = 'uploads/business_pictures/' . $name;
+            }
 
             $name_array = [];
 
@@ -783,8 +808,24 @@ class ContactController extends Controller
 
         if (request()->ajax()) {
             try {
-                $input = $request->only(['type', 'supplier_business_name', 'prefix', 'first_name', 'middle_name', 'last_name', 'tax_number', 'pay_term_number', 'pay_term_type', 'mobile', 'address_line_1', 'address_line_2', 'zip_code', 'dob', 'alternate_number', 'city', 'state', 'country', 'landline', 'customer_group_id', 'customer_route_id', 'contact_id', 'custom_field1', 'custom_field2', 'custom_field3', 'custom_field4', 'custom_field5', 'custom_field6', 'custom_field7', 'custom_field8', 'custom_field9', 'custom_field10', 'email', 'shipping_address', 'position', 'shipping_custom_field_details', 'export_custom_field_1', 'export_custom_field_2', 'export_custom_field_3', 'export_custom_field_4', 'export_custom_field_5',
+                $input = $request->only(['type', 'supplier_business_name', 'prefix', 'first_name', 'middle_name', 'last_name', 'tax_number', 'pay_term_number', 'pay_term_type', 'mobile', 'address_line_1', 'address_line_2', 'zip_code', 'dob', 'alternate_number', 'city', 'state', 'country', 'landline', 'customer_group_id', 'customer_route_id', 'contact_id', 'custom_field1', 'custom_field2', 'custom_field3', 'custom_field4', 'custom_field5', 'custom_field6', 'custom_field7', 'custom_field8', 'custom_field9', 'custom_field10', 'email', 'shipping_address', 'position', 'latitude', 'longitude', 'shipping_custom_field_details', 'export_custom_field_1', 'export_custom_field_2', 'export_custom_field_3', 'export_custom_field_4', 'export_custom_field_5',
                     'export_custom_field_6', 'assigned_to_users', 'land_mark', 'street_name', 'building_number', 'additional_number']);
+
+                // Handle profile picture upload
+                if ($request->hasFile('profile_picture')) {
+                    $file = $request->file('profile_picture');
+                    $name = time() . '_' . $file->getClientOriginalName();
+                    $file->move(public_path('uploads/contact_pictures'), $name);
+                    $input['profile_picture'] = 'uploads/contact_pictures/' . $name;
+                }
+
+                // Handle business picture upload
+                if ($request->hasFile('business_picture')) {
+                    $file = $request->file('business_picture');
+                    $name = time() . '_' . $file->getClientOriginalName();
+                    $file->move(public_path('uploads/business_pictures'), $name);
+                    $input['business_picture'] = 'uploads/business_pictures/' . $name;
+                }
 
                 $name_array = [];
 
@@ -1592,7 +1633,10 @@ class ContactController extends Controller
 
         $query = Contact::where('business_id', $business_id)
                         ->active()
-                        ->whereNotNull('position');
+                        ->where(function($q) {
+                            $q->whereNotNull('latitude')
+                              ->whereNotNull('longitude');
+                        });
 
         if (! empty(request()->input('contacts'))) {
             $query->whereIn('id', request()->input('contacts'));

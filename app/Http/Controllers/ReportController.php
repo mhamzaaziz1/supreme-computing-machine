@@ -9,10 +9,12 @@ use App\Category;
 use App\Charts\CommonChart;
 use App\Contact;
 use App\CustomerGroup;
+use App\CustomerRoute;
 use App\ExpenseCategory;
 use App\Product;
 use App\PurchaseLine;
 use App\Restaurant\ResTable;
+use App\RouteFollowup;
 use App\SellingPriceGroup;
 use App\TaxRate;
 use App\Transaction;
@@ -44,17 +46,20 @@ class ReportController extends Controller
 
     protected $businessUtil;
 
+    protected $geofenceUtil;
+
     /**
      * Create a new controller instance.
      *
      * @return void
      */
-    public function __construct(TransactionUtil $transactionUtil, ProductUtil $productUtil, ModuleUtil $moduleUtil, BusinessUtil $businessUtil)
+    public function __construct(TransactionUtil $transactionUtil, ProductUtil $productUtil, ModuleUtil $moduleUtil, BusinessUtil $businessUtil, \App\Utils\GeofenceUtil $geofenceUtil)
     {
         $this->transactionUtil = $transactionUtil;
         $this->productUtil = $productUtil;
         $this->moduleUtil = $moduleUtil;
         $this->businessUtil = $businessUtil;
+        $this->geofenceUtil = $geofenceUtil;
     }
 
     public function getStockBySellingPrice(Request $request)
@@ -93,21 +98,17 @@ class ReportController extends Controller
 
         //Return the details in ajax call
         if ($request->ajax()) {
-            $start_date = $request->get('start_date');
-            $end_date = $request->get('end_date');
-            $location_id = $request->get('location_id');
-
             $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
 
-            $location_id = ! empty(request()->input('location_id')) ? request()->input('location_id') : null;
-            $start_date = ! empty(request()->input('start_date')) ? request()->input('start_date') : $fy['start'];
-            $end_date = ! empty(request()->input('end_date')) ? request()->input('end_date') : $fy['end'];
-    
+            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
+            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
+            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+
             $user_id = request()->input('user_id') ?? null;
 
             $permitted_locations = auth()->user()->permitted_locations();
             $data = $this->transactionUtil->getProfitLossDetails($business_id, $location_id, $start_date, $end_date, $user_id, $permitted_locations);
-    
+
             // $data['closing_stock'] = $data['closing_stock'] - $data['total_sell_return'];
 
             return view('report.partials.profit_loss_details', compact('data'))->render();
@@ -2458,7 +2459,7 @@ class ReportController extends Controller
                 ->leftjoin('contacts as c', 't.contact_id', '=', 'c.id')
                 ->leftjoin('customer_groups AS CG', 'c.customer_group_id', '=', 'CG.id')
 
-            
+
             //     DB::raw("IF(transaction_payments.transaction_id IS NULL, 
             //     (SELECT c.name FROM transactions as ts
             //     JOIN contacts as c ON ts.contact_id=c.id 
@@ -2473,7 +2474,7 @@ class ReportController extends Controller
             //     )
             // ) as customer")
             // remove above line from select and below join becouse customer search not work
-            
+
                 ->leftJoin(DB::raw("(
                     SELECT 
                         tp.id as payment_id, 
@@ -3713,12 +3714,12 @@ class ReportController extends Controller
             $subject_type = request()->subject_type;
             if (! empty($subject_type)) {
                 if ($subject_type == 'contact') {
-                    $activities->where('subject_type', \App\Contact::class);
+                    $activities->where('subject_type', Contact::class);
                 } elseif ($subject_type == 'user') {
-                    $activities->where('subject_type', \App\User::class);
+                    $activities->where('subject_type', User::class);
                 } elseif (in_array($subject_type, ['sell', 'purchase',
                     'sales_order', 'purchase_order', 'sell_return', 'purchase_return', 'sell_transfer', 'expense', 'purchase_order', ])) {
-                    $activities->where('subject_type', \App\Transaction::class);
+                    $activities->where('subject_type', Transaction::class);
                     $activities->whereHasMorph('subject', Transaction::class, function ($q) use ($subject_type) {
                         $q->where('type', $subject_type);
                     });
@@ -3736,13 +3737,13 @@ class ReportController extends Controller
                             ->editColumn('created_at', '{{@format_datetime($created_at)}}')
                             ->addColumn('subject_type', function ($row) use ($transaction_types) {
                                 $subject_type = '';
-                                if ($row->subject_type == \App\Contact::class) {
+                                if ($row->subject_type == Contact::class) {
                                     $subject_type = __('contact.contact');
-                                } elseif ($row->subject_type == \App\User::class) {
+                                } elseif ($row->subject_type == User::class) {
                                     $subject_type = __('report.user');
-                                } elseif ($row->subject_type == \App\Transaction::class && ! empty($row->subject->type)) {
+                                } elseif ($row->subject_type == Transaction::class && ! empty($row->subject->type)) {
                                     $subject_type = isset($transaction_types[$row->subject->type]) ? $transaction_types[$row->subject->type] : '';
-                                } elseif (($row->subject_type == \App\TransactionPayment::class)) {
+                                } elseif (($row->subject_type == TransactionPayment::class)) {
                                     $subject_type = __('lang_v1.payment');
                                 }
 
@@ -4092,5 +4093,4014 @@ class ReportController extends Controller
         $suppliers = Contact::suppliersDropdown($business_id);
 
         return view('report.gst_purchase_report')->with(compact('suppliers', 'taxes'));
+    }
+
+    /**
+     * Display route coverage report
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getRouteCoverageReport(Request $request)
+    {
+        if (!auth()->user()->can('customer.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        // Get all routes
+        $routes = CustomerRoute::forDropdown($business_id, false);
+
+        $report_data = null;
+
+        if ($request->ajax() && !empty($request->input('route_id')) && !empty($request->input('date'))) {
+            $route_id = $request->input('route_id');
+            $date = $request->input('date');
+
+            // Get route coverage report
+            $report_data = $this->geofenceUtil->getRouteCoverageReport($business_id, $route_id, null, $date);
+
+            return view('report.partials.route_coverage_details')->with(compact('report_data'));
+        }
+
+        return view('report.route_coverage_report')->with(compact('routes', 'report_data'));
+    }
+    /**
+     * Display route followup report
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getRouteFollowupReport(Request $request)
+    {
+        if (!auth()->user()->can('customer.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        // Get all routes
+        $routes = CustomerRoute::forDropdown($business_id, false, false);
+
+        // Set default dates if not provided
+        $start_date = $request->input('start_date', \Carbon\Carbon::now()->startOfMonth()->format('m/d/Y'));
+        $end_date = $request->input('end_date', \Carbon\Carbon::now()->endOfMonth()->format('m/d/Y'));
+        $route_ids = $request->input('route_ids', []);
+
+        $followed_customers = [];
+        $not_followed_customers = [];
+        $stats = [];
+
+        if ($request->ajax() || (!empty($start_date) && !empty($end_date))) {
+            try {
+                $start_date = $this->transactionUtil->uf_date($start_date);
+                $end_date = $this->transactionUtil->uf_date($end_date);
+            } catch (\Exception $e) {
+                $start_date = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+                $end_date = \Carbon\Carbon::now()->endOfMonth()->format('Y-m-d');
+            }
+
+            // Get customers who have been followed up
+            $query = RouteFollowup::where('route_followups.business_id', $business_id)
+                ->whereBetween('route_followups.followup_date', [$start_date, $end_date])
+                ->join('contacts', 'route_followups.contact_id', '=', 'contacts.id')
+                ->join('customer_routes', 'route_followups.customer_route_id', '=', 'customer_routes.id')
+                ->select(
+                    'contacts.id as contact_id',
+                    'contacts.name as contact_name',
+                    'contacts.supplier_business_name',
+                    'contacts.mobile',
+                    'contacts.address_line_1',
+                    'contacts.address_line_2',
+                    'contacts.city',
+                    'contacts.state',
+                    'contacts.country',
+                    'customer_routes.id as route_id',
+                    'customer_routes.name as route_name',
+                    'route_followups.notes',
+                    'route_followups.followup_date'
+                );
+
+            if (!empty($route_ids)) {
+                $query->whereIn('route_followups.customer_route_id', $route_ids);
+            }
+
+            $followed_customers = $query->get();
+
+            // Get customers who have not been followed up
+            $not_followed_query = Contact::where('contacts.business_id', $business_id)
+                ->where('contacts.type', 'customer')
+                ->where('contacts.customer_route_id', '!=', null)
+                ->leftJoin('route_followups', function ($join) use ($start_date, $end_date) {
+                    $join->on('contacts.id', '=', 'route_followups.contact_id')
+                        ->whereBetween('route_followups.followup_date', [$start_date, $end_date]);
+                })
+                ->whereNull('route_followups.id')
+                ->join('customer_routes', 'contacts.customer_route_id', '=', 'customer_routes.id')
+                ->select(
+                    'contacts.id as contact_id',
+                    'contacts.name as contact_name',
+                    'contacts.supplier_business_name',
+                    'contacts.mobile',
+                    'contacts.address_line_1',
+                    'contacts.address_line_2',
+                    'contacts.city',
+                    'contacts.state',
+                    'contacts.country',
+                    'customer_routes.id as route_id',
+                    'customer_routes.name as route_name'
+                );
+
+            if (!empty($route_ids)) {
+                $not_followed_query->whereIn('contacts.customer_route_id', $route_ids);
+            }
+
+            $not_followed_customers = $not_followed_query->get();
+
+            // Calculate statistics by route
+            $route_stats = [];
+
+            // If specific routes are selected, only calculate stats for those routes
+            $route_query = CustomerRoute::where('business_id', $business_id);
+            if (!empty($route_ids)) {
+                $route_query->whereIn('id', $route_ids);
+            }
+            $all_routes = $route_query->get();
+
+            foreach ($all_routes as $route) {
+                // Count total assigned customers for this route
+                $total_assigned = Contact::where('business_id', $business_id)
+                    ->where('type', 'customer')
+                    ->where('customer_route_id', $route->id)
+                    ->count();
+
+                // Count followed customers for this route
+                $followed = $followed_customers->where('route_id', $route->id)->count();
+
+                // Calculate not followed
+                $not_followed = $total_assigned - $followed;
+
+                // Calculate coverage percentage
+                $coverage_percentage = $total_assigned > 0 ? round(($followed / $total_assigned) * 100, 2) : 0;
+
+                $route_stats[$route->id] = [
+                    'route_name' => $route->name,
+                    'total_assigned' => $total_assigned,
+                    'followed' => $followed,
+                    'not_followed' => $not_followed,
+                    'coverage_percentage' => $coverage_percentage
+                ];
+            }
+
+            // Calculate overall statistics
+            $total_assigned = array_sum(array_column($route_stats, 'total_assigned'));
+            $total_followed = array_sum(array_column($route_stats, 'followed'));
+            $total_not_followed = array_sum(array_column($route_stats, 'not_followed'));
+            $overall_coverage = $total_assigned > 0 ? round(($total_followed / $total_assigned) * 100, 2) : 0;
+
+            $stats = [
+                'total_assigned' => $total_assigned,
+                'followed' => $total_followed,
+                'not_followed' => $total_not_followed,
+                'coverage_percentage' => $overall_coverage,
+                'route_stats' => $route_stats
+            ];
+
+            if ($request->ajax()) {
+                return view('report.partials.route_followup_details')
+                    ->with(compact('followed_customers', 'not_followed_customers', 'stats', 'start_date', 'end_date'));
+            }
+        }
+
+        // If not AJAX but dates are provided, render the full page with data
+        if (!empty($start_date) && !empty($end_date)) {
+            return view('report.route_followup_report')
+                ->with(compact('routes', 'followed_customers', 'not_followed_customers', 'stats'));
+        }
+
+        // Default view with just the form
+        return view('report.route_followup_report')
+            ->with(compact('routes', 'start_date', 'end_date'));
+    }
+    /**
+     * Shows customer advance analytics report
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getCustomerAdvanceAnalytics(Request $request)
+    {
+        if (! auth()->user()->can('profit_loss_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        //Return the details in ajax call
+        if ($request->ajax()) {
+            $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
+
+            $location_id = ! empty($request->input('location_id')) ? $request->input('location_id') : null;
+            $start_date = ! empty($request->input('start_date')) ? $request->input('start_date') : $fy['start'];
+            $end_date = ! empty($request->input('end_date')) ? $request->input('end_date') : $fy['end'];
+
+            // If no customers are selected, consider all customers
+            $customer_ids = $request->input('customer_ids');
+            if ($customer_ids === null || $customer_ids === '' || (is_array($customer_ids) && count($customer_ids) === 0)) {
+                $customer_ids = [];
+            }
+
+            $permitted_locations = auth()->user()->permitted_locations();
+
+            // Base query for transactions
+            $base_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $base_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $base_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $base_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $base_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Sales Trend Analytics - clone the base query to avoid modifying it
+            $sales_trends_query = clone $base_query;
+            $sales_trends = $sales_trends_query->select(
+                DB::raw('DATE(transaction_date) as date'),
+                DB::raw('SUM(final_total) as total_sales')
+            )
+            ->groupBy(DB::raw('DATE(transaction_date)'))
+            ->orderBy(DB::raw('DATE(transaction_date)'))
+            ->get();
+
+            // Calculate moving average for sales trends (7-day moving average)
+            $sales_trends_array = $sales_trends->toArray();
+            $moving_avg_sales = [];
+            foreach ($sales_trends_array as $index => $trend) {
+                $sum = 0;
+                $count = 0;
+                for ($i = max(0, $index - 3); $i <= min(count($sales_trends_array) - 1, $index + 3); $i++) {
+                    $sum += $sales_trends_array[$i]['total_sales'];
+                    $count++;
+                }
+                $moving_avg_sales[] = [
+                    'date' => $trend['date'],
+                    'moving_avg' => $count > 0 ? $sum / $count : 0
+                ];
+            }
+
+            // Monthly sales - clone the base query again
+            $monthly_sales_query = clone $base_query;
+            $monthly_sales = $monthly_sales_query->select(
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('YEAR(transaction_date) as year'),
+                DB::raw('SUM(final_total) as total_sales')
+            )
+            ->groupBy(DB::raw('MONTH(transaction_date)'), DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transaction_date)'))
+            ->get();
+
+            // Calculate year-over-year growth for monthly sales
+            $monthly_sales_by_year = [];
+            foreach ($monthly_sales as $sale) {
+                $year = $sale->year;
+                $month = $sale->month;
+                if (!isset($monthly_sales_by_year[$year])) {
+                    $monthly_sales_by_year[$year] = [];
+                }
+                $monthly_sales_by_year[$year][$month] = $sale->total_sales;
+            }
+
+            $yoy_growth = [];
+            foreach ($monthly_sales_by_year as $year => $months) {
+                foreach ($months as $month => $sales) {
+                    if (isset($monthly_sales_by_year[$year-1][$month])) {
+                        $prev_year_sales = $monthly_sales_by_year[$year-1][$month];
+                        $growth_rate = $prev_year_sales > 0 ? (($sales - $prev_year_sales) / $prev_year_sales) * 100 : 0;
+                        $yoy_growth[] = [
+                            'year' => $year,
+                            'month' => $month,
+                            'growth_rate' => $growth_rate
+                        ];
+                    }
+                }
+            }
+
+            // Calculate quarterly sales
+            $quarterly_sales = [];
+            foreach ($monthly_sales as $sale) {
+                $year = $sale->year;
+                $month = $sale->month;
+                $quarter = ceil($month / 3);
+                $key = $year . '-Q' . $quarter;
+
+                if (!isset($quarterly_sales[$key])) {
+                    $quarterly_sales[$key] = [
+                        'year' => $year,
+                        'quarter' => $quarter,
+                        'total_sales' => 0
+                    ];
+                }
+
+                $quarterly_sales[$key]['total_sales'] += $sale->total_sales;
+            }
+            $quarterly_sales = array_values($quarterly_sales);
+
+            // Product Mix & Performance
+            $product_performance_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $product_performance_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $product_performance_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $product_performance_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $product_performance_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $product_performance = $product_performance_query->select(
+                'products.name as product_name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_amount', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Product Sales Trend Over Time
+            $product_trend_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $product_trend_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $product_trend_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $product_trend_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $product_trend_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Get top 5 products
+            $top_products_query = clone $product_trend_query;
+            $top_products = $top_products_query->select(
+                'products.id',
+                'products.name'
+            )
+            ->groupBy('products.id')
+            ->orderBy(DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax)'), 'desc')
+            ->limit(5)
+            ->pluck('name', 'id');
+
+            // Get monthly sales for top 5 products
+            $product_monthly_sales = [];
+            foreach ($top_products as $product_id => $product_name) {
+                $product_sales_query = clone $product_trend_query;
+                $product_sales = $product_sales_query->select(
+                    DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m") as month'),
+                    DB::raw('SUM(transaction_sell_lines.quantity) as quantity'),
+                    DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as amount')
+                )
+                ->where('products.id', $product_id)
+                ->groupBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+                ->orderBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+                ->get();
+
+                $product_monthly_sales[$product_id] = [
+                    'name' => $product_name,
+                    'sales' => $product_sales
+                ];
+            }
+
+            // Product Category Performance
+            $category_performance_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $category_performance_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $category_performance_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $category_performance_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $category_performance_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $category_performance = $category_performance_query->select(
+                'categories.name as category_name',
+                DB::raw('COALESCE(categories.name, "Uncategorized") as category_name'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount'),
+                DB::raw('COUNT(DISTINCT products.id) as product_count')
+            )
+            ->groupBy('categories.id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // Customer Behavior (RFM Analysis)
+            $customers = Contact::leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+                $join->on('contacts.id', '=', 't.contact_id')
+                    ->where('t.type', 'sell')
+                    ->where('t.status', 'final');
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+                }
+            })
+            ->where('contacts.business_id', $business_id)
+            ->whereIn('contacts.type', ['customer', 'both']);
+
+            if (!empty($location_id)) {
+                $customers->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $customers->whereIn('contacts.id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $customers->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $customers = $customers->select(
+                'contacts.id',
+                'contacts.name',
+                DB::raw('MAX(t.transaction_date) as last_purchase_date'),
+                DB::raw('COUNT(t.id) as frequency'),
+                DB::raw('SUM(t.final_total) as total_spent')
+            )
+            ->groupBy('contacts.id')
+            ->orderBy('last_purchase_date', 'desc')
+            ->limit(20)
+            ->get();
+
+            // Customer Retention Analysis
+            // First, get the total number of customers who made a purchase in each month
+            $total_customers_by_month_query = clone $base_query;
+            $total_customers_by_month = $total_customers_by_month_query->select(
+                DB::raw('DATE_FORMAT(transaction_date, "%Y-%m") as month'),
+                DB::raw('COUNT(DISTINCT contact_id) as total_customers')
+            )
+            ->groupBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m")'))
+            ->orderBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m")'))
+            ->get()
+            ->keyBy('month');
+
+            // Then, get the number of returning customers in each month
+            // Create a fresh query for returning customers to avoid table alias issues
+            $returning_customers_by_month = DB::table('transactions as t1')
+            ->select(
+                DB::raw('DATE_FORMAT(t1.transaction_date, "%Y-%m") as month'),
+                DB::raw('COUNT(DISTINCT t1.contact_id) as returning_customers')
+            )
+            ->join(DB::raw('(SELECT t2.contact_id, MIN(DATE_FORMAT(t2.transaction_date, "%Y-%m")) as first_month FROM transactions as t2 
+                WHERE t2.business_id = ' . $business_id . ' AND t2.type = "sell" AND t2.status = "final" 
+                GROUP BY t2.contact_id) as t2'), function($join) {
+                $join->on('t1.contact_id', '=', 't2.contact_id')
+                    ->whereRaw('DATE_FORMAT(t1.transaction_date, "%Y-%m") > t2.first_month');
+            })
+            ->where('t1.business_id', $business_id)
+            ->where('t1.type', 'sell')
+            ->where('t1.status', 'final');
+
+            // Add the same conditions that were in the base query
+            if (!empty($start_date) && !empty($end_date)) {
+                $returning_customers_by_month->whereBetween(DB::raw('date(t1.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $returning_customers_by_month->where('t1.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $returning_customers_by_month->whereIn('t1.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $returning_customers_by_month->whereIn('t1.location_id', $permitted_locations);
+            }
+
+            $returning_customers_by_month = $returning_customers_by_month
+            ->groupBy(DB::raw('DATE_FORMAT(t1.transaction_date, "%Y-%m")'))
+            ->orderBy(DB::raw('DATE_FORMAT(t1.transaction_date, "%Y-%m")'))
+            ->get()
+            ->keyBy('month');
+
+            // Calculate retention rate for each month
+            $retention_rate = [];
+            foreach ($total_customers_by_month as $month => $data) {
+                $returning = isset($returning_customers_by_month[$month]) ? $returning_customers_by_month[$month]->returning_customers : 0;
+                $total = $data->total_customers;
+                $rate = $total > 0 ? ($returning / $total) * 100 : 0;
+
+                $retention_rate[] = [
+                    'month' => $month,
+                    'total_customers' => $total,
+                    'returning_customers' => $returning,
+                    'retention_rate' => $rate
+                ];
+            }
+
+            // Customer Lifetime Value Trend
+            // Get average CLV by month of first purchase
+            $clv_trend_query = Contact::leftJoin('transactions as t', function ($join) {
+                $join->on('contacts.id', '=', 't.contact_id')
+                    ->where('t.type', 'sell')
+                    ->where('t.status', 'final');
+            })
+            ->where('contacts.business_id', $business_id)
+            ->whereIn('contacts.type', ['customer', 'both']);
+
+            if (!empty($location_id)) {
+                $clv_trend_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $clv_trend_query->whereIn('contacts.id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $clv_trend_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            // First, get the minimum transaction date for each customer
+            $min_dates_query = clone $clv_trend_query;
+            $min_dates = $min_dates_query->select(
+                'contacts.id',
+                DB::raw('MIN(t.transaction_date) as min_date')
+            )
+            ->groupBy('contacts.id')
+            ->get()
+            ->keyBy('id');
+
+            // Then, get the total spent for each customer
+            $customer_totals = $clv_trend_query->select(
+                'contacts.id',
+                DB::raw('SUM(t.final_total) as total_spent')
+            )
+            ->groupBy('contacts.id')
+            ->get();
+
+            // Combine the results
+            foreach ($customer_totals as $customer) {
+                if (isset($min_dates[$customer->id])) {
+                    $min_date = $min_dates[$customer->id]->min_date;
+                    $customer->first_purchase_month = date('Y-m', strtotime($min_date));
+                } else {
+                    $customer->first_purchase_month = null;
+                }
+            }
+
+            // Then, calculate the average CLV by month
+            $clv_by_month = [];
+            foreach ($customer_totals as $customer) {
+                $month = $customer->first_purchase_month;
+                if (!isset($clv_by_month[$month])) {
+                    $clv_by_month[$month] = [
+                        'total' => 0,
+                        'count' => 0
+                    ];
+                }
+                $clv_by_month[$month]['total'] += $customer->total_spent;
+                $clv_by_month[$month]['count']++;
+            }
+
+            // Convert to collection format expected by the view
+            $clv_trend = collect();
+            foreach ($clv_by_month as $month => $data) {
+                $avg_clv = $data['count'] > 0 ? $data['total'] / $data['count'] : 0;
+                $clv_trend->push((object)[
+                    'first_purchase_month' => $month,
+                    'avg_clv' => $avg_clv
+                ]);
+            }
+
+            // Sort by month
+            $clv_trend = $clv_trend->sortBy('first_purchase_month')->values();
+
+            // Cross-sell & Basket Analysis
+            $cross_sell_products = DB::table('transaction_sell_lines as tsl1')
+                ->join('transaction_sell_lines as tsl2', function ($join) {
+                    $join->on('tsl1.transaction_id', '=', 'tsl2.transaction_id')
+                        ->where('tsl1.product_id', '!=', 'tsl2.product_id');
+                })
+                ->join('transactions as t', 't.id', '=', 'tsl1.transaction_id')
+                ->join('products as p1', 'p1.id', '=', 'tsl1.product_id')
+                ->join('products as p2', 'p2.id', '=', 'tsl2.product_id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'sell')
+                ->where('t.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $cross_sell_products->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $cross_sell_products->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $cross_sell_products->whereIn('t.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $cross_sell_products->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $cross_sell_products = $cross_sell_products->select(
+                'p1.name as product_1',
+                'p2.name as product_2',
+                DB::raw('COUNT(*) as frequency')
+            )
+            ->groupBy('p1.id', 'p2.id')
+            ->orderBy('frequency', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Payment Behavior
+            $payment_behavior = TransactionPayment::join('transactions as t', 't.id', '=', 'transaction_payments.transaction_id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'sell')
+                ->where('t.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $payment_behavior->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $payment_behavior->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $payment_behavior->whereIn('t.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $payment_behavior->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $payment_behavior = $payment_behavior->select(
+                'transaction_payments.method',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(transaction_payments.amount) as total_amount')
+            )
+            ->groupBy('transaction_payments.method')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // Payment Method Trends Over Time
+            $payment_trends_query = TransactionPayment::join('transactions as t', 't.id', '=', 'transaction_payments.transaction_id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'sell')
+                ->where('t.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $payment_trends_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $payment_trends_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $payment_trends_query->whereIn('t.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $payment_trends_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $payment_trends = $payment_trends_query->select(
+                'transaction_payments.method',
+                DB::raw('DATE_FORMAT(t.transaction_date, "%Y-%m") as month'),
+                DB::raw('SUM(transaction_payments.amount) as amount')
+            )
+            ->groupBy('transaction_payments.method', DB::raw('DATE_FORMAT(t.transaction_date, "%Y-%m")'))
+            ->orderBy(DB::raw('DATE_FORMAT(t.transaction_date, "%Y-%m")'))
+            ->get();
+
+            // Organize payment trends by method and month
+            $payment_methods = $payment_trends->pluck('method')->unique();
+            $payment_months = $payment_trends->pluck('month')->unique()->sort();
+
+            $payment_trends_data = [];
+            foreach ($payment_methods as $method) {
+                $payment_trends_data[$method] = [];
+                foreach ($payment_months as $month) {
+                    $payment_trends_data[$method][$month] = 0;
+                }
+            }
+
+            foreach ($payment_trends as $trend) {
+                $payment_trends_data[$trend->method][$trend->month] = $trend->amount;
+            }
+
+            // Price & Discount Analytics
+            $discount_analytics_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $discount_analytics_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $discount_analytics_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $discount_analytics_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $discount_analytics_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $discount_analytics = $discount_analytics_query->select(
+                'transactions.contact_id',
+                'contacts.name as customer_name',
+                DB::raw('SUM(discount_amount) as total_discount'),
+                DB::raw('SUM(final_total) as total_sales'),
+                DB::raw('CASE WHEN SUM(final_total + discount_amount) > 0 THEN (SUM(discount_amount) / SUM(final_total + discount_amount)) * 100 ELSE 0 END as discount_percentage')
+            )
+            ->join('contacts', 'transactions.contact_id', '=', 'contacts.id')
+            ->groupBy('transactions.contact_id')
+            ->orderBy('total_discount', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Discount Trends Over Time
+            $discount_trends_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->where('transactions.discount_amount', '>', 0);
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $discount_trends_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $discount_trends_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $discount_trends_query->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $discount_trends_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $discount_trends = $discount_trends_query->select(
+                DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m") as month'),
+                DB::raw('COUNT(*) as transaction_count'),
+                DB::raw('SUM(discount_amount) as total_discount'),
+                DB::raw('SUM(final_total) as total_sales'),
+                DB::raw('CASE WHEN SUM(final_total + discount_amount) > 0 THEN (SUM(discount_amount) / SUM(final_total + discount_amount)) * 100 ELSE 0 END as discount_percentage')
+            )
+            ->groupBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+            ->orderBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+            ->get();
+
+            // Customer Lifetime Value (CLV) Analysis
+            $clv_analysis = Contact::leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+                $join->on('contacts.id', '=', 't.contact_id')
+                    ->where('t.type', 'sell')
+                    ->where('t.status', 'final');
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+                }
+            })
+            ->where('contacts.business_id', $business_id)
+            ->whereIn('contacts.type', ['customer', 'both']);
+
+            if (!empty($location_id)) {
+                $clv_analysis->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $clv_analysis->whereIn('contacts.id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $clv_analysis->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $clv_analysis = $clv_analysis->select(
+                'contacts.id',
+                'contacts.name',
+                DB::raw('SUM(t.final_total) as total_spent'),
+                DB::raw('COUNT(t.id) as transaction_count'),
+                DB::raw('MIN(t.transaction_date) as first_purchase_date'),
+                DB::raw('MAX(t.transaction_date) as last_purchase_date'),
+                DB::raw('CASE WHEN COUNT(t.id) > 0 THEN SUM(t.final_total) / COUNT(t.id) ELSE 0 END as average_purchase_value')
+            )
+            ->groupBy('contacts.id')
+            ->orderBy('total_spent', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Calculate CLV metrics
+            foreach ($clv_analysis as $customer) {
+                if ($customer->first_purchase_date && $customer->last_purchase_date) {
+                    $first_date = \Carbon\Carbon::parse($customer->first_purchase_date);
+                    $last_date = \Carbon\Carbon::parse($customer->last_purchase_date);
+                    $days_as_customer = $first_date->diffInDays($last_date) + 1; // Add 1 to include the first day
+
+                    $customer->customer_age_days = $days_as_customer;
+                    $customer->purchase_frequency = $days_as_customer > 0 ? $customer->transaction_count / ($days_as_customer / 30) : 0; // Purchases per month
+                    $customer->clv = $customer->average_purchase_value * $customer->purchase_frequency * 12; // Yearly CLV
+                } else {
+                    $customer->customer_age_days = 0;
+                    $customer->purchase_frequency = 0;
+                    $customer->clv = 0;
+                }
+            }
+
+            // Customer Segmentation by Purchase Frequency
+            // First, get the count of transactions for each customer
+            $customer_transaction_counts = DB::table('contacts')
+                ->leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+                    $join->on('contacts.id', '=', 't.contact_id')
+                        ->where('t.type', 'sell')
+                        ->where('t.status', 'final');
+
+                    if (!empty($start_date) && !empty($end_date)) {
+                        $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+                    }
+                })
+                ->where('contacts.business_id', $business_id)
+                ->whereIn('contacts.type', ['customer', 'both']);
+
+            if (!empty($location_id)) {
+                $customer_transaction_counts->where('t.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $customer_transaction_counts->whereIn('contacts.id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $customer_transaction_counts->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $customer_transaction_counts = $customer_transaction_counts
+                ->select('contacts.id', DB::raw('COUNT(t.id) as transaction_count'))
+                ->groupBy('contacts.id')
+                ->get();
+
+            // Now categorize customers based on their transaction count
+            $segments = [
+                'No Purchase' => 0,
+                'One-time' => 0,
+                'Occasional' => 0,
+                'Regular' => 0,
+                'Loyal' => 0
+            ];
+
+            foreach ($customer_transaction_counts as $customer) {
+                $count = $customer->transaction_count;
+
+                if ($count == 0) {
+                    $segments['No Purchase']++;
+                } elseif ($count == 1) {
+                    $segments['One-time']++;
+                } elseif ($count >= 2 && $count <= 5) {
+                    $segments['Occasional']++;
+                } elseif ($count >= 6 && $count <= 12) {
+                    $segments['Regular']++;
+                } else {
+                    $segments['Loyal']++;
+                }
+            }
+
+            // Convert to collection format expected by the view
+            $customer_segments = collect();
+            foreach ($segments as $segment => $count) {
+                $customer_segments->push((object)[
+                    'segment' => $segment,
+                    'customer_count' => $count
+                ]);
+            }
+
+            // Customer Growth Trend (new vs returning)
+            $customer_growth = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $customer_growth->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $customer_growth->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $customer_growth->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $customer_growth->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $customer_growth = $customer_growth->select(
+                DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m") as month'),
+                DB::raw('COUNT(DISTINCT CASE WHEN transactions.id = (
+                    SELECT MIN(t2.id) FROM transactions t2 
+                    WHERE t2.contact_id = transactions.contact_id 
+                    AND t2.type = "sell" 
+                    AND t2.status = "final"
+                ) THEN transactions.contact_id ELSE NULL END) as new_customers'),
+                DB::raw('COUNT(DISTINCT CASE WHEN transactions.id != (
+                    SELECT MIN(t2.id) FROM transactions t2 
+                    WHERE t2.contact_id = transactions.contact_id 
+                    AND t2.type = "sell" 
+                    AND t2.status = "final"
+                ) THEN transactions.contact_id ELSE NULL END) as returning_customers')
+            )
+            ->groupBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+            ->orderBy(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m")'))
+            ->get();
+
+            // Customer Purchase Time Analysis
+            $purchase_time_analysis = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $purchase_time_analysis->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $purchase_time_analysis->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($customer_ids)) {
+                $purchase_time_analysis->whereIn('transactions.contact_id', $customer_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $purchase_time_analysis->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Time of day analysis
+            $time_of_day = $purchase_time_analysis->clone()
+                ->select(
+                    DB::raw('CASE 
+                        WHEN HOUR(transaction_date) BETWEEN 0 AND 5 THEN "Night (12AM-6AM)"
+                        WHEN HOUR(transaction_date) BETWEEN 6 AND 11 THEN "Morning (6AM-12PM)"
+                        WHEN HOUR(transaction_date) BETWEEN 12 AND 17 THEN "Afternoon (12PM-6PM)"
+                        ELSE "Evening (6PM-12AM)"
+                    END as time_of_day'),
+                    DB::raw('COUNT(*) as transaction_count'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('CASE 
+                    WHEN HOUR(transaction_date) BETWEEN 0 AND 5 THEN "Night (12AM-6AM)"
+                    WHEN HOUR(transaction_date) BETWEEN 6 AND 11 THEN "Morning (6AM-12PM)"
+                    WHEN HOUR(transaction_date) BETWEEN 12 AND 17 THEN "Afternoon (12PM-6PM)"
+                    ELSE "Evening (6PM-12AM)"
+                END'))
+                ->orderBy('transaction_count', 'desc')
+                ->get();
+
+            // Day of week analysis
+            $day_of_week = $purchase_time_analysis->clone()
+                ->select(
+                    DB::raw('DAYNAME(transaction_date) as day_of_week'),
+                    DB::raw('COUNT(*) as transaction_count'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('DAYNAME(transaction_date)'))
+                ->orderBy(DB::raw('DAYOFWEEK(MIN(transaction_date))'))
+                ->get();
+
+            // Day of month analysis
+            $day_of_month = $purchase_time_analysis->clone()
+                ->select(
+                    DB::raw('DAY(transaction_date) as day_of_month'),
+                    DB::raw('COUNT(*) as transaction_count'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('DAY(transaction_date)'))
+                ->orderBy(DB::raw('DAY(transaction_date)'))
+                ->get();
+
+            // Month of year analysis
+            $month_of_year = $purchase_time_analysis->clone()
+                ->select(
+                    DB::raw('MONTHNAME(transaction_date) as month_of_year'),
+                    DB::raw('COUNT(*) as transaction_count'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('MONTHNAME(transaction_date)'))
+                ->orderBy(DB::raw('MONTH(MIN(transaction_date))'))
+                ->get();
+
+            // Predictive Sales Forecasting
+            $sales_forecast = [];
+            $forecast_months = 3; // Forecast for next 3 months
+
+            if (count($monthly_sales) > 0) {
+                // Get the last 12 months of sales data or all available if less than 12
+                $recent_monthly_sales = $monthly_sales->sortByDesc(function($item) {
+                    return $item->year * 100 + $item->month;
+                })->take(12)->sortBy(function($item) {
+                    return $item->year * 100 + $item->month;
+                });
+
+                // Calculate average monthly growth rate
+                $growth_rates = [];
+                $prev_sales = null;
+
+                foreach ($recent_monthly_sales as $sale) {
+                    if ($prev_sales !== null) {
+                        $growth_rate = $prev_sales > 0 ? (($sale->total_sales - $prev_sales) / $prev_sales) : 0;
+                        $growth_rates[] = $growth_rate;
+                    }
+                    $prev_sales = $sale->total_sales;
+                }
+
+                // Calculate average growth rate
+                $avg_growth_rate = count($growth_rates) > 0 ? array_sum($growth_rates) / count($growth_rates) : 0;
+
+                // Get the last month's sales
+                $last_sale = $recent_monthly_sales->last();
+                $last_month = $last_sale->month;
+                $last_year = $last_sale->year;
+                $last_sales = $last_sale->total_sales;
+
+                // Generate forecast for next months
+                for ($i = 1; $i <= $forecast_months; $i++) {
+                    $forecast_month = $last_month + $i;
+                    $forecast_year = $last_year;
+
+                    if ($forecast_month > 12) {
+                        $forecast_month = $forecast_month - 12;
+                        $forecast_year++;
+                    }
+
+                    // Apply growth rate to forecast
+                    $forecast_sales = $last_sales * (1 + $avg_growth_rate);
+
+                    // Apply seasonal adjustment if we have data from the same month last year
+                    $same_month_last_year = $monthly_sales->first(function($item) use ($forecast_month, $forecast_year) {
+                        return $item->month == $forecast_month && $item->year == ($forecast_year - 1);
+                    });
+
+                    if ($same_month_last_year) {
+                        // Find the average month-to-month ratio
+                        $month_ratio = $same_month_last_year->total_sales / $last_sales;
+                        $forecast_sales = $forecast_sales * $month_ratio;
+                    }
+
+                    $sales_forecast[] = [
+                        'year' => $forecast_year,
+                        'month' => $forecast_month,
+                        'forecast_sales' => max(0, $forecast_sales) // Ensure no negative forecasts
+                    ];
+
+                    $last_sales = $forecast_sales; // Update for next iteration
+                }
+            }
+
+            // Customer Churn Prediction
+            $churn_predictions = [];
+
+            if (count($clv_analysis) > 0) {
+                foreach ($clv_analysis as $customer) {
+                    // Calculate days since last purchase
+                    $days_since_last_purchase = 0;
+                    if ($customer->last_purchase_date) {
+                        $last_purchase = \Carbon\Carbon::parse($customer->last_purchase_date);
+                        $days_since_last_purchase = $last_purchase->diffInDays(\Carbon\Carbon::now());
+                    }
+
+                    // Calculate churn probability based on days since last purchase and purchase frequency
+                    $churn_probability = 0;
+
+                    if ($customer->purchase_frequency > 0) {
+                        // Expected days between purchases
+                        $expected_days_between_purchases = 30 / $customer->purchase_frequency;
+
+                        // If days since last purchase is more than 2x the expected days between purchases, high churn risk
+                        if ($days_since_last_purchase > 2 * $expected_days_between_purchases) {
+                            $churn_probability = min(0.9, $days_since_last_purchase / ($expected_days_between_purchases * 3));
+                        } else {
+                            $churn_probability = max(0.1, $days_since_last_purchase / ($expected_days_between_purchases * 4));
+                        }
+                    } else {
+                        // If no purchase frequency, high churn risk
+                        $churn_probability = 0.9;
+                    }
+
+                    // Categorize churn risk
+                    $churn_risk = 'Low';
+                    if ($churn_probability >= 0.7) {
+                        $churn_risk = 'High';
+                    } elseif ($churn_probability >= 0.4) {
+                        $churn_risk = 'Medium';
+                    }
+
+                    $churn_predictions[] = [
+                        'customer_id' => $customer->id,
+                        'customer_name' => $customer->name,
+                        'days_since_last_purchase' => $days_since_last_purchase,
+                        'purchase_frequency' => $customer->purchase_frequency,
+                        'churn_probability' => $churn_probability,
+                        'churn_risk' => $churn_risk
+                    ];
+                }
+
+                // Sort by churn probability (highest first)
+                usort($churn_predictions, function($a, $b) {
+                    return $b['churn_probability'] <=> $a['churn_probability'];
+                });
+
+                // Take top 10 at-risk customers
+                $churn_predictions = array_slice($churn_predictions, 0, 10);
+            }
+
+            // Product Recommendations
+            $product_recommendations = [];
+
+            if (count($cross_sell_products) > 0) {
+                // Group products by their co-occurrence
+                $product_pairs = [];
+                foreach ($cross_sell_products as $pair) {
+                    $key1 = $pair->product_1 . '|' . $pair->product_2;
+                    $key2 = $pair->product_2 . '|' . $pair->product_1;
+
+                    if (!isset($product_pairs[$key1]) && !isset($product_pairs[$key2])) {
+                        $product_pairs[$key1] = [
+                            'product_1' => $pair->product_1,
+                            'product_2' => $pair->product_2,
+                            'frequency' => $pair->frequency,
+                            'confidence' => 0 // Will calculate later
+                        ];
+                    }
+                }
+
+                // Calculate confidence for each pair
+                foreach ($product_pairs as $key => &$pair) {
+                    // Find total sales of product_1
+                    $product_1_sales = 0;
+                    foreach ($product_performance as $product) {
+                        if ($product->product_name == $pair['product_1']) {
+                            $product_1_sales = $product->total_quantity;
+                            break;
+                        }
+                    }
+
+                    // Calculate confidence (probability of buying product_2 given product_1)
+                    if ($product_1_sales > 0) {
+                        $pair['confidence'] = $pair['frequency'] / $product_1_sales;
+                    }
+                }
+
+                // Sort by confidence
+                usort($product_pairs, function($a, $b) {
+                    return $b['confidence'] <=> $a['confidence'];
+                });
+
+                // Take top 10 recommendations
+                $product_recommendations = array_slice($product_pairs, 0, 10);
+            }
+
+            // Seasonal Trend Prediction
+            $seasonal_predictions = [];
+
+            if (count($month_of_year) > 0) {
+                // Calculate average sales by month
+                $monthly_averages = [];
+                $total_sales = 0;
+                $total_count = 0;
+
+                foreach ($month_of_year as $month_data) {
+                    $monthly_averages[$month_data->month_of_year] = $month_data->total_amount;
+                    $total_sales += $month_data->total_amount;
+                    $total_count++;
+                }
+
+                $overall_average = $total_count > 0 ? $total_sales / $total_count : 0;
+
+                // Calculate seasonal index for each month
+                $seasonal_indices = [];
+                foreach ($monthly_averages as $month => $average) {
+                    $seasonal_indices[$month] = $overall_average > 0 ? $average / $overall_average : 1;
+                }
+
+                // Predict next year's monthly sales
+                $current_month = date('F'); // Current month name
+                $current_year = date('Y');
+
+                for ($i = 1; $i <= 12; $i++) {
+                    $month_name = date('F', mktime(0, 0, 0, date('n') + $i, 1, date('Y')));
+                    $year = date('Y', mktime(0, 0, 0, date('n') + $i, 1, date('Y')));
+
+                    // If we have a seasonal index for this month, use it
+                    $seasonal_index = isset($seasonal_indices[$month_name]) ? $seasonal_indices[$month_name] : 1;
+
+                    // Predict sales using overall average and seasonal index
+                    $predicted_sales = $overall_average * $seasonal_index;
+
+                    $seasonal_predictions[] = [
+                        'month' => $month_name,
+                        'year' => $year,
+                        'predicted_sales' => $predicted_sales,
+                        'seasonal_index' => $seasonal_index
+                    ];
+                }
+
+                // Take only next 6 months
+                $seasonal_predictions = array_slice($seasonal_predictions, 0, 6);
+            }
+
+            $data = [
+                'sales_trends' => $sales_trends,
+                'moving_avg_sales' => $moving_avg_sales,
+                'monthly_sales' => $monthly_sales,
+                'yoy_growth' => $yoy_growth,
+                'quarterly_sales' => $quarterly_sales,
+                'product_performance' => $product_performance,
+                'product_monthly_sales' => $product_monthly_sales,
+                'category_performance' => $category_performance,
+                'customers' => $customers,
+                'retention_rate' => $retention_rate,
+                'clv_trend' => $clv_trend,
+                'cross_sell_products' => $cross_sell_products,
+                'payment_behavior' => $payment_behavior,
+                'payment_trends_data' => $payment_trends_data,
+                'payment_months' => $payment_months,
+                'discount_analytics' => $discount_analytics,
+                'discount_trends' => $discount_trends,
+                'clv_analysis' => $clv_analysis,
+                'customer_segments' => $customer_segments,
+                'customer_growth' => $customer_growth,
+                'time_of_day' => $time_of_day,
+                'day_of_week' => $day_of_week,
+                'day_of_month' => $day_of_month,
+                'month_of_year' => $month_of_year,
+                'sales_forecast' => $sales_forecast,
+                'churn_predictions' => $churn_predictions,
+                'product_recommendations' => $product_recommendations,
+                'seasonal_predictions' => $seasonal_predictions
+            ];
+
+            return view('report.partials.customer_advance_analytics_details', compact('data'))->render();
+        }
+
+        $business_locations = BusinessLocation::forDropdown($business_id, true);
+        $customers = Contact::where('business_id', $business_id)
+                        ->whereIn('type', ['customer', 'both'])
+                        ->select('id', DB::raw("IF(contacts.contact_id IS NULL OR contacts.contact_id='', name, CONCAT(name, ' - ', contacts.contact_id)) as name"))
+                        ->orderBy('name')
+                        ->pluck('name', 'id');
+
+        return view('report.customer_advance_analytics', compact('business_locations', 'customers'));
+    }
+    /**
+     * Shows product advance analytics report
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getProductAdvanceAnalytics(Request $request)
+    {
+        if (! auth()->user()->can('profit_loss_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        //Return the details in ajax call
+        if ($request->ajax()) {
+            $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
+
+            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
+            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
+            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+            $product_ids = ! empty($request->get('product_ids')) ? $request->get('product_ids') : [];
+
+            // Check if request wants JSON response for dashboard
+            $return_json = $request->get('dataType') === 'json';
+
+            $permitted_locations = auth()->user()->permitted_locations();
+
+            // 1. Sales Analytics
+            // Sales Trends
+            $sales_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $sales_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $sales_query->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $sales_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Sales Trends - Revenue & volume by month/quarter/year
+            $sales_trends = $sales_query->select(
+                DB::raw('DATE(transactions.transaction_date) as date'),
+                DB::raw('SUM(transactions.final_total) as total_sales'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->get();
+
+            // Monthly sales
+            $monthly_sales = $sales_query->select(
+                DB::raw('DATE(transactions.transaction_date) as date'),
+                DB::raw('MONTH(transactions.transaction_date) as month'),
+                DB::raw('YEAR(transactions.transaction_date) as year'),
+                DB::raw('SUM(transactions.final_total) as total_sales'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('DATE(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'), DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+            ->get();
+
+            // Product Mix - Top-selling lubricants
+            $product_mix_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $product_mix_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $product_mix_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $product_mix_query->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $product_mix_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $product_mix = $product_mix_query->select(
+                'products.name as product_name',
+                'categories.name as category_name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_amount', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Customer Behavior (RFM)
+            $customer_behavior = Contact::leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+                $join->on('contacts.id', '=', 't.contact_id')
+                    ->where('t.type', 'sell')
+                    ->where('t.status', 'final');
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+                }
+            })
+            ->leftJoin('transaction_sell_lines as tsl', 't.id', '=', 'tsl.transaction_id')
+            ->where('contacts.business_id', $business_id)
+            ->whereIn('contacts.type', ['customer', 'both']);
+
+            if (!empty($location_id)) {
+                $customer_behavior->where('t.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $customer_behavior->whereIn('tsl.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $customer_behavior->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $customer_behavior = $customer_behavior->select(
+                'contacts.id',
+                'contacts.name',
+                DB::raw('MAX(t.transaction_date) as last_purchase_date'),
+                DB::raw('COUNT(DISTINCT t.id) as frequency'),
+                DB::raw('SUM(t.final_total) as total_spent')
+            )
+            ->groupBy('contacts.id')
+            ->orderBy('frequency', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Cross-sell & Bundle Analysis
+            $cross_sell_query = DB::table('transaction_sell_lines as tsl1')
+                ->join('transaction_sell_lines as tsl2', function ($join) {
+                    $join->on('tsl1.transaction_id', '=', 'tsl2.transaction_id')
+                        ->where('tsl1.product_id', '!=', 'tsl2.product_id');
+                })
+                ->join('transactions as t', 't.id', '=', 'tsl1.transaction_id')
+                ->join('products as p1', 'p1.id', '=', 'tsl1.product_id')
+                ->join('products as p2', 'p2.id', '=', 'tsl2.product_id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'sell')
+                ->where('t.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $cross_sell_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $cross_sell_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $cross_sell_query->where(function ($query) use ($product_ids) {
+                    $query->whereIn('tsl1.product_id', $product_ids)
+                        ->orWhereIn('tsl2.product_id', $product_ids);
+                });
+            }
+
+            if ($permitted_locations != 'all') {
+                $cross_sell_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $cross_sell_products = $cross_sell_query->select(
+                'p1.id as product_1_id',
+                'p1.name as product_1',
+                'p2.id as product_2_id',
+                'p2.name as product_2',
+                DB::raw('COUNT(*) as frequency'),
+                DB::raw('COUNT(*) * 100.0 / (SELECT COUNT(DISTINCT transaction_id) FROM transaction_sell_lines WHERE product_id = tsl1.product_id) as confidence_percentage')
+            )
+            ->groupBy('p1.id', 'p2.id')
+            ->orderBy('frequency', 'desc')
+            ->limit(20)
+            ->get();
+
+            // Enhanced Cross-sell Analysis - Find product bundles (groups of products frequently bought together)
+            $product_bundles = [];
+            $processed_pairs = [];
+
+            // First, identify strong product pairs (high frequency and confidence)
+            $strong_pairs = [];
+            foreach ($cross_sell_products as $pair) {
+                if ($pair->frequency >= 3 && $pair->confidence_percentage >= 30) {
+                    $strong_pairs[] = [
+                        'product_1_id' => $pair->product_1_id,
+                        'product_2_id' => $pair->product_2_id,
+                        'product_1' => $pair->product_1,
+                        'product_2' => $pair->product_2,
+                        'frequency' => $pair->frequency,
+                        'confidence' => $pair->confidence_percentage
+                    ];
+
+                    $pair_key = min($pair->product_1_id, $pair->product_2_id) . '_' . max($pair->product_1_id, $pair->product_2_id);
+                    $processed_pairs[$pair_key] = true;
+                }
+            }
+
+            // Then, build bundles from strong pairs
+            foreach ($strong_pairs as $i => $pair1) {
+                $bundle = [
+                    'products' => [
+                        ['id' => $pair1['product_1_id'], 'name' => $pair1['product_1']],
+                        ['id' => $pair1['product_2_id'], 'name' => $pair1['product_2']]
+                    ],
+                    'frequency' => $pair1['frequency'],
+                    'avg_confidence' => $pair1['confidence']
+                ];
+
+                $extended = false;
+
+                // Try to extend the bundle with other products
+                foreach ($strong_pairs as $j => $pair2) {
+                    if ($i == $j) continue;
+
+                    // Check if pair2 shares a product with the current bundle
+                    $shared_product = false;
+                    $new_product = null;
+                    $new_product_id = null;
+
+                    foreach ($bundle['products'] as $product) {
+                        if ($product['id'] == $pair2['product_1_id']) {
+                            $shared_product = true;
+                            $new_product = $pair2['product_2'];
+                            $new_product_id = $pair2['product_2_id'];
+                            break;
+                        } elseif ($product['id'] == $pair2['product_2_id']) {
+                            $shared_product = true;
+                            $new_product = $pair2['product_1'];
+                            $new_product_id = $pair2['product_1_id'];
+                            break;
+                        }
+                    }
+
+                    // If there's a shared product and the new product is not already in the bundle
+                    if ($shared_product && !in_array($new_product_id, array_column($bundle['products'], 'id'))) {
+                        // Check if all products in the bundle have strong connections with the new product
+                        $all_connected = true;
+                        foreach ($bundle['products'] as $product) {
+                            $check_key = min($product['id'], $new_product_id) . '_' . max($product['id'], $new_product_id);
+                            if (!isset($processed_pairs[$check_key])) {
+                                $all_connected = false;
+                                break;
+                            }
+                        }
+
+                        if ($all_connected) {
+                            $bundle['products'][] = ['id' => $new_product_id, 'name' => $new_product];
+                            $bundle['avg_confidence'] = ($bundle['avg_confidence'] + $pair2['confidence']) / 2;
+                            $extended = true;
+                        }
+                    }
+                }
+
+                // Only add bundles with 2 or more products
+                if (count($bundle['products']) >= 2) {
+                    // Sort products by name for consistent display
+                    usort($bundle['products'], function($a, $b) {
+                        return strcmp($a['name'], $b['name']);
+                    });
+
+                    // Generate a unique key for the bundle
+                    $bundle_key = implode('_', array_column($bundle['products'], 'id'));
+
+                    // Only add if this exact bundle doesn't exist yet
+                    if (!isset($product_bundles[$bundle_key])) {
+                        $product_bundles[$bundle_key] = $bundle;
+                    }
+                }
+            }
+
+            // Convert to indexed array and sort by frequency
+            $product_bundles = array_values($product_bundles);
+            usort($product_bundles, function($a, $b) {
+                return $b['frequency'] <=> $a['frequency'];
+            });
+
+            // Limit to top 5 bundles
+            $product_bundles = array_slice($product_bundles, 0, 5);
+
+            // Calculate lift (how much more likely products are bought together vs. separately)
+            foreach ($cross_sell_products as $pair) {
+                // Get individual product frequencies
+                $product1_freq = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $pair->product_1_id);
+
+                $product2_freq = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $pair->product_2_id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $product1_freq->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                    $product2_freq->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $product1_freq->where('transactions.location_id', $location_id);
+                    $product2_freq->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $product1_freq->whereIn('transactions.location_id', $permitted_locations);
+                    $product2_freq->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $product1_count = $product1_freq->count(DB::raw('DISTINCT transaction_sell_lines.transaction_id'));
+                $product2_count = $product2_freq->count(DB::raw('DISTINCT transaction_sell_lines.transaction_id'));
+
+                // Get total transaction count
+                $total_transactions = Transaction::where('business_id', $business_id)
+                    ->where('type', 'sell')
+                    ->where('status', 'final');
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $total_transactions->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $total_transactions->where('location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $total_transactions->whereIn('location_id', $permitted_locations);
+                }
+
+                $total_count = $total_transactions->count();
+
+                // Calculate expected co-occurrence if products were independent
+                $expected_frequency = ($product1_count / $total_count) * ($product2_count / $total_count) * $total_count;
+
+                // Calculate lift (actual co-occurrence / expected co-occurrence)
+                $lift = $expected_frequency > 0 ? $pair->frequency / $expected_frequency : 0;
+
+                $pair->lift = $lift;
+                $pair->product1_count = $product1_count;
+                $pair->product2_count = $product2_count;
+            }
+
+            // Sort by lift for the top recommendations
+            $cross_sell_recommendations = clone $cross_sell_products;
+            $cross_sell_recommendations = $cross_sell_recommendations->sortByDesc('lift')->take(10);
+
+            // Discount Impact
+            $discount_impact = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $discount_impact->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $discount_impact->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $discount_impact->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $discount_impact = $discount_impact->select(
+                DB::raw('SUM(transactions.final_total) as total_sales'),
+                DB::raw('SUM(transactions.discount_amount) as total_discount'),
+                DB::raw('(SUM(transactions.discount_amount) / (SUM(transactions.final_total) + SUM(transactions.discount_amount))) * 100 as discount_percentage')
+            )
+            ->first();
+
+            // Profitability by Product
+            $profitability_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('transaction_sell_lines_purchase_lines as tspl', 'transaction_sell_lines.id', '=', 'tspl.sell_line_id')
+                ->leftJoin('purchase_lines', 'tspl.purchase_line_id', '=', 'purchase_lines.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $profitability_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $profitability_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $profitability_query->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $profitability_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $profitability = $profitability_query->select(
+                'products.name as product_name',
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_sales'),
+                DB::raw('SUM(transaction_sell_lines.quantity * purchase_lines.purchase_price_inc_tax) as total_cost'),
+                DB::raw('SUM(transaction_sell_lines.quantity * (transaction_sell_lines.unit_price_inc_tax - purchase_lines.purchase_price_inc_tax)) as gross_profit'),
+                DB::raw('(SUM(transaction_sell_lines.quantity * (transaction_sell_lines.unit_price_inc_tax - purchase_lines.purchase_price_inc_tax)) / SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax)) * 100 as profit_margin')
+            )
+            ->groupBy('products.id')
+            ->orderBy('gross_profit', 'desc')
+            ->limit(10)
+            ->get();
+
+            // 2. Purchase Analytics
+            // Purchase Trends
+            $purchase_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'purchase')
+                ->where('transactions.status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $purchase_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $purchase_query->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $purchase_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $purchase_trends = $purchase_query->select(
+                DB::raw('DATE(transactions.transaction_date) as date'),
+                DB::raw('SUM(transactions.final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->get();
+
+            // Monthly purchases
+            $monthly_purchases = $purchase_query->select(
+                DB::raw('DATE(transactions.transaction_date) as date'),
+                DB::raw('MONTH(transactions.transaction_date) as month'),
+                DB::raw('YEAR(transactions.transaction_date) as year'),
+                DB::raw('SUM(transactions.final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('DATE(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'), DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+            ->get();
+
+            // Supplier Performance
+            $supplier_performance = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'purchase')
+                ->where('transactions.status', 'received')
+                ->join('contacts', 'transactions.contact_id', '=', 'contacts.id');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $supplier_performance->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $supplier_performance->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $supplier_performance->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $supplier_performance = $supplier_performance->select(
+                'contacts.name as supplier_name',
+                DB::raw('SUM(transactions.final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count'),
+                DB::raw('AVG(DATEDIFF(transactions.transaction_date, transactions.created_at)) as avg_lead_time')
+            )
+            ->groupBy('contacts.id')
+            ->orderBy('total_purchase', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Product-Level Purchase
+            $product_purchase_query = PurchaseLine::join('transactions', 'purchase_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'purchase_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'purchase')
+                ->where('transactions.status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $product_purchase_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $product_purchase_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $product_purchase_query->whereIn('purchase_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $product_purchase_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $product_purchases = $product_purchase_query->select(
+                'products.name as product_name',
+                DB::raw('SUM(purchase_lines.quantity) as total_quantity'),
+                DB::raw('SUM(purchase_lines.quantity * purchase_lines.purchase_price_inc_tax) as total_amount')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_amount', 'desc')
+            ->limit(10)
+            ->get();
+
+            // 3. Sales vs. Purchase Alignment
+            // Demand vs. Supply Gap
+            $demand_supply_gap = [];
+            if (!empty($product_ids)) {
+                $demand_supply_query = Product::whereIn('id', $product_ids)
+                    ->where('business_id', $business_id);
+            } else {
+                $demand_supply_query = Product::where('business_id', $business_id);
+            }
+
+            $products_for_gap = $demand_supply_query->select('id', 'name')->limit(10)->get();
+
+            if (isset($products_for_gap) && !empty($products_for_gap)) {
+                foreach ($products_for_gap as $product) {
+                // Get sales for this product
+                $sales = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $sales->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $sales->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $sales->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $total_sales = $sales->sum('transaction_sell_lines.quantity');
+
+                // Get purchases for this product
+                $purchases = PurchaseLine::join('transactions', 'purchase_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'purchase')
+                    ->where('transactions.status', 'received')
+                    ->where('purchase_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $purchases->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $purchases->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $purchases->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $total_purchases = $purchases->sum('purchase_lines.quantity');
+
+                $demand_supply_gap[] = [
+                    'product_name' => $product->name,
+                    'total_sales' => $total_sales,
+                    'total_purchases' => $total_purchases,
+                    'gap' => $total_purchases - $total_sales
+                ];
+                }
+            }
+
+            // Stock Turnover Rate
+            $stock_turnover = [];
+            if (isset($products_for_gap) && !empty($products_for_gap)) {
+                foreach ($products_for_gap as $product) {
+                // Get average inventory
+                $opening_stock = Variation::where('variations.product_id', $product->id)
+                    ->join('products', 'variations.product_id', '=', 'products.id')
+                    ->join('variation_location_details', 'variations.id', '=', 'variation_location_details.variation_id')
+                    ->where('products.business_id', $business_id)
+                    ->select(DB::raw('SUM(variation_location_details.qty_available) as stock'))
+                    ->first();
+
+                $opening_stock_value = $opening_stock ? $opening_stock->stock : 0;
+
+                // Get sales for this product
+                $sales = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $sales->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $sales->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $sales->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $total_sales = $sales->sum('transaction_sell_lines.quantity');
+
+                // Calculate turnover rate (if average inventory is 0, set turnover to 0 to avoid division by zero)
+                $turnover_rate = $opening_stock_value > 0 ? $total_sales / $opening_stock_value : 0;
+
+                $stock_turnover[] = [
+                    'product_name' => $product->name,
+                    'average_inventory' => $opening_stock_value,
+                    'total_sales' => $total_sales,
+                    'turnover_rate' => $turnover_rate
+                ];
+                }
+            }
+
+            // 4. Margin & Profitability Analytics
+            // Already covered in profitability section above
+
+            // 5. Category & Brand Performance
+            // Sales by Category
+            $category_performance = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $category_performance->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $category_performance->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $category_performance->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $category_performance = $category_performance->select(
+                'categories.name as category_name',
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('COUNT(DISTINCT products.id) as product_count')
+            )
+            ->groupBy('categories.id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // Sales by Brand
+            $brand_performance = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $brand_performance->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $brand_performance->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $brand_performance->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $brand_performance = $brand_performance->select(
+                'brands.name as brand_name',
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('COUNT(DISTINCT products.id) as product_count')
+            )
+            ->groupBy('brands.id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // 6. Inventory Aging Analysis
+            $inventory_aging = Variation::join('products', 'variations.product_id', '=', 'products.id')
+                ->join('variation_location_details', 'variations.id', '=', 'variation_location_details.variation_id')
+                ->leftJoin('purchase_lines', 'variations.id', '=', 'purchase_lines.variation_id')
+                ->where('products.business_id', $business_id)
+                ->where('variation_location_details.qty_available', '>', 0);
+
+            if (!empty($location_id)) {
+                $inventory_aging->where('variation_location_details.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $inventory_aging->whereIn('products.id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $inventory_aging->whereIn('variation_location_details.location_id', $permitted_locations);
+            }
+
+            // Get the inventory aging data
+            $inventory_aging_data = $inventory_aging->select(
+                'products.id as product_id',
+                'variations.id as variation_id',
+                'products.name as product_name',
+                'variations.name as variation_name',
+                'variation_location_details.qty_available',
+                DB::raw('MAX(purchase_lines.created_at) as last_purchased_date'),
+                DB::raw('DATEDIFF(CURRENT_DATE, MAX(purchase_lines.created_at)) as days_in_inventory')
+            )
+            ->groupBy('variations.id', 'variation_location_details.location_id')
+            ->orderBy('days_in_inventory', 'desc')
+            ->limit(20)
+            ->get();
+
+            // Calculate days to stock out for each product/variation
+            foreach ($inventory_aging_data as $item) {
+                // Get average daily sales for this product/variation over the last 30 days (or date range if specified)
+                $sales_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.variation_id', $item->variation_id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $sales_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                    $date_range = \Carbon\Carbon::parse($end_date)->diffInDays(\Carbon\Carbon::parse($start_date)) + 1;
+                } else {
+                    // Default to last 30 days if no date range specified
+                    $sales_query->where('transactions.transaction_date', '>=', \Carbon\Carbon::now()->subDays(30));
+                    $date_range = 30;
+                }
+
+                if (!empty($location_id)) {
+                    $sales_query->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $sales_query->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $total_sales = $sales_query->sum('transaction_sell_lines.quantity');
+
+                // Calculate average daily sales
+                $avg_daily_sales = $date_range > 0 ? $total_sales / $date_range : 0;
+
+                // Calculate days to stock out (if avg_daily_sales is 0, set to null to avoid division by zero)
+                $item->days_to_stock_out = $avg_daily_sales > 0 ? ceil($item->qty_available / $avg_daily_sales) : null;
+            }
+
+            $inventory_aging = $inventory_aging_data;
+
+            // 7. Seasonal Trends Analysis
+            $seasonal_trends = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $seasonal_trends->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $seasonal_trends->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $seasonal_trends->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $seasonal_trends->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $seasonal_trends = $seasonal_trends->select(
+                DB::raw('MONTH(transactions.transaction_date) as month'),
+                DB::raw('YEAR(transactions.transaction_date) as year'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy(DB::raw('MONTH(transactions.transaction_date)'), DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+            ->get();
+
+            // 8. Product Performance by Location
+            $location_performance = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->join('business_locations', 'transactions.location_id', '=', 'business_locations.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $location_performance->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($product_ids)) {
+                $location_performance->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $location_performance->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $location_performance = $location_performance->select(
+                'business_locations.name as location_name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount'),
+                DB::raw('COUNT(DISTINCT products.id) as product_count')
+            )
+            ->groupBy('business_locations.id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // 9. Predictive Analytics
+            // Sales Forecasting - Predict future sales based on historical data
+            $sales_forecast = [];
+            $product_forecasts = [];
+
+            // Get top products for forecasting
+            $top_products = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $top_products->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $top_products->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $top_products->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $top_products = $top_products->select(
+                'products.id',
+                'products.name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(5)
+            ->get();
+
+            // Overall sales forecast
+            if (isset($monthly_sales) && !$monthly_sales->isEmpty()) {
+                // Group sales by month-year
+                $sales_by_month = [];
+                foreach ($monthly_sales as $sale) {
+                    $month_year = $sale->year . '-' . str_pad($sale->month, 2, '0', STR_PAD_LEFT);
+                    if (!isset($sales_by_month[$month_year])) {
+                        $sales_by_month[$month_year] = 0;
+                    }
+                    $sales_by_month[$month_year] += $sale->total_sales;
+                }
+
+                // Sort by month-year
+                ksort($sales_by_month);
+
+                // Get the last 12 months of data (or less if not available)
+                $recent_sales = array_slice($sales_by_month, -12, 12, true);
+
+                // Calculate average monthly growth rate
+                $growth_rates = [];
+                $prev_sales = null;
+                foreach ($recent_sales as $month => $sales) {
+                    if ($prev_sales !== null && $prev_sales > 0) {
+                        $growth_rates[] = ($sales - $prev_sales) / $prev_sales;
+                    }
+                    $prev_sales = $sales;
+                }
+
+                // Calculate average growth rate
+                $avg_growth_rate = !empty($growth_rates) ? array_sum($growth_rates) / count($growth_rates) : 0;
+
+                // Get the last month's sales
+                $last_month_sales = end($recent_sales);
+                $last_month_key = key($recent_sales);
+
+                // Generate forecast for next 3 months
+                $forecast_months = [];
+                $forecast_values = [];
+
+                list($year, $month) = explode('-', $last_month_key);
+                $current_sales = $last_month_sales;
+
+                for ($i = 1; $i <= 3; $i++) {
+                    $month++;
+                    if ($month > 12) {
+                        $month = 1;
+                        $year++;
+                    }
+
+                    // Apply growth rate to forecast
+                    $forecast_sales = $current_sales * (1 + $avg_growth_rate);
+                    $forecast_month_key = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT);
+
+                    $forecast_months[] = \Carbon\Carbon::createFromDate($year, $month, 1)->format('M Y');
+                    $forecast_values[] = $forecast_sales;
+
+                    $sales_forecast[] = [
+                        'month' => \Carbon\Carbon::createFromDate($year, $month, 1)->format('M Y'),
+                        'forecasted_sales' => $forecast_sales,
+                        'growth_rate' => $avg_growth_rate * 100
+                    ];
+
+                    $current_sales = $forecast_sales;
+                }
+
+                // Add confidence intervals
+                if (!empty($growth_rates)) {
+                    $std_dev = $this->standardDeviation($growth_rates);
+                    foreach ($sales_forecast as &$forecast) {
+                        $forecast['lower_bound'] = $forecast['forecasted_sales'] * (1 - $std_dev);
+                        $forecast['upper_bound'] = $forecast['forecasted_sales'] * (1 + $std_dev);
+                    }
+                }
+            }
+
+            // Product-level forecasting
+            foreach ($top_products as $product) {
+                // Get monthly sales for this product
+                $product_monthly_sales = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $product_monthly_sales->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $product_monthly_sales->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $product_monthly_sales->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $product_monthly_sales = $product_monthly_sales->select(
+                    DB::raw('YEAR(transactions.transaction_date) as year'),
+                    DB::raw('MONTH(transactions.transaction_date) as month'),
+                    DB::raw('SUM(transaction_sell_lines.quantity) as quantity'),
+                    DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as amount')
+                )
+                ->groupBy(DB::raw('YEAR(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'))
+                ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+                ->get();
+
+                // Group sales by month-year
+                $product_sales_by_month = [];
+                foreach ($product_monthly_sales as $sale) {
+                    $month_year = $sale->year . '-' . str_pad($sale->month, 2, '0', STR_PAD_LEFT);
+                    if (!isset($product_sales_by_month[$month_year])) {
+                        $product_sales_by_month[$month_year] = 0;
+                    }
+                    $product_sales_by_month[$month_year] += $sale->quantity;
+                }
+
+                // Sort by month-year
+                ksort($product_sales_by_month);
+
+                // Get the last 6 months of data (or less if not available)
+                $recent_product_sales = array_slice($product_sales_by_month, -6, 6, true);
+
+                // Calculate average monthly growth rate
+                $product_growth_rates = [];
+                $prev_product_sales = null;
+                foreach ($recent_product_sales as $month => $sales) {
+                    if ($prev_product_sales !== null && $prev_product_sales > 0) {
+                        $product_growth_rates[] = ($sales - $prev_product_sales) / $prev_product_sales;
+                    }
+                    $prev_product_sales = $sales;
+                }
+
+                // Calculate average growth rate
+                $avg_product_growth_rate = !empty($product_growth_rates) ? array_sum($product_growth_rates) / count($product_growth_rates) : 0;
+
+                // Get the last month's sales
+                $last_month_product_sales = end($recent_product_sales);
+                $last_month_product_key = key($recent_product_sales);
+
+                // Generate forecast for next 3 months
+                $product_forecast = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'forecasts' => []
+                ];
+
+                list($year, $month) = explode('-', $last_month_product_key);
+                $current_product_sales = $last_month_product_sales;
+
+                for ($i = 1; $i <= 3; $i++) {
+                    $month++;
+                    if ($month > 12) {
+                        $month = 1;
+                        $year++;
+                    }
+
+                    // Apply growth rate to forecast
+                    $forecast_product_sales = $current_product_sales * (1 + $avg_product_growth_rate);
+
+                    $product_forecast['forecasts'][] = [
+                        'month' => \Carbon\Carbon::createFromDate($year, $month, 1)->format('M Y'),
+                        'forecasted_quantity' => $forecast_product_sales,
+                        'growth_rate' => $avg_product_growth_rate * 100
+                    ];
+
+                    $current_product_sales = $forecast_product_sales;
+                }
+
+                $product_forecasts[] = $product_forecast;
+            }
+
+            // Product Lifecycle Analysis
+            $lifecycle_analysis = [];
+
+            // Get products with sufficient sales history
+            $products_with_history = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $products_with_history->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $products_with_history->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $products_with_history->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $products_with_history->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $products_with_history = $products_with_history->select(
+                'products.id',
+                'products.name',
+                DB::raw('MIN(transactions.transaction_date) as first_sale_date'),
+                DB::raw('MAX(transactions.transaction_date) as last_sale_date'),
+                DB::raw('COUNT(DISTINCT DATE(transactions.transaction_date)) as sales_days'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+            )
+            ->groupBy('products.id')
+            ->having('sales_days', '>=', 5) // Require at least 5 days of sales data
+            ->orderBy('total_quantity', 'desc')
+            ->limit(10)
+            ->get();
+
+            foreach ($products_with_history as $product) {
+                // Get monthly sales for this product
+                $product_monthly_trend = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $product_monthly_trend->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $product_monthly_trend->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $product_monthly_trend->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $product_monthly_trend = $product_monthly_trend->select(
+                    DB::raw('YEAR(transactions.transaction_date) as year'),
+                    DB::raw('MONTH(transactions.transaction_date) as month'),
+                    DB::raw('SUM(transaction_sell_lines.quantity) as quantity')
+                )
+                ->groupBy(DB::raw('YEAR(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'))
+                ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+                ->get();
+
+                // Calculate growth rates between consecutive months
+                $monthly_growth_rates = [];
+                $prev_quantity = null;
+                foreach ($product_monthly_trend as $trend) {
+                    if ($prev_quantity !== null && $prev_quantity > 0) {
+                        $monthly_growth_rates[] = ($trend->quantity - $prev_quantity) / $prev_quantity;
+                    }
+                    $prev_quantity = $trend->quantity;
+                }
+
+                // Determine lifecycle stage based on growth rates
+                $lifecycle_stage = 'Unknown';
+                $avg_growth_rate = !empty($monthly_growth_rates) ? array_sum($monthly_growth_rates) / count($monthly_growth_rates) : 0;
+                $recent_growth_rates = array_slice($monthly_growth_rates, -3, 3); // Last 3 months
+                $recent_avg_growth = !empty($recent_growth_rates) ? array_sum($recent_growth_rates) / count($recent_growth_rates) : 0;
+
+                if ($avg_growth_rate > 0.1) {
+                    $lifecycle_stage = 'Growth';
+                } elseif ($avg_growth_rate >= -0.05 && $avg_growth_rate <= 0.1) {
+                    $lifecycle_stage = 'Maturity';
+                } elseif ($avg_growth_rate < -0.05) {
+                    $lifecycle_stage = 'Decline';
+                }
+
+                // If product is new (less than 3 months of data), mark as Introduction
+                $first_sale = \Carbon\Carbon::parse($product->first_sale_date);
+                $last_sale = \Carbon\Carbon::parse($product->last_sale_date);
+                $product_age_months = $first_sale->diffInMonths($last_sale) + 1;
+
+                if ($product_age_months <= 3) {
+                    $lifecycle_stage = 'Introduction';
+                }
+
+                $lifecycle_analysis[] = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'first_sale_date' => $product->first_sale_date,
+                    'last_sale_date' => $product->last_sale_date,
+                    'product_age_months' => $product_age_months,
+                    'total_quantity' => $product->total_quantity,
+                    'avg_growth_rate' => $avg_growth_rate * 100,
+                    'recent_growth_rate' => $recent_avg_growth * 100,
+                    'lifecycle_stage' => $lifecycle_stage
+                ];
+            }
+
+            // Trend Detection - Identify emerging product trends
+            $trend_detection = [];
+
+            // Get products with sufficient sales history
+            $products_for_trend = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $products_for_trend->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $products_for_trend->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $products_for_trend->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $products_for_trend->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $products_for_trend = $products_for_trend->select(
+                'products.id',
+                'products.name',
+                DB::raw('COUNT(DISTINCT DATE(transactions.transaction_date)) as sales_days')
+            )
+            ->groupBy('products.id')
+            ->having('sales_days', '>=', 5) // Require at least 5 days of sales data
+            ->orderBy('sales_days', 'desc')
+            ->limit(20)
+            ->get();
+
+            // For each product, get monthly sales data and calculate trend
+            foreach ($products_for_trend as $product) {
+                $monthly_trend = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $monthly_trend->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $monthly_trend->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $monthly_trend->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $monthly_trend = $monthly_trend->select(
+                    DB::raw('YEAR(transactions.transaction_date) as year'),
+                    DB::raw('MONTH(transactions.transaction_date) as month'),
+                    DB::raw('SUM(transaction_sell_lines.quantity) as quantity'),
+                    DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as amount')
+                )
+                ->groupBy(DB::raw('YEAR(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'))
+                ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+                ->get();
+
+                // Need at least 3 months of data for trend analysis
+                if (count($monthly_trend) >= 3) {
+                    // Calculate month-over-month growth rates
+                    $growth_rates = [];
+                    $monthly_data = [];
+                    $prev_quantity = null;
+
+                    foreach ($monthly_trend as $month_data) {
+                        $month_year = $month_data->year . '-' . str_pad($month_data->month, 2, '0', STR_PAD_LEFT);
+                        $monthly_data[$month_year] = [
+                            'quantity' => $month_data->quantity,
+                            'amount' => $month_data->amount
+                        ];
+
+                        if ($prev_quantity !== null && $prev_quantity > 0) {
+                            $growth_rates[] = ($month_data->quantity - $prev_quantity) / $prev_quantity;
+                        }
+                        $prev_quantity = $month_data->quantity;
+                    }
+
+                    // Calculate trend metrics
+                    $avg_growth_rate = !empty($growth_rates) ? array_sum($growth_rates) / count($growth_rates) : 0;
+
+                    // Get recent growth (last 3 months or less)
+                    $recent_growth_rates = array_slice($growth_rates, -min(3, count($growth_rates)));
+                    $recent_avg_growth = !empty($recent_growth_rates) ? array_sum($recent_growth_rates) / count($recent_growth_rates) : 0;
+
+                    // Calculate trend acceleration (is growth rate increasing or decreasing?)
+                    $trend_acceleration = 0;
+                    if (count($growth_rates) >= 2) {
+                        $first_half = array_slice($growth_rates, 0, floor(count($growth_rates) / 2));
+                        $second_half = array_slice($growth_rates, floor(count($growth_rates) / 2));
+
+                        $first_half_avg = !empty($first_half) ? array_sum($first_half) / count($first_half) : 0;
+                        $second_half_avg = !empty($second_half) ? array_sum($second_half) / count($second_half) : 0;
+
+                        $trend_acceleration = $second_half_avg - $first_half_avg;
+                    }
+
+                    // Calculate trend strength using linear regression
+                    $months = [];
+                    $quantities = [];
+                    $i = 0;
+                    foreach ($monthly_data as $month => $data) {
+                        $months[] = $i++;
+                        $quantities[] = $data['quantity'];
+                    }
+
+                    // Calculate linear regression
+                    $n = count($months);
+                    $sum_x = array_sum($months);
+                    $sum_y = array_sum($quantities);
+                    $sum_xy = 0;
+                    $sum_xx = 0;
+
+                    for ($i = 0; $i < $n; $i++) {
+                        $sum_xy += $months[$i] * $quantities[$i];
+                        $sum_xx += $months[$i] * $months[$i];
+                    }
+
+                    $slope = 0;
+                    if (($n * $sum_xx - $sum_x * $sum_x) != 0) {
+                        $slope = ($n * $sum_xy - $sum_x * $sum_y) / ($n * $sum_xx - $sum_x * $sum_x);
+                    }
+
+                    // Calculate R-squared (coefficient of determination)
+                    $mean_y = $sum_y / $n;
+                    $ss_tot = 0;
+                    $ss_res = 0;
+
+                    for ($i = 0; $i < $n; $i++) {
+                        $predicted_y = $slope * $months[$i] + ($sum_y - $slope * $sum_x) / $n;
+                        $ss_tot += ($quantities[$i] - $mean_y) * ($quantities[$i] - $mean_y);
+                        $ss_res += ($quantities[$i] - $predicted_y) * ($quantities[$i] - $predicted_y);
+                    }
+
+                    $r_squared = 0;
+                    if ($ss_tot != 0) {
+                        $r_squared = 1 - ($ss_res / $ss_tot);
+                    }
+
+                    // Determine trend direction and strength
+                    $trend_direction = 'Stable';
+                    if ($avg_growth_rate > 0.05) {
+                        $trend_direction = 'Upward';
+                    } elseif ($avg_growth_rate < -0.05) {
+                        $trend_direction = 'Downward';
+                    }
+
+                    $trend_strength = 'Weak';
+                    if (abs($r_squared) > 0.7) {
+                        $trend_strength = 'Strong';
+                    } elseif (abs($r_squared) > 0.3) {
+                        $trend_strength = 'Moderate';
+                    }
+
+                    // Determine if this is an emerging trend
+                    $is_emerging = false;
+                    if ($trend_direction == 'Upward' && $recent_avg_growth > $avg_growth_rate && $trend_acceleration > 0) {
+                        $is_emerging = true;
+                    }
+
+                    // Add to trend detection results
+                    $trend_detection[] = [
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'avg_growth_rate' => $avg_growth_rate * 100, // Convert to percentage
+                        'recent_growth_rate' => $recent_avg_growth * 100, // Convert to percentage
+                        'trend_acceleration' => $trend_acceleration * 100, // Convert to percentage
+                        'trend_direction' => $trend_direction,
+                        'trend_strength' => $trend_strength,
+                        'r_squared' => $r_squared,
+                        'is_emerging' => $is_emerging,
+                        'monthly_data' => $monthly_data
+                    ];
+                }
+            }
+
+            // Sort trends by recent growth rate (descending)
+            usort($trend_detection, function($a, $b) {
+                return $b['recent_growth_rate'] <=> $a['recent_growth_rate'];
+            });
+
+            // Seasonality Impact Analysis
+            $seasonality_analysis = [];
+
+            // Get overall monthly sales patterns
+            $monthly_seasonality = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $monthly_seasonality->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $monthly_seasonality->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $monthly_seasonality->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $monthly_seasonality->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $monthly_seasonality = $monthly_seasonality->select(
+                DB::raw('MONTH(transactions.transaction_date) as month'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy(DB::raw('MONTH(transactions.transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+            ->get();
+
+            // Calculate monthly seasonality index
+            $total_quantity = $monthly_seasonality->sum('total_quantity');
+            $avg_monthly_quantity = $total_quantity / max(1, count($monthly_seasonality));
+
+            $monthly_indices = [];
+            foreach ($monthly_seasonality as $month_data) {
+                $seasonality_index = $avg_monthly_quantity > 0 ? $month_data->total_quantity / $avg_monthly_quantity : 0;
+                $month_name = date('F', mktime(0, 0, 0, $month_data->month, 10));
+
+                $monthly_indices[] = [
+                    'month' => $month_data->month,
+                    'month_name' => $month_name,
+                    'total_quantity' => $month_data->total_quantity,
+                    'total_amount' => $month_data->total_amount,
+                    'seasonality_index' => $seasonality_index
+                ];
+            }
+
+            // Get quarterly sales patterns
+            $quarterly_seasonality = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $quarterly_seasonality->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $quarterly_seasonality->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $quarterly_seasonality->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $quarterly_seasonality->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $quarterly_seasonality = $quarterly_seasonality->select(
+                DB::raw('QUARTER(transactions.transaction_date) as quarter'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy(DB::raw('QUARTER(transactions.transaction_date)'))
+            ->orderBy(DB::raw('QUARTER(transactions.transaction_date)'))
+            ->get();
+
+            // Calculate quarterly seasonality index
+            $total_quarterly_quantity = $quarterly_seasonality->sum('total_quantity');
+            $avg_quarterly_quantity = $total_quarterly_quantity / max(1, count($quarterly_seasonality));
+
+            $quarterly_indices = [];
+            foreach ($quarterly_seasonality as $quarter_data) {
+                $seasonality_index = $avg_quarterly_quantity > 0 ? $quarter_data->total_quantity / $avg_quarterly_quantity : 0;
+                $quarter_name = 'Q' . $quarter_data->quarter;
+
+                $quarterly_indices[] = [
+                    'quarter' => $quarter_data->quarter,
+                    'quarter_name' => $quarter_name,
+                    'total_quantity' => $quarter_data->total_quantity,
+                    'total_amount' => $quarter_data->total_amount,
+                    'seasonality_index' => $seasonality_index
+                ];
+            }
+
+            // Get day of week patterns
+            $day_of_week_seasonality = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $day_of_week_seasonality->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $day_of_week_seasonality->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $day_of_week_seasonality->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $day_of_week_seasonality->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $day_of_week_seasonality = $day_of_week_seasonality->select(
+                DB::raw('DAYOFWEEK(transactions.transaction_date) as day_of_week'),
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy(DB::raw('DAYOFWEEK(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DAYOFWEEK(transactions.transaction_date)'))
+            ->get();
+
+            // Calculate day of week seasonality index
+            $total_dow_quantity = $day_of_week_seasonality->sum('total_quantity');
+            $avg_dow_quantity = $total_dow_quantity / max(1, count($day_of_week_seasonality));
+
+            $day_of_week_indices = [];
+            $day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            foreach ($day_of_week_seasonality as $dow_data) {
+                $seasonality_index = $avg_dow_quantity > 0 ? $dow_data->total_quantity / $avg_dow_quantity : 0;
+                $day_name = $day_names[$dow_data->day_of_week - 1];
+
+                $day_of_week_indices[] = [
+                    'day_of_week' => $dow_data->day_of_week,
+                    'day_name' => $day_name,
+                    'total_quantity' => $dow_data->total_quantity,
+                    'total_amount' => $dow_data->total_amount,
+                    'seasonality_index' => $seasonality_index
+                ];
+            }
+
+            // Product-specific seasonality
+            $product_seasonality = [];
+
+            // Get top products for seasonality analysis
+            $top_products_query = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $top_products_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $top_products_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $top_products_query->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $top_products_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $top_products = $top_products_query->select(
+                'products.id',
+                'products.name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(5)
+            ->get();
+
+            // For each top product, get monthly sales pattern
+            foreach ($top_products as $product) {
+                $product_monthly_sales = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $product_monthly_sales->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $product_monthly_sales->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $product_monthly_sales->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $product_monthly_sales = $product_monthly_sales->select(
+                    DB::raw('MONTH(transactions.transaction_date) as month'),
+                    DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+                )
+                ->groupBy(DB::raw('MONTH(transactions.transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+                ->get();
+
+                // Calculate product's monthly seasonality index
+                $product_total_quantity = $product_monthly_sales->sum('total_quantity');
+                $product_avg_monthly_quantity = $product_total_quantity / max(1, count($product_monthly_sales));
+
+                $product_monthly_indices = [];
+                foreach ($product_monthly_sales as $month_data) {
+                    $seasonality_index = $product_avg_monthly_quantity > 0 ? $month_data->total_quantity / $product_avg_monthly_quantity : 0;
+                    $month_name = date('F', mktime(0, 0, 0, $month_data->month, 10));
+
+                    $product_monthly_indices[] = [
+                        'month' => $month_data->month,
+                        'month_name' => $month_name,
+                        'total_quantity' => $month_data->total_quantity,
+                        'seasonality_index' => $seasonality_index
+                    ];
+                }
+
+                // Determine if product has strong seasonality
+                $seasonality_variance = 0;
+                if (count($product_monthly_indices) > 0) {
+                    $indices = array_column($product_monthly_indices, 'seasonality_index');
+                    $seasonality_variance = $this->standardDeviation($indices);
+                }
+
+                $has_strong_seasonality = $seasonality_variance > 0.3; // Threshold for strong seasonality
+
+                // Find peak season (months with index > 1.2)
+                $peak_season = array_filter($product_monthly_indices, function($item) {
+                    return $item['seasonality_index'] > 1.2;
+                });
+
+                // Find low season (months with index < 0.8)
+                $low_season = array_filter($product_monthly_indices, function($item) {
+                    return $item['seasonality_index'] < 0.8;
+                });
+
+                $peak_months = array_column($peak_season, 'month_name');
+                $low_months = array_column($low_season, 'month_name');
+
+                $product_seasonality[] = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'monthly_indices' => $product_monthly_indices,
+                    'seasonality_variance' => $seasonality_variance,
+                    'has_strong_seasonality' => $has_strong_seasonality,
+                    'peak_season' => implode(', ', $peak_months),
+                    'low_season' => implode(', ', $low_months)
+                ];
+            }
+
+            // Combine all seasonality data
+            $seasonality_analysis = [
+                'monthly_indices' => $monthly_indices,
+                'quarterly_indices' => $quarterly_indices,
+                'day_of_week_indices' => $day_of_week_indices,
+                'product_seasonality' => $product_seasonality
+            ];
+
+            // Price Elasticity Analysis
+            $price_elasticity = [];
+
+            // Get products with price changes
+            $products_with_price_changes = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $products_with_price_changes->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $products_with_price_changes->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($product_ids)) {
+                $products_with_price_changes->whereIn('transaction_sell_lines.product_id', $product_ids);
+            }
+
+            if ($permitted_locations != 'all') {
+                $products_with_price_changes->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $products_with_price_changes = $products_with_price_changes->select(
+                'products.id',
+                'products.name',
+                DB::raw('COUNT(DISTINCT transaction_sell_lines.unit_price_inc_tax) as price_count')
+            )
+            ->groupBy('products.id')
+            ->having('price_count', '>', 1) // Only products with multiple price points
+            ->orderBy('price_count', 'desc')
+            ->limit(5)
+            ->get();
+
+            foreach ($products_with_price_changes as $product) {
+                // Get price points and corresponding sales volumes
+                $price_points = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->where('transaction_sell_lines.product_id', $product->id);
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $price_points->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+                }
+
+                if (!empty($location_id)) {
+                    $price_points->where('transactions.location_id', $location_id);
+                }
+
+                if ($permitted_locations != 'all') {
+                    $price_points->whereIn('transactions.location_id', $permitted_locations);
+                }
+
+                $price_points = $price_points->select(
+                    'transaction_sell_lines.unit_price_inc_tax as price',
+                    DB::raw('SUM(transaction_sell_lines.quantity) as quantity'),
+                    DB::raw('COUNT(DISTINCT transactions.id) as transaction_count')
+                )
+                ->groupBy('transaction_sell_lines.unit_price_inc_tax')
+                ->orderBy('price')
+                ->get();
+
+                // Need at least 2 price points to calculate elasticity
+                if (count($price_points) >= 2) {
+                    $elasticity_data = [
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'price_points' => [],
+                        'elasticity' => null
+                    ];
+
+                    // Calculate average daily sales at each price point
+                    foreach ($price_points as $point) {
+                        $elasticity_data['price_points'][] = [
+                            'price' => $point->price,
+                            'quantity' => $point->quantity,
+                            'transaction_count' => $point->transaction_count
+                        ];
+                    }
+
+                    // Calculate price elasticity if we have at least 2 price points
+                    if (count($elasticity_data['price_points']) >= 2) {
+                        $point1 = $elasticity_data['price_points'][0];
+                        $point2 = $elasticity_data['price_points'][count($elasticity_data['price_points']) - 1];
+
+                        $price1 = $point1['price'];
+                        $price2 = $point2['price'];
+                        $quantity1 = $point1['quantity'];
+                        $quantity2 = $point2['quantity'];
+
+                        // Avoid division by zero
+                        if ($price1 > 0 && $price2 > 0 && $quantity1 > 0 && $quantity2 > 0) {
+                            $avg_price = ($price1 + $price2) / 2;
+                            $avg_quantity = ($quantity1 + $quantity2) / 2;
+
+                            $price_change_percent = ($price2 - $price1) / $price1;
+                            $quantity_change_percent = ($quantity2 - $quantity1) / $quantity1;
+
+                            // Price elasticity formula: % change in quantity / % change in price
+                            if ($price_change_percent != 0) {
+                                $elasticity = $quantity_change_percent / $price_change_percent;
+                                $elasticity_data['elasticity'] = $elasticity;
+
+                                // Interpret elasticity
+                                if (abs($elasticity) > 1) {
+                                    $elasticity_data['interpretation'] = 'Elastic (Sensitive to price changes)';
+                                } elseif (abs($elasticity) < 1) {
+                                    $elasticity_data['interpretation'] = 'Inelastic (Less sensitive to price changes)';
+                                } else {
+                                    $elasticity_data['interpretation'] = 'Unit Elastic';
+                                }
+
+                                // Optimal price recommendation (simplified)
+                                if ($elasticity < -1) {
+                                    // Elastic demand, consider lowering price
+                                    $elasticity_data['price_recommendation'] = 'Consider lowering price to increase revenue';
+                                } elseif ($elasticity > -1 && $elasticity < 0) {
+                                    // Inelastic demand, consider raising price
+                                    $elasticity_data['price_recommendation'] = 'Consider raising price to increase revenue';
+                                } else {
+                                    $elasticity_data['price_recommendation'] = 'Current pricing appears optimal';
+                                }
+                            }
+                        }
+                    }
+
+                    $price_elasticity[] = $elasticity_data;
+                }
+            }
+
+            // Prepare data for the view
+            $data = [
+                'sales_trends' => $sales_trends,
+                'monthly_sales' => $monthly_sales,
+                'product_mix' => $product_mix,
+                'customer_behavior' => $customer_behavior,
+                'cross_sell_products' => $cross_sell_products,
+                'cross_sell_recommendations' => $cross_sell_recommendations,
+                'product_bundles' => $product_bundles,
+                'discount_impact' => $discount_impact,
+                'profitability' => $profitability,
+                'purchase_trends' => $purchase_trends,
+                'monthly_purchases' => $monthly_purchases,
+                'supplier_performance' => $supplier_performance,
+                'product_purchases' => $product_purchases,
+                'demand_supply_gap' => $demand_supply_gap,
+                'stock_turnover' => $stock_turnover,
+                'category_performance' => $category_performance,
+                'brand_performance' => $brand_performance,
+                'inventory_aging' => $inventory_aging,
+                'seasonal_trends' => $seasonal_trends,
+                'location_performance' => $location_performance,
+                'sales_forecast' => $sales_forecast,
+                'product_forecasts' => $product_forecasts,
+                'lifecycle_analysis' => $lifecycle_analysis,
+                'trend_detection' => $trend_detection,
+                'price_elasticity' => $price_elasticity,
+                'seasonality_analysis' => $seasonality_analysis
+            ];
+
+            // Return JSON data for dashboard if requested
+            if ($return_json) {
+                return response()->json($data);
+            }
+
+            return view('report.partials.product_advance_analytics_details', compact('data'))->render();
+        }
+
+        $business_locations = BusinessLocation::forDropdown($business_id, true);
+        $products = Product::where('business_id', $business_id)
+                        ->select('id', DB::raw("CONCAT(name, ' - ', sku) as name"))
+                        ->orderBy('name')
+                        ->pluck('name', 'id');
+
+        return view('report.product_advance_analytics', compact('business_locations', 'products'));
+    }
+    /**
+     * Calculate standard deviation
+     *
+     * @param array $array
+     * @return float
+     */
+    private function standardDeviation(array $array): float
+    {
+        $n = count($array);
+        if ($n === 0) {
+            return 0.0;
+        }
+
+        $mean = array_sum($array) / $n;
+        $variance = 0.0;
+
+        if (isset($array) && !empty($array)) {
+            foreach ($array as $value) {
+                $variance += pow(($value - $mean), 2);
+            }
+        }
+
+        return sqrt($variance / $n);
+    }
+
+    /**
+     * Calculate correlation coefficient
+     *
+     * @param array $x
+     * @param array $y
+     * @return float
+     */
+    private function correlation(array $x, array $y): float
+    {
+        $n = count($x);
+        if ($n !== count($y) || $n === 0) {
+            return 0.0;
+        }
+
+        $sum_x = array_sum($x);
+        $sum_y = array_sum($y);
+        $sum_xy = 0;
+        $sum_x2 = 0;
+        $sum_y2 = 0;
+
+        if (isset($x) && isset($y) && !empty($x) && !empty($y)) {
+            for ($i = 0; $i < $n; $i++) {
+                $sum_xy += ($x[$i] * $y[$i]);
+                $sum_x2 += ($x[$i] * $x[$i]);
+                $sum_y2 += ($y[$i] * $y[$i]);
+            }
+        }
+
+        $numerator = $n * $sum_xy - $sum_x * $sum_y;
+        $denominator = sqrt(($n * $sum_x2 - $sum_x * $sum_x) * ($n * $sum_y2 - $sum_y * $sum_y));
+
+        if ($denominator === 0) {
+            return 0.0;
+        }
+
+        return $numerator / $denominator;
+    }
+
+    /**
+     * Interpret correlation coefficient
+     *
+     * @param float $correlation
+     * @return string
+     */
+    private function interpretCorrelation(float $correlation): string
+    {
+        $abs = abs($correlation);
+
+        if ($abs >= 0.9) {
+            $strength = 'Very strong';
+        } elseif ($abs >= 0.7) {
+            $strength = 'Strong';
+        } elseif ($abs >= 0.5) {
+            $strength = 'Moderate';
+        } elseif ($abs >= 0.3) {
+            $strength = 'Weak';
+        } else {
+            $strength = 'Very weak or no';
+        }
+
+        $direction = $correlation > 0 ? 'positive' : ($correlation < 0 ? 'negative' : 'no');
+
+        return "$strength $direction correlation";
+    }
+
+    /**
+     * Shows purchase advance analytics for a specific supplier
+     *
+     * @param int $supplier_id
+     * @return \Illuminate\Http\Response
+     */
+    public function getSupplierPurchaseAdvanceAnalytics($supplier_id)
+    {
+        if (! auth()->user()->can('profit_loss_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = request()->session()->get('user.business_id');
+        $contact = Contact::where('business_id', $business_id)->find($supplier_id);
+
+        if (!$contact || !in_array($contact->type, ['supplier', 'both'])) {
+            abort(404, 'Supplier not found');
+        }
+
+        // Set the supplier_id in the request
+        request()->merge(['supplier_id' => $supplier_id]);
+
+        // Get the data
+        $data = $this->getPurchaseAdvanceAnalyticsData(request());
+
+        return view('contact.partials.purchase_advance_analytics_tab', compact('data', 'contact'));
+    }
+
+    /**
+     * Get purchase advance analytics data
+     *
+     * @param Request $request
+     * @return array
+     */
+    private function getPurchaseAdvanceAnalyticsData(Request $request)
+    {
+        $business_id = $request->session()->get('user.business_id');
+        $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
+
+        $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
+        $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
+        $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+        $supplier_id = ! empty($request->get('supplier_id')) ? $request->get('supplier_id') : null;
+
+        $permitted_locations = auth()->user()->permitted_locations();
+
+        // Base query for purchases
+        $base_query = Transaction::where('transactions.business_id', $business_id)
+            ->where('transactions.type', 'purchase')
+            ->where('transactions.status', 'received');
+
+        if (!empty($start_date) && !empty($end_date)) {
+            $base_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+        }
+
+        if (!empty($location_id)) {
+            $base_query->where('transactions.location_id', $location_id);
+        }
+
+        if (!empty($supplier_id)) {
+            $base_query->where('transactions.contact_id', $supplier_id);
+        }
+
+        if ($permitted_locations != 'all') {
+            $base_query->whereIn('transactions.location_id', $permitted_locations);
+        }
+
+        // Monthly purchases
+        $monthly_purchases_query = clone $base_query;
+        $monthly_purchases = $monthly_purchases_query->select(
+            DB::raw('DATE(transactions.transaction_date) as date'),
+            DB::raw('MONTH(transactions.transaction_date) as month'),
+            DB::raw('YEAR(transactions.transaction_date) as year'),
+            DB::raw('SUM(transactions.final_total) as total_purchase'),
+            DB::raw('COUNT(transactions.id) as transaction_count')
+        )
+        ->groupBy(DB::raw('DATE(transactions.transaction_date)'), DB::raw('MONTH(transactions.transaction_date)'), DB::raw('YEAR(transactions.transaction_date)'))
+        ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+        ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+        ->orderBy(DB::raw('MONTH(transactions.transaction_date)'))
+        ->get();
+
+        // Quarterly purchases
+        $quarterly_purchases_query = clone $base_query;
+        $quarterly_purchases = $quarterly_purchases_query->select(
+            DB::raw('QUARTER(transactions.transaction_date) as quarter'),
+            DB::raw('YEAR(transactions.transaction_date) as year'),
+            DB::raw('SUM(transactions.final_total) as total_purchase'),
+            DB::raw('COUNT(transactions.id) as transaction_count')
+        )
+        ->groupBy(DB::raw('QUARTER(transactions.transaction_date)'), DB::raw('YEAR(transactions.transaction_date)'))
+        ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+        ->orderBy(DB::raw('QUARTER(transactions.transaction_date)'))
+        ->get();
+
+        // Yearly purchases
+        $yearly_purchases_query = clone $base_query;
+        $yearly_purchases = $yearly_purchases_query->select(
+            DB::raw('YEAR(transactions.transaction_date) as year'),
+            DB::raw('SUM(transactions.final_total) as total_purchase'),
+            DB::raw('COUNT(transactions.id) as transaction_count')
+        )
+        ->groupBy(DB::raw('YEAR(transactions.transaction_date)'))
+        ->orderBy(DB::raw('YEAR(transactions.transaction_date)'))
+        ->get();
+
+        // Top suppliers
+        $top_suppliers_query = Contact::leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+            $join->on('contacts.id', '=', 't.contact_id')
+                ->where('t.type', 'purchase')
+                ->where('t.status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+        })
+        ->where('contacts.business_id', $business_id)
+        ->whereIn('contacts.type', ['supplier', 'both']);
+
+        if (!empty($location_id)) {
+            $top_suppliers_query->where('t.location_id', $location_id);
+        }
+
+        if (!empty($supplier_id)) {
+            $top_suppliers_query->where('contacts.id', $supplier_id);
+        }
+
+        if ($permitted_locations != 'all') {
+            $top_suppliers_query->whereIn('t.location_id', $permitted_locations);
+        }
+
+        $top_suppliers = $top_suppliers_query->select(
+            'contacts.id',
+            'contacts.name',
+            'contacts.supplier_business_name',
+            DB::raw('SUM(t.final_total) as total_purchase'),
+            DB::raw('COUNT(t.id) as transaction_count')
+        )
+        ->groupBy('contacts.id')
+        ->orderBy('total_purchase', 'desc')
+        ->limit(10)
+        ->get();
+
+        // Top purchased products
+        $top_products_query = PurchaseLine::join('transactions as t', 'purchase_lines.transaction_id', '=', 't.id')
+            ->join('products as p', 'purchase_lines.product_id', '=', 'p.id')
+            ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
+            ->where('t.business_id', $business_id)
+            ->where('t.type', 'purchase')
+            ->where('t.status', 'received');
+
+        if (!empty($start_date) && !empty($end_date)) {
+            $top_products_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+        }
+
+        if (!empty($location_id)) {
+            $top_products_query->where('t.location_id', $location_id);
+        }
+
+        if (!empty($supplier_id)) {
+            $top_products_query->where('t.contact_id', $supplier_id);
+        }
+
+        if ($permitted_locations != 'all') {
+            $top_products_query->whereIn('t.location_id', $permitted_locations);
+        }
+
+        $top_products = $top_products_query->select(
+            'p.id',
+            'p.name as product_name',
+            'c.name as category_name',
+            DB::raw('SUM(purchase_lines.quantity) as total_quantity'),
+            DB::raw('SUM(purchase_lines.quantity * purchase_lines.purchase_price_inc_tax) as total_amount')
+        )
+        ->groupBy('p.id')
+        ->orderBy('total_amount', 'desc')
+        ->limit(10)
+        ->get();
+
+        // Payment methods
+        $payment_methods_query = TransactionPayment::join('transactions as t', 'transaction_payments.transaction_id', '=', 't.id')
+            ->where('t.business_id', $business_id)
+            ->where('t.type', 'purchase')
+            ->where('t.status', 'received');
+
+        if (!empty($start_date) && !empty($end_date)) {
+            $payment_methods_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+        }
+
+        if (!empty($location_id)) {
+            $payment_methods_query->where('t.location_id', $location_id);
+        }
+
+        if (!empty($supplier_id)) {
+            $payment_methods_query->where('t.contact_id', $supplier_id);
+        }
+
+        if ($permitted_locations != 'all') {
+            $payment_methods_query->whereIn('t.location_id', $permitted_locations);
+        }
+
+        $payment_methods = $payment_methods_query->select(
+            'transaction_payments.method',
+            DB::raw('COUNT(transaction_payments.id) as count'),
+            DB::raw('SUM(transaction_payments.amount) as total_amount')
+        )
+        ->groupBy('transaction_payments.method')
+        ->orderBy('total_amount', 'desc')
+        ->get();
+
+        // Purchase returns
+        $purchase_returns_query = Transaction::where('business_id', $business_id)
+            ->where('type', 'purchase_return');
+
+        if (!empty($start_date) && !empty($end_date)) {
+            $purchase_returns_query->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+        }
+
+        if (!empty($location_id)) {
+            $purchase_returns_query->where('location_id', $location_id);
+        }
+
+        if (!empty($supplier_id)) {
+            $purchase_returns_query->where('contact_id', $supplier_id);
+        }
+
+        if ($permitted_locations != 'all') {
+            $purchase_returns_query->whereIn('location_id', $permitted_locations);
+        }
+
+        $purchase_returns = $purchase_returns_query->select(
+            DB::raw('MONTH(transaction_date) as month'),
+            DB::raw('YEAR(transaction_date) as year'),
+            DB::raw('SUM(final_total) as total_return'),
+            DB::raw('COUNT(id) as return_count')
+        )
+        ->groupBy(DB::raw('MONTH(transaction_date)'), DB::raw('YEAR(transaction_date)'))
+        ->orderBy(DB::raw('YEAR(transaction_date)'))
+        ->orderBy(DB::raw('MONTH(transaction_date)'))
+        ->get();
+
+        return [
+            'monthly_purchases' => $monthly_purchases,
+            'quarterly_purchases' => $quarterly_purchases,
+            'yearly_purchases' => $yearly_purchases,
+            'top_suppliers' => $top_suppliers,
+            'top_products' => $top_products,
+            'payment_methods' => $payment_methods,
+            'purchase_returns' => $purchase_returns
+        ];
+    }
+
+    /**
+     * Shows business advance analytics report
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getBusinessAdvanceAnalytics(Request $request)
+    {
+        if (! auth()->user()->can('profit_loss_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        //Return the details in ajax call
+        if ($request->ajax()) {
+            $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
+
+            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
+            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
+            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+
+            $permitted_locations = auth()->user()->permitted_locations();
+
+            // Sales Overview Data
+            $sales_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $sales_query->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $sales_query->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $sales_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Total Sales
+            $total_sales = $sales_query->count();
+
+            // Total Revenue
+            $total_revenue = $sales_query->sum('final_total');
+
+            // Average Order Value
+            $average_order_value = $total_sales > 0 ? $total_revenue / $total_sales : 0;
+
+            // Total Customers
+            $total_customers = Contact::where('business_id', $business_id)
+                ->where('type', 'customer')
+                ->count();
+
+            // Sales Trend Data
+            $sales_trend = $sales_query->select(
+                DB::raw('DATE(transactions.transaction_date) as date'),
+                DB::raw('SUM(transactions.final_total) as total_sales')
+            )
+            ->groupBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->orderBy(DB::raw('DATE(transactions.transaction_date)'))
+            ->get();
+
+            $sales_trend_labels = $sales_trend->pluck('date')->toArray();
+            $sales_trend_data = $sales_trend->pluck('total_sales')->toArray();
+
+            // Sales Distribution by Category
+            $sales_distribution = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $sales_distribution->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $sales_distribution->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $sales_distribution->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $sales_distribution = $sales_distribution->select(
+                'categories.name as category_name',
+                DB::raw('SUM(transaction_sell_lines.quantity * transaction_sell_lines.unit_price_inc_tax) as total_amount')
+            )
+            ->groupBy('categories.id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            $sales_distribution_labels = $sales_distribution->pluck('category_name')->toArray();
+            $sales_distribution_data = $sales_distribution->pluck('total_amount')->toArray();
+
+            // Revenue Analysis Data
+            // Gross Revenue (same as total_revenue)
+            $gross_revenue = $total_revenue;
+
+            // Net Revenue (after discounts)
+            $net_revenue = $sales_query->sum(DB::raw('final_total - tax_amount'));
+
+            // Revenue Growth (compared to previous period)
+            $previous_period_start = date('Y-m-d', strtotime($start_date . ' -1 year'));
+            $previous_period_end = date('Y-m-d', strtotime($end_date . ' -1 year'));
+
+            $previous_revenue = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$previous_period_start, $previous_period_end]);
+
+            if (!empty($location_id)) {
+                $previous_revenue->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $previous_revenue->whereIn('location_id', $permitted_locations);
+            }
+
+            $previous_revenue = $previous_revenue->sum('final_total');
+            $revenue_growth = $previous_revenue > 0 ? (($total_revenue - $previous_revenue) / $previous_revenue) * 100 : 100;
+
+            // Monthly Recurring Revenue
+            $monthly_recurring_revenue = $total_revenue / (strtotime($end_date) - strtotime($start_date)) * 30 * 24 * 60 * 60;
+
+            // Profit Margins Data
+            // Cost of Goods Sold
+            $cogs = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->leftJoin('transaction_sell_lines_purchase_lines as tspl', 'transaction_sell_lines.id', '=', 'tspl.sell_line_id')
+                ->leftJoin('purchase_lines', 'tspl.purchase_line_id', '=', 'purchase_lines.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $cogs->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $cogs->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $cogs->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $cogs = $cogs->sum(DB::raw('transaction_sell_lines.quantity * purchase_lines.purchase_price_inc_tax'));
+
+            // Gross Profit
+            $gross_profit = $gross_revenue - $cogs;
+
+            // Gross Profit Margin
+            $gross_profit_margin = $gross_revenue > 0 ? ($gross_profit / $gross_revenue) * 100 : 0;
+
+            // Expenses
+            $expenses = Transaction::where('business_id', $business_id)
+                ->where('type', 'expense')
+                ->where('payment_status', 'paid');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $expenses->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $expenses->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $expenses->whereIn('location_id', $permitted_locations);
+            }
+
+            $total_expenses = $expenses->sum('final_total');
+
+            // Net Profit
+            $net_profit = $gross_profit - $total_expenses;
+
+            // Net Profit Margin
+            $net_profit_margin = $gross_revenue > 0 ? ($net_profit / $gross_revenue) * 100 : 0;
+
+            // Profit Growth
+            $previous_profit = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$previous_period_start, $previous_period_end]);
+
+            if (!empty($location_id)) {
+                $previous_profit->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $previous_profit->whereIn('location_id', $permitted_locations);
+            }
+
+            $previous_profit_amount = $previous_profit->sum('final_total');
+            $previous_cogs = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->leftJoin('transaction_sell_lines_purchase_lines as tspl', 'transaction_sell_lines.id', '=', 'tspl.sell_line_id')
+                ->leftJoin('purchase_lines', 'tspl.purchase_line_id', '=', 'purchase_lines.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$previous_period_start, $previous_period_end]);
+
+            if (!empty($location_id)) {
+                $previous_cogs->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $previous_cogs->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $previous_cogs_amount = $previous_cogs->sum(DB::raw('transaction_sell_lines.quantity * purchase_lines.purchase_price_inc_tax'));
+            $previous_gross_profit = $previous_profit_amount - $previous_cogs_amount;
+
+            $previous_expenses = Transaction::where('business_id', $business_id)
+                ->where('type', 'expense')
+                ->where('payment_status', 'paid')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$previous_period_start, $previous_period_end]);
+
+            if (!empty($location_id)) {
+                $previous_expenses->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $previous_expenses->whereIn('location_id', $permitted_locations);
+            }
+
+            $previous_expenses_amount = $previous_expenses->sum('final_total');
+            $previous_net_profit = $previous_gross_profit - $previous_expenses_amount;
+
+            $profit_growth = $previous_net_profit > 0 ? (($net_profit - $previous_net_profit) / $previous_net_profit) * 100 : 100;
+
+            // Inventory Performance Data
+            // Inventory Value
+            $inventory_value = Product::join('variations', 'products.id', '=', 'variations.product_id')
+                ->join('variation_location_details', 'variations.id', '=', 'variation_location_details.variation_id')
+                ->where('products.business_id', $business_id);
+
+            if (!empty($location_id)) {
+                $inventory_value->where('variation_location_details.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $inventory_value->whereIn('variation_location_details.location_id', $permitted_locations);
+            }
+
+            $inventory_value = $inventory_value->select(
+                DB::raw('SUM(variation_location_details.qty_available * variations.default_purchase_price) as total_value')
+            )
+            ->first();
+
+            $inventory_value = $inventory_value ? $inventory_value->total_value : 0;
+
+            // Inventory Turnover
+            $inventory_turnover = $inventory_value > 0 ? $cogs / $inventory_value : 0;
+
+            // Days in Inventory
+            $days_in_inventory = $inventory_turnover > 0 ? 365 / $inventory_turnover : 0;
+
+            // Stock-outs
+            $stockouts = Product::join('variations', 'products.id', '=', 'variations.product_id')
+                ->join('variation_location_details', 'variations.id', '=', 'variation_location_details.variation_id')
+                ->where('products.business_id', $business_id)
+                ->where('variation_location_details.qty_available', '<=', 0);
+
+            if (!empty($location_id)) {
+                $stockouts->where('variation_location_details.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $stockouts->whereIn('variation_location_details.location_id', $permitted_locations);
+            }
+
+            $stockouts = $stockouts->count();
+
+            // Prepare data for view
+            $data = [
+                // Sales Overview
+                'total_sales' => $total_sales,
+                'total_revenue' => $total_revenue,
+                'average_order_value' => $average_order_value,
+                'total_customers' => $total_customers,
+                'sales_trend_labels' => $sales_trend_labels,
+                'sales_trend_data' => $sales_trend_data,
+                'sales_distribution_labels' => $sales_distribution_labels,
+                'sales_distribution_data' => $sales_distribution_data,
+
+                // Revenue Analysis
+                'gross_revenue' => $gross_revenue,
+                'net_revenue' => $net_revenue,
+                'revenue_growth' => $revenue_growth,
+                'monthly_recurring_revenue' => $monthly_recurring_revenue,
+
+                // Profit Margins
+                'gross_profit' => $gross_profit,
+                'gross_profit_margin' => $gross_profit_margin,
+                'net_profit' => $net_profit,
+                'net_profit_margin' => $net_profit_margin,
+                'total_profit' => $net_profit,
+                'profit_growth' => $profit_growth,
+
+                // Inventory Performance
+                'inventory_value' => $inventory_value,
+                'inventory_turnover' => $inventory_turnover,
+                'days_in_inventory' => $days_in_inventory,
+                'stockouts' => $stockouts
+            ];
+
+            return view('report.partials.business_advance_analytics_details', compact('data'));
+        }
+
+        $business_locations = BusinessLocation::forDropdown($business_id);
+
+        return view('report.business_advance_analytics', compact('business_locations'));
+    }
+
+    /**
+     * Shows purchase advance analytics report
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getPurchaseAdvanceAnalytics(Request $request)
+    {
+        if (! auth()->user()->can('profit_loss_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        //Return the details in ajax call
+        if ($request->ajax()) {
+            $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
+
+            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
+            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
+            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+            $supplier_id = ! empty($request->get('supplier_id')) ? $request->get('supplier_id') : null;
+
+            $permitted_locations = auth()->user()->permitted_locations();
+
+            // Base query for purchases
+            $base_query = Transaction::where('business_id', $business_id)
+                ->where('type', 'purchase')
+                ->where('status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $base_query->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $base_query->where('transactions.location_id', $location_id);
+            }
+
+            if (!empty($supplier_id)) {
+                $base_query->where('transactions.contact_id', $supplier_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $base_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            // Monthly purchases
+            $monthly_purchases_query = clone $base_query;
+            $monthly_purchases = $monthly_purchases_query->select(
+                DB::raw('DATE(transaction_date) as date'),
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('YEAR(transaction_date) as year'),
+                DB::raw('SUM(final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('DATE(transaction_date)'), DB::raw('MONTH(transaction_date)'), DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('DATE(transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transaction_date)'))
+            ->get();
+
+            // Quarterly purchases
+            $quarterly_purchases_query = clone $base_query;
+            $quarterly_purchases = $quarterly_purchases_query->select(
+                DB::raw('QUARTER(transaction_date) as quarter'),
+                DB::raw('YEAR(transaction_date) as year'),
+                DB::raw('SUM(final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('QUARTER(transaction_date)'), DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('QUARTER(transaction_date)'))
+            ->get();
+
+            // Yearly purchases
+            $yearly_purchases_query = clone $base_query;
+            $yearly_purchases = $yearly_purchases_query->select(
+                DB::raw('YEAR(transaction_date) as year'),
+                DB::raw('SUM(final_total) as total_purchase'),
+                DB::raw('COUNT(transactions.id) as transaction_count')
+            )
+            ->groupBy(DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transaction_date)'))
+            ->get();
+
+            // Top suppliers
+            $top_suppliers_query = Contact::leftJoin('transactions as t', function ($join) use ($start_date, $end_date) {
+                $join->on('contacts.id', '=', 't.contact_id')
+                    ->where('t.type', 'purchase')
+                    ->where('t.status', 'received');
+
+                if (!empty($start_date) && !empty($end_date)) {
+                    $join->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+                }
+            })
+            ->where('contacts.business_id', $business_id)
+            ->whereIn('contacts.type', ['supplier', 'both']);
+
+            if (!empty($location_id)) {
+                $top_suppliers_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($supplier_id)) {
+                $top_suppliers_query->where('contacts.id', $supplier_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $top_suppliers_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $top_suppliers = $top_suppliers_query->select(
+                'contacts.id',
+                'contacts.name',
+                'contacts.supplier_business_name',
+                DB::raw('SUM(t.final_total) as total_purchase'),
+                DB::raw('COUNT(t.id) as transaction_count')
+            )
+            ->groupBy('contacts.id')
+            ->orderBy('total_purchase', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Top purchased products
+            $top_products_query = PurchaseLine::join('transactions as t', 'purchase_lines.transaction_id', '=', 't.id')
+                ->join('products as p', 'purchase_lines.product_id', '=', 'p.id')
+                ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'purchase')
+                ->where('t.status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $top_products_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $top_products_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($supplier_id)) {
+                $top_products_query->where('t.contact_id', $supplier_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $top_products_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $top_products = $top_products_query->select(
+                'p.id',
+                'p.name as product_name',
+                'c.name as category_name',
+                DB::raw('SUM(purchase_lines.quantity) as total_quantity'),
+                DB::raw('SUM(purchase_lines.quantity * purchase_lines.purchase_price_inc_tax) as total_amount')
+            )
+            ->groupBy('p.id')
+            ->orderBy('total_amount', 'desc')
+            ->limit(10)
+            ->get();
+
+            // Payment methods
+            $payment_methods_query = TransactionPayment::join('transactions as t', 'transaction_payments.transaction_id', '=', 't.id')
+                ->where('t.business_id', $business_id)
+                ->where('t.type', 'purchase')
+                ->where('t.status', 'received');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $payment_methods_query->whereBetween(DB::raw('date(t.transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $payment_methods_query->where('t.location_id', $location_id);
+            }
+
+            if (!empty($supplier_id)) {
+                $payment_methods_query->where('t.contact_id', $supplier_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $payment_methods_query->whereIn('t.location_id', $permitted_locations);
+            }
+
+            $payment_methods = $payment_methods_query->select(
+                'transaction_payments.method',
+                DB::raw('COUNT(transaction_payments.id) as count'),
+                DB::raw('SUM(transaction_payments.amount) as total_amount')
+            )
+            ->groupBy('transaction_payments.method')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            // Purchase returns
+            $purchase_returns_query = Transaction::where('business_id', $business_id)
+                ->where('type', 'purchase_return');
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $purchase_returns_query->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+            }
+
+            if (!empty($location_id)) {
+                $purchase_returns_query->where('location_id', $location_id);
+            }
+
+            if (!empty($supplier_id)) {
+                $purchase_returns_query->where('contact_id', $supplier_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $purchase_returns_query->whereIn('location_id', $permitted_locations);
+            }
+
+            $purchase_returns = $purchase_returns_query->select(
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('YEAR(transaction_date) as year'),
+                DB::raw('SUM(final_total) as total_return'),
+                DB::raw('COUNT(id) as return_count')
+            )
+            ->groupBy(DB::raw('MONTH(transaction_date)'), DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('YEAR(transaction_date)'))
+            ->orderBy(DB::raw('MONTH(transaction_date)'))
+            ->get();
+
+            $data = [
+                'monthly_purchases' => $monthly_purchases,
+                'quarterly_purchases' => $quarterly_purchases,
+                'yearly_purchases' => $yearly_purchases,
+                'top_suppliers' => $top_suppliers,
+                'top_products' => $top_products,
+                'payment_methods' => $payment_methods,
+                'purchase_returns' => $purchase_returns
+            ];
+
+            return view('report.partials.purchase_advance_analytics_details', compact('data'))->render();
+        }
+
+        $business_locations = BusinessLocation::forDropdown($business_id, true);
+        $suppliers = Contact::where('business_id', $business_id)
+                        ->whereIn('type', ['supplier', 'both'])
+                        ->select('id', DB::raw("IF(supplier_business_name IS NULL OR supplier_business_name='', name, CONCAT(name, ' (', supplier_business_name, ')')) as name"))
+                        ->orderBy('name')
+                        ->pluck('name', 'id');
+
+        return view('report.purchase_advance_analytics', compact('business_locations', 'suppliers'));
     }
 }

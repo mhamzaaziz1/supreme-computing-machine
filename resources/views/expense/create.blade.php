@@ -70,6 +70,12 @@
 				</div>
 				<div class="col-sm-4">
 					<div class="form-group">
+						{!! Form::label('supply_chain_vehicle_id', __('lang_v1.vehicle').':') !!}
+						{!! Form::select('supply_chain_vehicle_id', $vehicles, $selected_vehicle_id ?? null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]); !!}
+					</div>
+				</div>
+				<div class="col-sm-4">
+					<div class="form-group">
 						{!! Form::label('contact_id', __('lang_v1.expense_for_contact').':') !!} 
 						{!! Form::select('contact_id', $contacts, null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]); !!}
 					</div>
@@ -148,7 +154,7 @@
             ignoreReadonly: true,
         });
 	});
-	
+
 	__page_leave_confirmation('#add_expense_form');
 	$(document).on('change', 'input#final_total, input.payment-amount', function() {
 		calculateExpensePaymentDue();

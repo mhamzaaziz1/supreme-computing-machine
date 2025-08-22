@@ -16,6 +16,10 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\CustomerRouteController;
 use App\Http\Controllers\DashboardConfiguratorController;
+use App\Http\Controllers\RouteSellerAssignmentController;
+use App\Http\Controllers\RouteVisitLogController;
+use App\Http\Controllers\GeofenceViolationLogController;
+use App\Http\Controllers\RouteFollowupController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\DocumentAndNoteController;
 use App\Http\Controllers\ExpenseCategoryController;
@@ -144,6 +148,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('/contacts/map', [ContactController::class, 'contactMap']);
     Route::get('/contacts/update-status/{id}', [ContactController::class, 'updateStatus']);
     Route::get('/contacts/stock-report/{supplier_id}', [ContactController::class, 'getSupplierStockReport']);
+    Route::get('/contacts/purchase-analytics/{supplier_id}', [ReportController::class, 'getSupplierPurchaseAdvanceAnalytics']);
     Route::get('/contacts/ledger', [ContactController::class, 'getLedger']);
     Route::post('/contacts/send-ledger', [ContactController::class, 'sendLedger']);
     Route::get('/contacts/import', [ContactController::class, 'getImportContacts'])->name('contacts.import');
@@ -151,6 +156,63 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::post('/contacts/check-contacts-id', [ContactController::class, 'checkContactId']);
     Route::get('/contacts/customers', [ContactController::class, 'getCustomers']);
     Route::resource('contacts', ContactController::class);
+
+    // Customer Vehicles routes
+    Route::get('/vehicles', [\App\Http\Controllers\CustomerVehicleController::class, 'index']);
+    Route::get('/vehicles/get-all', [\App\Http\Controllers\CustomerVehicleController::class, 'getAllVehicles']);
+    Route::get('/customer-vehicles/{contact_id}', [\App\Http\Controllers\CustomerVehicleController::class, 'getVehicles']);
+    Route::get('/customer-vehicles-dropdown/{contact_id}', [\App\Http\Controllers\CustomerVehicleController::class, 'getVehiclesForDropdown']);
+    Route::get('/customer-vehicles/create/{contact_id}', [\App\Http\Controllers\CustomerVehicleController::class, 'create']);
+    Route::post('/customer-vehicles', [\App\Http\Controllers\CustomerVehicleController::class, 'store']);
+    Route::get('/customer-vehicles/edit/{id}', [\App\Http\Controllers\CustomerVehicleController::class, 'edit']);
+    Route::put('/customer-vehicles/{id}', [\App\Http\Controllers\CustomerVehicleController::class, 'update']);
+    Route::delete('/customer-vehicles/{id}', [\App\Http\Controllers\CustomerVehicleController::class, 'destroy']);
+
+    // Supply Chain Vehicles routes
+    Route::get('/supply-chain-vehicles', [\App\Http\Controllers\SupplyChainVehicleController::class, 'index']);
+    Route::get('/supply-chain-vehicles/get-all', [\App\Http\Controllers\SupplyChainVehicleController::class, 'getAllVehicles']);
+    Route::get('/route-vehicles/create', [\App\Http\Controllers\SupplyChainVehicleController::class, 'create']);
+    Route::get('/route-vehicles/edit/{id}', [\App\Http\Controllers\SupplyChainVehicleController::class, 'edit']);
+    Route::get('/route-vehicles/{customer_route_id}', [\App\Http\Controllers\SupplyChainVehicleController::class, 'getVehicles']);
+    Route::get('/route-vehicles-dropdown/{customer_route_id}', [\App\Http\Controllers\SupplyChainVehicleController::class, 'getVehiclesForDropdown']);
+    Route::post('/route-vehicles', [\App\Http\Controllers\SupplyChainVehicleController::class, 'store']);
+    Route::put('/route-vehicles/{id}', [\App\Http\Controllers\SupplyChainVehicleController::class, 'update']);
+    Route::delete('/route-vehicles/{id}', [\App\Http\Controllers\SupplyChainVehicleController::class, 'destroy']);
+
+    // Vehicle Route Assignment routes
+    Route::get('/vehicle-route-assignments', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'index']);
+    Route::get('/vehicle-route-assignments/get-all-assignments', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'getAllAssignments']);
+    Route::get('/vehicle-route-assignments/create', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'create']);
+    Route::post('/vehicle-route-assignments', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'store']);
+    Route::get('/vehicle-route-assignments/edit/{id}', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'edit']);
+    Route::put('/vehicle-route-assignments/{id}', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'update']);
+    Route::delete('/vehicle-route-assignments/{id}', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'destroy']);
+    Route::get('/vehicle-route-assignments/update-mileage/{id}', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'showUpdateMileageForm']);
+    Route::post('/vehicle-route-assignments/update-mileage/{id}', [\App\Http\Controllers\VehicleRouteAssignmentController::class, 'updateMileage']);
+
+    // Vehicle Expenses Routes
+    Route::get('/vehicle-expenses', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'index']);
+    Route::get('/vehicle-expenses/get-all-expenses', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'getAllExpenses']);
+    Route::get('/vehicle-expenses/create', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'create']);
+    Route::get('/vehicle-expenses/create/{vehicle_id}', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'createForVehicle']);
+    Route::post('/vehicle-expenses', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'store']);
+    Route::get('/vehicle-expenses/edit/{id}', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'edit']);
+    Route::put('/vehicle-expenses/{id}', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'update']);
+    Route::delete('/vehicle-expenses/{id}', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'destroy']);
+    Route::get('/vehicle-expenses/history/{vehicle_id}', [\App\Http\Controllers\SupplyChainVehicleExpenseController::class, 'getExpenseHistory']);
+
+    // Vehicle Mileage routes
+    Route::get('/vehicle-mileage/last-record/{vehicle_id}', [\App\Http\Controllers\VehicleMileageController::class, 'getLastMileageRecord']);
+    Route::get('/vehicle-mileage/history/{vehicle_id}', [\App\Http\Controllers\VehicleMileageController::class, 'getMileageHistory']);
+
+    // Supply Chain Vehicle Mileage routes
+    Route::get('/supply-chain-vehicle-mileage/last-record/{vehicle_id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'getLastMileageRecord']);
+    Route::get('/supply-chain-vehicle-mileage/history/{vehicle_id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'getMileageHistory']);
+    Route::get('/supply-chain-vehicle-mileage/create/{vehicle_id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'create']);
+    Route::post('/supply-chain-vehicle-mileage', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'store']);
+    Route::get('/supply-chain-vehicle-mileage/edit/{id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'edit']);
+    Route::put('/supply-chain-vehicle-mileage/{id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'update']);
+    Route::delete('/supply-chain-vehicle-mileage/{id}', [\App\Http\Controllers\SupplyChainVehicleMileageController::class, 'destroy']);
 
     Route::get('taxonomies-ajax-index-page', [TaxonomyController::class, 'getTaxonomyIndexPage']);
     Route::resource('taxonomies', TaxonomyController::class);
@@ -207,6 +269,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('/purchases/get_suppliers', [PurchaseController::class, 'getSuppliers']);
     Route::post('/purchases/get_purchase_entry_row', [PurchaseController::class, 'getPurchaseEntryRow']);
     Route::post('/purchases/check_ref_number', [PurchaseController::class, 'checkRefNumber']);
+    Route::get('/calculate-purchase-requirements', [PurchaseController::class, 'calculatePurchaseRequirements']);
     Route::resource('purchases', PurchaseController::class)->except(['show']);
 
     Route::get('/toggle-subscription/{id}', [SellPosController::class, 'toggleRecurringInvoices']);
@@ -241,6 +304,11 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::resource('roles', RoleController::class);
 
     Route::resource('users', ManageUserController::class);
+
+    // User location routes
+    Route::get('/user-locations', [\App\Http\Controllers\UserLocationController::class, 'index'])->name('user.locations');
+    Route::post('/user-locations/update', [\App\Http\Controllers\UserLocationController::class, 'updateLocation'])->name('user.update_location');
+    Route::get('/user-locations/active', [\App\Http\Controllers\UserLocationController::class, 'getActiveUsersLocations'])->name('user.active_locations');
 
     Route::resource('group-taxes', GroupTaxController::class);
 
@@ -298,6 +366,13 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('/reports/get-profit/{by?}', [ReportController::class, 'getProfit']);
     Route::get('/reports/items-report', [ReportController::class, 'itemsReport']);
     Route::get('/reports/get-stock-value', [ReportController::class, 'getStockValue']);
+    Route::get('/reports/route-coverage-report', [ReportController::class, 'getRouteCoverageReport']);
+    Route::get('/reports/route-followup-report', [ReportController::class, 'getRouteFollowupReport']);
+    Route::get('/reports/customer-advance-analytics', [ReportController::class, 'getCustomerAdvanceAnalytics']);
+    Route::get('/reports/business-advance-analytics', [ReportController::class, 'getBusinessAdvanceAnalytics']);
+    Route::get('/reports/product-advance-analytics', [ReportController::class, 'getProductAdvanceAnalytics']);
+    Route::get('/reports/purchase-advance-analytics', [ReportController::class, 'getPurchaseAdvanceAnalytics']);
+    Route::get('/supply-chain-analytics', [\App\Http\Controllers\SupplyChainAnalyticsController::class, 'index']);
 
     Route::get('business-location/activate-deactivate/{location_id}', [BusinessLocationController::class, 'activateDeactivateLocation']);
 
@@ -365,6 +440,12 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
 
     //Customer Routes
     Route::resource('customer-route', CustomerRouteController::class);
+    Route::resource('route-seller-assignment', RouteSellerAssignmentController::class);
+    Route::resource('visit-logs', RouteVisitLogController::class)->only(['index']);
+    Route::resource('geofence-violation-logs', GeofenceViolationLogController::class)->only(['index']);
+    Route::resource('route-followups', RouteFollowupController::class);
+    Route::get('get-route-contacts', [RouteFollowupController::class, 'getContacts']);
+    Route::get('get-route-followups', [RouteFollowupController::class, 'getFollowups']);
 
     //Import opening stock
     Route::get('/import-opening-stock', [ImportOpeningStockController::class, 'index']);
@@ -526,3 +607,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone'])
     Route::get('/sells/invoice-url/{id}', [SellPosController::class, 'showInvoiceUrl']);
     Route::get('/show-notification/{id}', [HomeController::class, 'showNotification']);
 });
+
+// WebP image conversion route
+Route::get('/webp/{path}', [App\Http\Controllers\WebpController::class, 'convert'])
+    ->where('path', '.*')
+    ->name('webp.convert');

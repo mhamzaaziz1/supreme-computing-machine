@@ -849,7 +849,7 @@
               </label>
             </div>
           </div>
-          
+
           <div class="col-md-12">
             <div class="checkbox">
               <label>
@@ -1136,7 +1136,7 @@
       </div>
       </div>
         <hr>
-        
+
         <div class="row check_group">
         <div class="col-md-1">
           <h4>@lang( 'role.brand' )</h4>
@@ -1423,6 +1423,159 @@
             </div>
           </div> 
 
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stock_adjustment_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Stock Adjustment Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stock_expiry_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Stock Expiry Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'customer_group_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Customer Group Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'product_purchase_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Product Purchase Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'product_sell_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Product Sell Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'product_sell_report_with_purchase.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Product Sell Report With Purchase' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'lot_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Lot Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'table_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Table Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'service_staff_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Service Staff Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'product_sell_grouped_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Product Sell Grouped Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'route_coverage_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Route Coverage Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'route_followup_report.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Route Followup Report' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'customer_advance_analytics.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Customer Advance Analytics' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'product_advance_analytics.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Product Advance Analytics' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'supplier_purchase_advance_analytics.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Supplier Purchase Advance Analytics' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'business_advance_analytics.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Business Advance Analytics' ) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'purchase_advance_analytics.view', false, 
+                [ 'class' => 'input-icheck']); !!} {{ __( 'Purchase Advance Analytics' ) }}
+              </label>
+            </div>
+          </div>
+
         </div>
         </div>
         <hr>
@@ -1657,7 +1810,7 @@
             </div>
           </div>
         @endif
-        
+
         @include('role.partials.module_permissions')
         <div class="row">
         <div class="col-md-12 text-center">

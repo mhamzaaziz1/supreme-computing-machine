@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# Pre-commit hook to enforce coding standards using PHP-CS-Fixer
+# This script will run PHP-CS-Fixer on all staged PHP files before committing
+
+# Get a list of staged PHP files (excluding blade.php files)
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.php$' | grep -v '\.blade\.php$')
+
+# Exit if no PHP files are staged
+if [ -z "$FILES" ]; then
+    echo "No PHP files staged for commit. Skipping code style check."
+    exit 0
+fi
+
+echo "Running PHP-CS-Fixer on staged files..."
+
+# Check if PHP-CS-Fixer is installed
+if [ -f "./vendor/bin/php-cs-fixer" ]; then
+    PHP_CS_FIXER="./vendor/bin/php-cs-fixer"
+elif command -v php-cs-fixer >/dev/null 2>&1; then
+    PHP_CS_FIXER="php-cs-fixer"
+else
+    echo "Error: PHP-CS-Fixer not found. Please install it using:"
+    echo "composer require --dev friendsofphp/php-cs-fixer"
+    exit 1
+fi
+
+# Run PHP-CS-Fixer on each staged PHP file
+echo "$FILES" | while read FILE; do
+    echo "Checking $FILE"
+    $PHP_CS_FIXER fix --config=.php-cs-fixer.php "$FILE" --quiet
+    if [ $? -ne 0 ]; then
+        echo "Error: PHP-CS-Fixer failed on $FILE"
+        exit 1
+    fi
+    # Add the fixed file back to the staging area
+    git add "$FILE"
+done
+
+# If we got here, all files passed the check
+echo "All files passed the code style check!"
+exit 0

@@ -193,6 +193,7 @@ return [
         App\Providers\RouteServiceProvider::class,
         App\Providers\CustomerVehicleServiceProvider::class,
         App\Providers\DashboardWidgetsServiceProvider::class,
+        App\Providers\CacheInvalidationServiceProvider::class,
 
         Collective\Html\HtmlServiceProvider::class,
         //Yajra\Datatables\DatatablesServiceProvider::class,

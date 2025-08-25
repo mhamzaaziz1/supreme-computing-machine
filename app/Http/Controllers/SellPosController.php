@@ -751,63 +751,22 @@ class SellPosController extends Controller
         $invoice_layout_id = null,
         $is_delivery_note = false
     ) {
-        $output = ['is_enabled' => false,
-            'print_type' => 'browser',
-            'html_content' => null,
-            'printer_config' => [],
-            'data' => [],
-        ];
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        $business_details = $this->businessUtil->getDetails($business_id);
-        $location_details = BusinessLocation::find($location_id);
-
-        if ($from_pos_screen && $location_details->print_receipt_on_invoice != 1) {
-            return $output;
-        }
-        //Check if printing of invoice is enabled or not.
-        //If enabled, get print type.
-        $output['is_enabled'] = true;
-
-        $invoice_layout_id = !empty($invoice_layout_id) ? $invoice_layout_id : $location_details->invoice_layout_id;
-        $invoice_layout = $this->businessUtil->invoiceLayout($business_id, $invoice_layout_id);
-
-        //Check if printer setting is provided.
-        $receipt_printer_type = is_null($printer_type) ? $location_details->receipt_printer_type : $printer_type;
-
-        $receipt_details = $this->transactionUtil->getReceiptDetails($transaction_id, $location_id, $invoice_layout, $business_details, $location_details, $receipt_printer_type);
-
-        $currency_details = [
-            'symbol' => $business_details->currency_symbol,
-            'thousand_separator' => $business_details->thousand_separator,
-            'decimal_separator' => $business_details->decimal_separator,
-        ];
-        $receipt_details->currency = $currency_details;
-
-        if ($is_package_slip) {
-            $output['html_content'] = view('sale_pos.receipts.packing_slip', compact('receipt_details'))->render();
-
-            return $output;
-        }
-
-        if ($is_delivery_note) {
-            $output['html_content'] = view('sale_pos.receipts.delivery_note', compact('receipt_details'))->render();
-
-            return $output;
-        }
-
-        $output['print_title'] = $receipt_details->invoice_no;
-        //If print type browser - return the content, printer - return printer config data, and invoice format config
-        if ($receipt_printer_type == 'printer') {
-            $output['print_type'] = 'printer';
-            $output['printer_config'] = $this->businessUtil->printerConfig($business_id, $location_details->printer_id);
-            $output['data'] = $receipt_details;
-        } else {
-            $layout = !empty($receipt_details->design) ? 'sale_pos.receipts.' . $receipt_details->design : 'sale_pos.receipts.classic';
-
-            $output['html_content'] = view($layout, compact('receipt_details'))->render();
-        }
-
-        return $output;
+        return $invoiceController->receiptContent(
+            $business_id,
+            $location_id,
+            $transaction_id,
+            $printer_type,
+            $is_package_slip,
+            $from_pos_screen,
+            $invoice_layout_id,
+            $is_delivery_note
+        );
     }
 
     /**
@@ -1912,47 +1871,13 @@ class SellPosController extends Controller
      */
     public function printInvoice(Request $request, $transaction_id)
     {
-        if (request()->ajax()) {
-            try {
-                $output = ['success' => 0,
-                    'msg' => trans('messages.something_went_wrong'),
-                ];
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-                $business_id = $request->session()->get('user.business_id');
-
-                $transaction = Transaction::where('business_id', $business_id)
-                    ->where('id', $transaction_id)
-                    ->with(['location'])
-                    ->first();
-
-                if (empty($transaction)) {
-                    return $output;
-                }
-
-                $printer_type = 'browser';
-                if (!empty(request()->input('check_location')) && request()->input('check_location') == true) {
-                    $printer_type = $transaction->location->receipt_printer_type;
-                }
-
-                $is_package_slip = !empty($request->input('package_slip')) ? true : false;
-                $is_delivery_note = !empty($request->input('delivery_note')) ? true : false;
-
-                $invoice_layout_id = $transaction->is_direct_sale ? $transaction->location->sale_invoice_layout_id : null;
-                $receipt = $this->receiptContent($business_id, $transaction->location_id, $transaction_id, $printer_type, $is_package_slip, false, $invoice_layout_id, $is_delivery_note);
-
-                if (!empty($receipt)) {
-                    $output = ['success' => 1, 'receipt' => $receipt];
-                }
-            } catch (\Exception $e) {
-                \Log::emergency('File:' . $e->getFile() . 'Line:' . $e->getLine() . 'Message:' . $e->getMessage());
-
-                $output = ['success' => 0,
-                    'msg' => trans('messages.something_went_wrong'),
-                ];
-            }
-
-            return $output;
-        }
+        return $invoiceController->printInvoice($request, $transaction_id);
     }
 
     /**
@@ -1968,107 +1893,125 @@ class SellPosController extends Controller
             $brand_id = $request->get('brand_id');
             $location_id = $request->get('location_id');
             $term = $request->get('term');
+            $is_enabled_stock = $request->get('is_enabled_stock');
+            $repair_model_id = $request->get('repair_model_id');
 
             $check_qty = false;
             $business_id = $request->session()->get('user.business_id');
             $business = $request->session()->get('business');
             $pos_settings = empty($business->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($business->pos_settings, true);
 
-            $products = Variation::join('products as p', 'variations.product_id', '=', 'p.id')
-                ->join('product_locations as pl', 'pl.product_id', '=', 'p.id')
-                ->join('units as u', 'p.unit_id', '=', 'u.id')
-                ->leftjoin(
-                    'variation_location_details AS VLD',
-                    function ($join) use ($location_id) {
-                        $join->on('variations.id', '=', 'VLD.variation_id');
+            // Create a cache key based on the parameters
+            $cache_key = "product_suggestion_{$business_id}_{$category_id}_{$brand_id}_{$location_id}_" . md5($term) . 
+                "_{$request->get('is_enabled_stock')}_{$request->get('repair_model_id')}_" . $request->get('page', 1);
 
-                        //Include Location
-                        if (!empty($location_id)) {
-                            $join->where(function ($query) use ($location_id) {
-                                $query->where('VLD.location_id', '=', $location_id);
-                                //Check null to show products even if no quantity is available in a location.
-                                //TODO: Maybe add a settings to show product not available at a location or not.
-                                $query->orWhereNull('VLD.location_id');
-                            });
+            // Get data from cache or compute it if not cached (10 minute cache)
+            // Cache only the data, not the view itself to avoid serializing closures
+            $viewData = \Cache::remember($cache_key, 10 * 60, function () use ($request, $business_id, $category_id, $brand_id, $location_id, $term, $check_qty, $pos_settings) {
+                $products = Variation::join('products as p', 'variations.product_id', '=', 'p.id')
+                    ->join('product_locations as pl', 'pl.product_id', '=', 'p.id')
+                    ->join('units as u', 'p.unit_id', '=', 'u.id')
+                    ->leftjoin(
+                        'variation_location_details AS VLD',
+                        function ($join) use ($location_id) {
+                            $join->on('variations.id', '=', 'VLD.variation_id');
+
+                            //Include Location
+                            if (!empty($location_id)) {
+                                $join->where(function ($query) use ($location_id) {
+                                    $query->where('VLD.location_id', '=', $location_id);
+                                    //Check null to show products even if no quantity is available in a location.
+                                    //TODO: Maybe add a settings to show product not available at a location or not.
+                                    $query->orWhereNull('VLD.location_id');
+                                });
+                            }
                         }
+                    )
+                    ->where('p.business_id', $business_id)
+                    ->where('p.type', '!=', 'modifier')
+                    ->where('p.is_inactive', 0)
+                    ->where('p.not_for_selling', 0)
+                //Hide products not available in the selected location
+                    ->where(function ($q) use ($location_id) {
+                        $q->where('pl.location_id', $location_id);
+                    });
+
+                //Include search
+                if (!empty($term)) {
+                    $products->where(function ($query) use ($term) {
+                        $query->where('p.name', 'like', '%' . $term . '%');
+                        $query->orWhere('sku', 'like', '%' . $term . '%');
+                        $query->orWhere('sub_sku', 'like', '%' . $term . '%');
+                    });
+                }
+
+                //Include check for quantity
+                if ($check_qty) {
+                    $products->where('VLD.qty_available', '>', 0);
+                }
+
+                if (!empty($category_id) && ($category_id != 'all')) {
+                    $products->where(function ($query) use ($category_id) {
+                        $query->where('p.category_id', $category_id);
+                        $query->orWhere('p.sub_category_id', $category_id);
+                    });
+                }
+                if (!empty($brand_id) && ($brand_id != 'all')) {
+                    $products->where('p.brand_id', $brand_id);
+                }
+
+                if (!empty($request->get('is_enabled_stock'))) {
+                    $is_enabled_stock = 0;
+                    if ($request->get('is_enabled_stock') == 'product') {
+                        $is_enabled_stock = 1;
                     }
+
+                    $products->where('p.enable_stock', $is_enabled_stock);
+                }
+
+                if (!empty($request->get('repair_model_id'))) {
+                    $products->where('p.repair_model_id', $request->get('repair_model_id'));
+                }
+
+                $products = $products->select(
+                    'p.id as product_id',
+                    'p.name',
+                    'p.type',
+                    'p.enable_stock',
+                    'p.image as product_image',
+                    'variations.id',
+                    'variations.name as variation',
+                    'VLD.qty_available',
+                    'variations.default_sell_price as selling_price',
+                    'variations.sub_sku',
+                    'u.short_name as unit'
                 )
-                ->where('p.business_id', $business_id)
-                ->where('p.type', '!=', 'modifier')
-                ->where('p.is_inactive', 0)
-                ->where('p.not_for_selling', 0)
-            //Hide products not available in the selected location
-                ->where(function ($q) use ($location_id) {
-                    $q->where('pl.location_id', $location_id);
-                });
+                    ->with(['media', 'group_prices'])
+                    ->orderBy('p.name', 'asc')
+                    ->paginate(50);
 
-            //Include search
-            if (!empty($term)) {
-                $products->where(function ($query) use ($term) {
-                    $query->where('p.name', 'like', '%' . $term . '%');
-                    $query->orWhere('sku', 'like', '%' . $term . '%');
-                    $query->orWhere('sub_sku', 'like', '%' . $term . '%');
-                });
-            }
+                $price_groups = SellingPriceGroup::where('business_id', $business_id)->active()->pluck('name', 'id');
 
-            //Include check for quantity
-            if ($check_qty) {
-                $products->where('VLD.qty_available', '>', 0);
-            }
-
-            if (!empty($category_id) && ($category_id != 'all')) {
-                $products->where(function ($query) use ($category_id) {
-                    $query->where('p.category_id', $category_id);
-                    $query->orWhere('p.sub_category_id', $category_id);
-                });
-            }
-            if (!empty($brand_id) && ($brand_id != 'all')) {
-                $products->where('p.brand_id', $brand_id);
-            }
-
-            if (!empty($request->get('is_enabled_stock'))) {
-                $is_enabled_stock = 0;
-                if ($request->get('is_enabled_stock') == 'product') {
-                    $is_enabled_stock = 1;
+                $allowed_group_prices = [];
+                foreach ($price_groups as $key => $value) {
+                    if (auth()->user()->can('selling_price_group.' . $key)) {
+                        $allowed_group_prices[$key] = $value;
+                    }
                 }
 
-                $products->where('p.enable_stock', $is_enabled_stock);
-            }
+                $show_prices = !empty($pos_settings['show_pricing_on_product_sugesstion']);
 
-            if (!empty($request->get('repair_model_id'))) {
-                $products->where('p.repair_model_id', $request->get('repair_model_id'));
-            }
+                // Return the data needed for the view, not the view itself
+                return [
+                    'products' => $products,
+                    'allowed_group_prices' => $allowed_group_prices,
+                    'show_prices' => $show_prices
+                ];
+            });
 
-            $products = $products->select(
-                'p.id as product_id',
-                'p.name',
-                'p.type',
-                'p.enable_stock',
-                'p.image as product_image',
-                'variations.id',
-                'variations.name as variation',
-                'VLD.qty_available',
-                'variations.default_sell_price as selling_price',
-                'variations.sub_sku',
-                'u.short_name as unit'
-            )
-                ->with(['media', 'group_prices'])
-                ->orderBy('p.name', 'asc')
-                ->paginate(50);
-
-            $price_groups = SellingPriceGroup::where('business_id', $business_id)->active()->pluck('name', 'id');
-
-            $allowed_group_prices = [];
-            foreach ($price_groups as $key => $value) {
-                if (auth()->user()->can('selling_price_group.' . $key)) {
-                    $allowed_group_prices[$key] = $value;
-                }
-            }
-
-            $show_prices = !empty($pos_settings['show_pricing_on_product_sugesstion']);
-
+            // Now create the view using the cached data
             return view('sale_pos.partials.product_list')
-                ->with(compact('products', 'allowed_group_prices', 'show_prices'));
+                ->with($viewData);
         }
     }
 
@@ -2080,19 +2023,13 @@ class SellPosController extends Controller
      */
     public function showInvoiceUrl($id)
     {
-        // if (!auth()->user()->can('sell.update')) {
-        //     abort(403, 'Unauthorized action.');
-        // }
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        if (request()->ajax()) {
-            $business_id = request()->session()->get('user.business_id');
-            $transaction = Transaction::where('business_id', $business_id)
-                ->findorfail($id);
-            $url = $this->transactionUtil->getInvoiceUrl($id, $business_id);
-
-            return view('sale_pos.partials.invoice_url_modal')
-                ->with(compact('transaction', 'url'));
-        }
+        return $invoiceController->showInvoiceUrl($id);
     }
 
     /**
@@ -2103,25 +2040,13 @@ class SellPosController extends Controller
      */
     public function showInvoice($token)
     {
-        $transaction = Transaction::where('invoice_token', $token)->with(['business', 'location'])->first();
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        if (!empty($transaction)) {
-            $invoice_layout_id = $transaction->is_direct_sale ? $transaction->location->sale_invoice_layout_id : null;
-
-            $receipt = $this->receiptContent($transaction->business_id, $transaction->location_id, $transaction->id, 'browser', false, false, $invoice_layout_id);
-            $pos_settings = empty($transaction->business->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($transaction->business->pos_settings, true);
-            $payment_link = '';
-            if (!empty($pos_settings['enable_payment_link']) && $transaction->payment_status != 'paid') {
-                $payment_link = $this->transactionUtil->getInvoicePaymentLink($transaction->id, $transaction->business_id);
-            }
-
-            $title = $transaction->business->name . ' | ' . $transaction->invoice_no;
-
-            return view('sale_pos.partials.show_invoice')
-                ->with(compact('receipt', 'title', 'payment_link'));
-        } else {
-            exit(__('messages.something_went_wrong'));
-        }
+        return $invoiceController->showInvoice($token);
     }
 
     /**
@@ -2132,128 +2057,46 @@ class SellPosController extends Controller
      */
     public function invoicePayment($token)
     {
-        $transaction = Transaction::where('invoice_token', $token)->with(['business', 'contact', 'location'])->first();
-        $business = $transaction->business;
-        $business_details = $this->businessUtil->getDetails($business->id);
-        $pos_settings = empty($business->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($business->pos_settings, true);
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        if (!empty($transaction) && $transaction->status == 'final' && !empty($pos_settings['enable_payment_link'])) {
-            $title = $transaction->business->name . ' | ' . $transaction->invoice_no;
-            $paid_amount = $this->transactionUtil->getTotalPaid($transaction->id);
-            $total_payable = $transaction->final_total - $paid_amount;
-
-            $total_payable_formatted = $this->transactionUtil->num_f($total_payable, true, $business_details);
-            $date_formatted = $this->transactionUtil->format_date($transaction->transaction_date, true, $business_details);
-            $total_amount = $this->transactionUtil->num_f($transaction->final_total, true, $business_details);
-            $total_paid = $this->transactionUtil->num_f($paid_amount, true, $business_details);
-
-            return view('sale_pos.partials.guest_payment_form')
-                ->with(compact('transaction', 'title', 'pos_settings', 'total_payable', 'total_payable_formatted', 'date_formatted', 'total_amount', 'total_paid', 'business_details'));
-        } else {
-            exit(__('messages.something_went_wrong'));
-        }
+        return $invoiceController->invoicePayment($token);
     }
 
     public function pay_razorpay($transaction, $total_payable, $request)
     {
-        $pos_settings = empty($transaction->business->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($transaction->business->pos_settings, true);
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        $razorpay_payment_id = $request->razorpay_payment_id;
-        $razorpay_api = new Api($pos_settings['razor_pay_key_id'], $pos_settings['razor_pay_key_secret']);
-        $payment = $razorpay_api->payment->fetch($razorpay_payment_id)->capture(['amount' => $total_payable * 100]); // Captures a payment
-
-        if (empty($payment->error_code)) {
-            return $payment->id;
-        } else {
-            $error_description = $payment->error_description;
-
-            \Log::emergency($payment->error_description);
-            throw new \Exception($error_description);
-        }
+        return $invoiceController->pay_razorpay($transaction, $total_payable, $request);
     }
 
     public function pay_stripe($transaction, $total_payable, $request)
     {
-        $pos_settings = empty($transaction->business->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($transaction->business->pos_settings, true);
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        Stripe::setApiKey($pos_settings['stripe_secret_key']);
-
-        $metadata = ['stripe_email' => $request->stripeEmail];
-
-        $business_details = $this->businessUtil->getDetails($transaction->business->id);
-
-        $charge = Charge::create([
-            'amount' => $total_payable * 100,
-            'currency' => strtolower($business_details->currency_code),
-            'source' => $request->stripeToken,
-            'metadata' => $metadata,
-        ]);
-
-        return $charge->id;
+        return $invoiceController->pay_stripe($transaction, $total_payable, $request);
     }
 
     public function confirmPayment($id, Request $request)
     {
-        try {
-            $transaction = Transaction::with(['business'])->find($id);
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-            $transaction_before = $transaction->replicate();
-
-            $payment_link = $this->transactionUtil->getInvoicePaymentLink($transaction->id, $transaction->business_id);
-
-            $paid_amount = $this->transactionUtil->getTotalPaid($transaction->id);
-            $total_payable = $transaction->final_total - $paid_amount;
-
-            $pay_function = 'pay_' . $request->gateway;
-
-            $payment_id = $this->$pay_function($transaction, $total_payable, $request);
-
-            if (!empty($payment_id)) {
-                DB::beginTransaction();
-                $ref_count = $this->transactionUtil->setAndGetReferenceCount('sell_payment', $transaction->business_id);
-                $payment_ref_no = $this->transactionUtil->generateReferenceNumber('sell_payment', $ref_count, $transaction->business_id);
-
-                $data = [
-                    'paid_on' => \Carbon::now()->toDateTimeString(),
-                    'transaction_id' => $transaction->id,
-                    'amount' => $total_payable,
-                    'payment_for' => $transaction->contact_id,
-                    'method' => 'cash',
-                    'note' => $payment_id,
-                    'paid_through_link' => 1,
-                    'gateway' => $request->gateway,
-                    'business_id' => $transaction->business_id,
-                    'payment_ref_no' => $payment_ref_no,
-                ];
-
-                $tp = TransactionPayment::create($data);
-
-                $payment_status = $this->transactionUtil->updatePaymentStatus($transaction->id, $transaction->final_total);
-                $transaction->payment_status = $payment_status;
-
-                $this->transactionUtil->activityLog($transaction, 'payment_edited', $transaction_before);
-                DB::commit();
-
-                $output = [
-                    'success' => 1,
-                    'msg' => __('purchase.payment_added_success'),
-                ];
-            } else {
-                $output = [
-                    'success' => 0,
-                    'msg' => __('messages.something_went_wrong'),
-                ];
-            }
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::emergency('File:' . $e->getFile() . 'Line:' . $e->getLine() . 'Message:' . $e->getMessage());
-            $output = [
-                'success' => 0,
-                'msg' => __('messages.something_went_wrong'),
-            ];
-        }
-
-        return redirect($payment_link)->with('status', $output);
+        return $invoiceController->confirmPayment($id, $request);
     }
 
     /**
@@ -2985,44 +2828,13 @@ class SellPosController extends Controller
      */
     public function downloadPdf($id)
     {
-        if (!(config('constants.enable_download_pdf') && auth()->user()->can('print_invoice'))) {
-            abort(403, 'Unauthorized action.');
-        }
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        $business_id = request()->session()->get('user.business_id');
-
-        $receipt_contents = $this->transactionUtil->getPdfContentsForGivenTransaction($business_id, $id);
-        $receipt_details = $receipt_contents['receipt_details'];
-        $location_details = $receipt_contents['location_details'];
-        $is_email_attachment = false;
-
-        $blade_file = 'download_pdf';
-        if (!empty($receipt_details->is_export)) {
-            $blade_file = 'download_export_pdf';
-        }
-
-        //Generate pdf
-        $body = view('sale_pos.receipts.' . $blade_file)
-            ->with(compact('receipt_details', 'location_details', 'is_email_attachment'))
-            ->render();
-
-        $mpdf = new \Mpdf\Mpdf(['tempDir' => public_path('uploads/temp'),
-            'mode' => 'utf-8',
-            'autoScriptToLang' => true,
-            'autoLangToFont' => true,
-            'autoVietnamese' => true,
-            'autoArabic' => true,
-            'margin_top' => 8,
-            'margin_bottom' => 8,
-            'format' => 'A4',
-        ]);
-
-        $mpdf->useSubstitutions = true;
-        $mpdf->SetWatermarkText($receipt_details->business_name, 0.1);
-        $mpdf->showWatermarkText = true;
-        $mpdf->SetTitle('INVOICE-' . $receipt_details->invoice_no . '.pdf');
-        $mpdf->WriteHTML($body);
-        $mpdf->Output('INVOICE-' . $receipt_details->invoice_no . '.pdf', 'I');
+        return $invoiceController->downloadPdf($id);
     }
 
     /**
@@ -3030,38 +2842,13 @@ class SellPosController extends Controller
      */
     public function downloadQuotationPdf($id)
     {
-        if (!(config('constants.enable_download_pdf'))) {
-            abort(403, 'Unauthorized action.');
-        }
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        $business_id = request()->session()->get('user.business_id');
-        $sub_status = !empty(request()->input('sub_status')) ? request()->input('sub_status') : '';
-        $receipt_contents = $this->transactionUtil->getPdfContentsForGivenTransaction($business_id, $id);
-        $receipt_details = $receipt_contents['receipt_details'];
-        $location_details = $receipt_contents['location_details'];
-
-        //Generate pdf
-        $body = view('sale_pos.receipts.download_quotation_pdf')
-            ->with(compact('receipt_details', 'location_details', 'sub_status'))
-            ->render();
-        $pdf_name = (!empty($sub_status) && $sub_status == 'proforma') ? __('lang_v1.proforma_invoice') : 'QUOTATION';
-        $mpdf = new \Mpdf\Mpdf(['tempDir' => public_path('uploads/temp'),
-            'mode' => 'utf-8',
-            'autoScriptToLang' => true,
-            'autoLangToFont' => true,
-            'autoVietnamese' => true,
-            'autoArabic' => true,
-            'margin_top' => 8,
-            'margin_bottom' => 8,
-            'format' => 'A4',
-        ]);
-
-        $mpdf->useSubstitutions = true;
-        $mpdf->SetWatermarkText($receipt_details->business_name, 0.1);
-        $mpdf->showWatermarkText = true;
-        $mpdf->SetTitle($pdf_name . '-' . $receipt_details->invoice_no . '.pdf');
-        $mpdf->WriteHTML($body);
-        $mpdf->Output($pdf_name . '-' . $receipt_details->invoice_no . '.pdf', 'I');
+        return $invoiceController->downloadQuotationPdf($id);
     }
 
     /**
@@ -3069,38 +2856,13 @@ class SellPosController extends Controller
      */
     public function downloadPackingListPdf($id)
     {
-        if (!(config('constants.enable_download_pdf'))) {
-            abort(403, 'Unauthorized action.');
-        }
+        $invoiceController = new \App\Http\Controllers\POS\InvoiceController(
+            $this->businessUtil,
+            $this->transactionUtil,
+            $this->moduleUtil
+        );
 
-        $business_id = request()->session()->get('user.business_id');
-
-        $receipt_contents = $this->transactionUtil->getPdfContentsForGivenTransaction($business_id, $id);
-        $receipt_details = $receipt_contents['receipt_details'];
-        $location_details = $receipt_contents['location_details'];
-
-        //Generate pdf
-        $body = view('sale_pos.receipts.download_packing_list_pdf')
-            ->with(compact('receipt_details', 'location_details'))
-            ->render();
-
-        $mpdf = new \Mpdf\Mpdf(['tempDir' => public_path('uploads/temp'),
-            'mode' => 'utf-8',
-            'autoScriptToLang' => true,
-            'autoLangToFont' => true,
-            'autoVietnamese' => true,
-            'autoArabic' => true,
-            'margin_top' => 8,
-            'margin_bottom' => 8,
-            'format' => 'A4',
-        ]);
-
-        $mpdf->useSubstitutions = true;
-        $mpdf->SetWatermarkText($receipt_details->business_name, 0.1);
-        $mpdf->showWatermarkText = true;
-        $mpdf->SetTitle('PACKINGSLIP-' . $receipt_details->invoice_no . '.pdf');
-        $mpdf->WriteHTML($body);
-        $mpdf->Output('PACKINGSLIP-' . $receipt_details->invoice_no . '.pdf', 'I');
+        return $invoiceController->downloadPackingListPdf($id);
     }
 
     public function showServiceStaffAvailibility()

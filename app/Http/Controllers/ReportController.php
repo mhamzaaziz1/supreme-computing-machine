@@ -107,7 +107,14 @@ class ReportController extends Controller
             $user_id = request()->input('user_id') ?? null;
 
             $permitted_locations = auth()->user()->permitted_locations();
-            $data = $this->transactionUtil->getProfitLossDetails($business_id, $location_id, $start_date, $end_date, $user_id, $permitted_locations);
+
+            // Create a cache key based on the parameters
+            $cache_key = "profit_loss_{$business_id}_{$location_id}_{$start_date}_{$end_date}_{$user_id}_" . implode('_', $permitted_locations);
+
+            // Get data from cache or compute it if not cached
+            $data = \Cache::remember($cache_key, 60 * 60, function () use ($business_id, $location_id, $start_date, $end_date, $user_id, $permitted_locations) {
+                return $this->transactionUtil->getProfitLossDetails($business_id, $location_id, $start_date, $end_date, $user_id, $permitted_locations);
+            });
 
             // $data['closing_stock'] = $data['closing_stock'] - $data['total_sell_return'];
 
@@ -139,41 +146,47 @@ class ReportController extends Controller
 
             $location_id = $request->get('location_id');
 
-            $purchase_details = $this->transactionUtil->getPurchaseTotals($business_id, $start_date, $end_date, $location_id);
+            // Create a cache key based on the parameters
+            $cache_key = "purchase_sell_{$business_id}_{$start_date}_{$end_date}_{$location_id}";
 
-            $sell_details = $this->transactionUtil->getSellTotals(
-                $business_id,
-                $start_date,
-                $end_date,
-                $location_id
-            );
+            // Get data from cache or compute it if not cached
+            return \Cache::remember($cache_key, 60 * 60, function () use ($business_id, $start_date, $end_date, $location_id) {
+                $purchase_details = $this->transactionUtil->getPurchaseTotals($business_id, $start_date, $end_date, $location_id);
 
-            $transaction_types = [
-                'purchase_return', 'sell_return',
-            ];
+                $sell_details = $this->transactionUtil->getSellTotals(
+                    $business_id,
+                    $start_date,
+                    $end_date,
+                    $location_id
+                );
 
-            $transaction_totals = $this->transactionUtil->getTransactionTotals(
-                $business_id,
-                $transaction_types,
-                $start_date,
-                $end_date,
-                $location_id
-            );
+                $transaction_types = [
+                    'purchase_return', 'sell_return',
+                ];
 
-            $total_purchase_return_inc_tax = $transaction_totals['total_purchase_return_inc_tax'];
-            $total_sell_return_inc_tax = $transaction_totals['total_sell_return_inc_tax'];
+                $transaction_totals = $this->transactionUtil->getTransactionTotals(
+                    $business_id,
+                    $transaction_types,
+                    $start_date,
+                    $end_date,
+                    $location_id
+                );
 
-            $difference = [
-                'total' => $sell_details['total_sell_inc_tax'] - $total_sell_return_inc_tax - ($purchase_details['total_purchase_inc_tax'] - $total_purchase_return_inc_tax),
-                'due' => $sell_details['invoice_due'] - $purchase_details['purchase_due'],
-            ];
+                $total_purchase_return_inc_tax = $transaction_totals['total_purchase_return_inc_tax'];
+                $total_sell_return_inc_tax = $transaction_totals['total_sell_return_inc_tax'];
 
-            return ['purchase' => $purchase_details,
-                'sell' => $sell_details,
-                'total_purchase_return' => $total_purchase_return_inc_tax,
-                'total_sell_return' => $total_sell_return_inc_tax,
-                'difference' => $difference,
-            ];
+                $difference = [
+                    'total' => $sell_details['total_sell_inc_tax'] - $total_sell_return_inc_tax - ($purchase_details['total_purchase_inc_tax'] - $total_purchase_return_inc_tax),
+                    'due' => $sell_details['invoice_due'] - $purchase_details['purchase_due'],
+                ];
+
+                return ['purchase' => $purchase_details,
+                    'sell' => $sell_details,
+                    'total_purchase_return' => $total_purchase_return_inc_tax,
+                    'total_sell_return' => $total_sell_return_inc_tax,
+                    'difference' => $difference,
+                ];
+            });
         }
 
         $business_locations = BusinessLocation::forDropdown($business_id, true);
@@ -362,7 +375,13 @@ class ReportController extends Controller
             //Return the details in ajax call
             $for = request()->input('for') == 'view_product' ? 'view_product' : 'datatables';
 
-            $products = $this->productUtil->getProductStockDetails($business_id, $filters, $for);
+            // Create a cache key based on the business ID and filters
+            $cache_key = "stock_report_{$business_id}_" . md5(json_encode($filters) . $for);
+
+            // Get data from cache or compute it if not cached (30 minute cache)
+            $products = \Cache::remember($cache_key, 30 * 60, function () use ($business_id, $filters, $for) {
+                return $this->productUtil->getProductStockDetails($business_id, $filters, $for);
+            });
             //To show stock details on view product modal
             if ($for == 'view_product' && ! empty(request()->input('product_id'))) {
                 $product_stock_details = $products;
@@ -1077,7 +1096,7 @@ class ReportController extends Controller
      */
     public function getStockAdjustmentReport(Request $request)
     {
-        if (! auth()->user()->can('stock_report.view')) {
+        if (! auth()->user()->can('stock_adjustment_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1365,7 +1384,7 @@ class ReportController extends Controller
      */
     public function getStockExpiryReport(Request $request)
     {
-        if (! auth()->user()->can('stock_report.view')) {
+        if (! auth()->user()->can('stock_expiry_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1651,7 +1670,7 @@ class ReportController extends Controller
      */
     public function getCustomerGroup(Request $request)
     {
-        if (! auth()->user()->can('contacts_report.view')) {
+        if (! auth()->user()->can('customer_group_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1709,7 +1728,7 @@ class ReportController extends Controller
      */
     public function getproductPurchaseReport(Request $request)
     {
-        if (! auth()->user()->can('purchase_n_sell_report.view')) {
+        if (! auth()->user()->can('product_purchase_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1829,7 +1848,7 @@ class ReportController extends Controller
      */
     public function getproductSellReport(Request $request)
     {
-        if (! auth()->user()->can('purchase_n_sell_report.view')) {
+        if (! auth()->user()->can('product_sell_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2020,7 +2039,7 @@ class ReportController extends Controller
      */
     public function getproductSellReportWithPurchase(Request $request)
     {
-        if (! auth()->user()->can('purchase_n_sell_report.view')) {
+        if (! auth()->user()->can('product_sell_report_with_purchase.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2165,7 +2184,7 @@ class ReportController extends Controller
      */
     public function getLotReport(Request $request)
     {
-        if (! auth()->user()->can('stock_report.view')) {
+        if (! auth()->user()->can('lot_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2603,7 +2622,7 @@ class ReportController extends Controller
      */
     public function getTableReport(Request $request)
     {
-        if (! auth()->user()->can('purchase_n_sell_report.view')) {
+        if (! auth()->user()->can('table_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2650,7 +2669,7 @@ class ReportController extends Controller
      */
     public function getServiceStaffReport(Request $request)
     {
-        if (! auth()->user()->can('sales_representative.view')) {
+        if (! auth()->user()->can('service_staff_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2671,7 +2690,7 @@ class ReportController extends Controller
      */
     public function getproductSellGroupedReport(Request $request)
     {
-        if (! auth()->user()->can('purchase_n_sell_report.view')) {
+        if (! auth()->user()->can('product_sell_grouped_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -3077,14 +3096,30 @@ class ReportController extends Controller
     }
 
     /**
-     * Lists profit by product, category, brand, location, invoice and date
+     * Lists profit by product, category, brand, location, invoice and date.
      *
-     * @return string $by = null
+     * This method calculates and returns the gross profit for sales based on different
+     * grouping criteria specified by the $by parameter. It handles various product types
+     * including combo products and considers stock settings.
+     *
+     * @param string|null $by The grouping criteria for the profit report. 
+     *                        Possible values: 'product', 'category', 'brand', 'location',
+     *                        'invoice', 'date', 'day', 'customer', 'service_staff', or null.
+     * @return \Illuminate\View\View|\Illuminate\Http\JsonResponse Returns a view for 'day' grouping,
+     *                                                             or JSON response for other groupings.
+     * @throws \Exception When an invalid grouping criteria is provided
      */
     public function getProfit($by = null)
     {
         $business_id = request()->session()->get('user.business_id');
 
+        // Build the base query for profit calculation
+        // We join multiple tables to get all the necessary data for profit calculation:
+        // - transactions (aliased as 'sale'): Contains the main sale information
+        // - transaction_sell_lines: Contains the individual line items in a sale
+        // - transaction_sell_lines_purchase_lines (TSPL): Links sell lines to their purchase lines
+        // - purchase_lines (PL): Contains the purchase information, including cost
+        // - products (P): Contains product information
         $query = TransactionSellLine::join('transactions as sale', 'transaction_sell_lines.transaction_id', '=', 'sale.id')
             ->leftjoin('transaction_sell_lines_purchase_lines as TSPL', 'transaction_sell_lines.id', '=', 'TSPL.sell_line_id')
             ->leftjoin(
@@ -3093,12 +3128,29 @@ class ReportController extends Controller
                 '=',
                 'PL.id'
             )
+            // Only include finalized sales (not drafts, quotations, etc.)
             ->where('sale.type', 'sell')
             ->where('sale.status', 'final')
             ->join('products as P', 'transaction_sell_lines.product_id', '=', 'P.id')
             ->where('sale.business_id', $business_id)
+            // Exclude combo child products to avoid double counting
             ->where('transaction_sell_lines.children_type', '!=', 'combo');
-        //If type combo: find childrens, sale price parent - get PP of childrens
+
+        // Calculate gross profit using complex conditional logic
+        // The profit calculation varies based on product type and stock settings:
+        //
+        // CASE 1: For combo products (products composed of multiple items)
+        //   - We need to calculate profit based on the child products
+        //   - We use a subquery to sum the profit of all child products
+        //   - For each child: (quantity - returned) * (selling price - purchase price)
+        //
+        // CASE 2: For non-stock products (services, digital goods, etc.)
+        //   - Profit is simply (quantity - returned) * selling price
+        //   - This is because there's no purchase cost for non-stock items
+        //
+        // CASE 3: For regular stock products
+        //   - Profit is (quantity - returned) * (selling price - purchase price)
+        //   - This is the standard profit calculation (revenue - cost)
         $query->select(DB::raw('SUM(IF (TSPL.id IS NULL AND P.type="combo", ( 
             SELECT Sum((tspl2.quantity - tspl2.qty_returned) * (tsl.unit_price_inc_tax - pl2.purchase_price_inc_tax)) AS total
                 FROM transaction_sell_lines AS tsl
@@ -4103,7 +4155,7 @@ class ReportController extends Controller
      */
     public function getRouteCoverageReport(Request $request)
     {
-        if (!auth()->user()->can('customer.view')) {
+        if (!auth()->user()->can('route_coverage_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -4134,7 +4186,7 @@ class ReportController extends Controller
      */
     public function getRouteFollowupReport(Request $request)
     {
-        if (!auth()->user()->can('customer.view')) {
+        if (!auth()->user()->can('route_followup_report.view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -4309,6 +4361,13 @@ class ReportController extends Controller
             if ($customer_ids === null || $customer_ids === '' || (is_array($customer_ids) && count($customer_ids) === 0)) {
                 $customer_ids = [];
             }
+
+            // Create a cache key based on the parameters
+            $customer_ids_key = is_array($customer_ids) ? implode('_', $customer_ids) : 'all';
+            $cache_key = "customer_analytics_{$business_id}_{$location_id}_{$start_date}_{$end_date}_{$customer_ids_key}";
+
+            // Get data from cache or compute it if not cached (1 hour cache)
+            return \Cache::remember($cache_key, 60 * 60, function () use ($request, $business_id, $location_id, $start_date, $end_date, $customer_ids) {
 
             $permitted_locations = auth()->user()->permitted_locations();
 
@@ -5392,6 +5451,7 @@ class ReportController extends Controller
             ];
 
             return view('report.partials.customer_advance_analytics_details', compact('data'))->render();
+            });
         }
 
         $business_locations = BusinessLocation::forDropdown($business_id, true);
@@ -7332,10 +7392,10 @@ class ReportController extends Controller
         $business_id = $request->session()->get('user.business_id');
         $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
 
-        $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
-        $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
-        $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
-        $supplier_id = ! empty($request->get('supplier_id')) ? $request->get('supplier_id') : null;
+        $location_id = ! empty($request->input('location_id')) ? $request->input('location_id') : null;
+        $start_date = ! empty($request->input('start_date')) ? $request->input('start_date') : $fy['start'];
+        $end_date = ! empty($request->input('end_date')) ? $request->input('end_date') : $fy['end'];
+        $supplier_id = ! empty($request->input('supplier_id')) ? $request->input('supplier_id') : null;
 
         $permitted_locations = auth()->user()->permitted_locations();
 
@@ -7562,9 +7622,9 @@ class ReportController extends Controller
         if ($request->ajax()) {
             $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
 
-            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
-            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
-            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
+            $location_id = ! empty($request->input('location_id')) ? $request->input('location_id') : null;
+            $start_date = ! empty($request->input('start_date')) ? $request->input('start_date') : $fy['start'];
+            $end_date = ! empty($request->input('end_date')) ? $request->input('end_date') : $fy['end'];
 
             $permitted_locations = auth()->user()->permitted_locations();
 
@@ -7821,8 +7881,667 @@ class ReportController extends Controller
 
             $stockouts = $stockouts->count();
 
+            // Customer Insights Data
+            // New Customers (customers created within the selected date range)
+            $new_customers = Contact::where('business_id', $business_id)
+                ->where('type', 'customer')
+                ->whereBetween(DB::raw('date(created_at)'), [$start_date, $end_date])
+                ->count();
+
+            // Customer Acquisition Trend
+            $customer_acquisition_trend = Contact::where('business_id', $business_id)
+                ->where('type', 'customer')
+                ->whereBetween(DB::raw('date(created_at)'), [$start_date, $end_date])
+                ->select(
+                    DB::raw('DATE(created_at) as date'),
+                    DB::raw('COUNT(id) as new_customers')
+                )
+                ->groupBy(DB::raw('DATE(created_at)'))
+                ->orderBy(DB::raw('DATE(created_at)'))
+                ->get();
+
+            $customer_acquisition_labels = $customer_acquisition_trend->pluck('date')->toArray();
+            $customer_acquisition_data = $customer_acquisition_trend->pluck('new_customers')->toArray();
+
+            // Repeat Purchase Rate
+            $total_customers_with_purchases = DB::table('transactions')
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->distinct('contact_id')
+                ->count('contact_id');
+
+            $customers_with_multiple_purchases = DB::table('transactions')
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->select('contact_id', DB::raw('COUNT(id) as purchase_count'))
+                ->groupBy('contact_id')
+                ->havingRaw('COUNT(id) > 1')
+                ->count();
+
+            $repeat_purchase_rate = $total_customers_with_purchases > 0 
+                ? ($customers_with_multiple_purchases / $total_customers_with_purchases) * 100 
+                : 0;
+
+            // Average Customer Value
+            $avg_customer_value = $total_customers > 0 ? $total_revenue / $total_customers : 0;
+
+            // Customer Retention Data
+            // For simplicity, we'll calculate retention at different time intervals
+            $retention_periods = [
+                '1 month' => date('Y-m-d', strtotime($end_date . ' -1 month')),
+                '3 months' => date('Y-m-d', strtotime($end_date . ' -3 months')),
+                '6 months' => date('Y-m-d', strtotime($end_date . ' -6 months')),
+                '1 year' => date('Y-m-d', strtotime($end_date . ' -1 year'))
+            ];
+
+            $retention_data = [];
+            $retention_labels = [];
+
+            foreach ($retention_periods as $label => $period_start) {
+                $retention_labels[] = $label;
+
+                // Customers who made a purchase in the period
+                $customers_in_period = DB::table('transactions')
+                    ->where('business_id', $business_id)
+                    ->where('type', 'sell')
+                    ->where('status', 'final')
+                    ->whereBetween(DB::raw('date(transaction_date)'), [$period_start, $end_date])
+                    ->distinct('contact_id')
+                    ->pluck('contact_id')
+                    ->toArray();
+
+                // Customers who made a purchase in the last month of the selected date range
+                $customers_in_last_month = DB::table('transactions')
+                    ->where('business_id', $business_id)
+                    ->where('type', 'sell')
+                    ->where('status', 'final')
+                    ->whereBetween(DB::raw('date(transaction_date)'), [date('Y-m-d', strtotime($end_date . ' -1 month')), $end_date])
+                    ->distinct('contact_id')
+                    ->pluck('contact_id')
+                    ->toArray();
+
+                // Calculate retention rate
+                $retained_customers = count(array_intersect($customers_in_period, $customers_in_last_month));
+                $retention_rate = count($customers_in_period) > 0 
+                    ? ($retained_customers / count($customers_in_period)) * 100 
+                    : 0;
+
+                $retention_data[] = $retention_rate;
+            }
+
+            // Product Performance Data
+            // Total Products
+            $total_products = Product::where('business_id', $business_id)
+                ->count();
+
+            // Best Selling Product
+            $best_selling_product = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $best_selling_product->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $best_selling_product->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $best_selling_product = $best_selling_product->select(
+                'products.name as product_name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_quantity', 'desc')
+            ->first();
+
+            // Top Selling Products
+            $top_selling_products = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->join('products', 'transaction_sell_lines.product_id', '=', 'products.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $top_selling_products->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $top_selling_products->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $top_selling_products = $top_selling_products->select(
+                'products.name as product_name',
+                DB::raw('SUM(transaction_sell_lines.quantity) as total_quantity')
+            )
+            ->groupBy('products.id')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(5)
+            ->get();
+
+            $top_products_labels = $top_selling_products->pluck('product_name')->toArray();
+            $top_products_data = $top_selling_products->pluck('total_quantity')->toArray();
+
+            // Average Product Margin
+            $avg_product_margin = $gross_profit_margin; // Using the same as overall gross profit margin for simplicity
+
+            // Products Sold
+            $products_sold = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                ->where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $products_sold->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $products_sold->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $products_sold = $products_sold->sum('transaction_sell_lines.quantity');
+
+            // Expense Analysis Data
+            // Expense Ratio
+            $expense_ratio = $total_revenue > 0 ? ($total_expenses / $total_revenue) * 100 : 0;
+
+            // Expense Growth
+            $previous_expenses = Transaction::where('business_id', $business_id)
+                ->where('type', 'expense')
+                ->where('payment_status', 'paid')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$previous_period_start, $previous_period_end]);
+
+            if (!empty($location_id)) {
+                $previous_expenses->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $previous_expenses->whereIn('location_id', $permitted_locations);
+            }
+
+            $previous_expenses_total = $previous_expenses->sum('final_total');
+            $expense_growth = $previous_expenses_total > 0 
+                ? (($total_expenses - $previous_expenses_total) / $previous_expenses_total) * 100 
+                : 0;
+
+            // Monthly Average Expense
+            $days_in_period = (strtotime($end_date) - strtotime($start_date)) / (60 * 60 * 24);
+            $months_in_period = $days_in_period / 30;
+            $monthly_avg_expense = $months_in_period > 0 ? $total_expenses / $months_in_period : $total_expenses;
+
+            // Expense Trend
+            $expense_trend = Transaction::where('business_id', $business_id)
+                ->where('type', 'expense')
+                ->where('payment_status', 'paid')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->select(
+                    DB::raw('DATE(transaction_date) as date'),
+                    DB::raw('SUM(final_total) as total_expense')
+                )
+                ->groupBy(DB::raw('DATE(transaction_date)'))
+                ->orderBy(DB::raw('DATE(transaction_date)'))
+                ->get();
+
+            $expense_trend_labels = $expense_trend->pluck('date')->toArray();
+            $expense_trend_data = $expense_trend->pluck('total_expense')->toArray();
+
+            // Expense by Category
+            $expense_categories = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'expense')
+                ->where('transactions.payment_status', 'paid')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date])
+                ->leftJoin('expense_categories', 'transactions.expense_category_id', '=', 'expense_categories.id');
+
+            if (!empty($location_id)) {
+                $expense_categories->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $expense_categories->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $expense_categories = $expense_categories->select(
+                'expense_categories.name as category_name',
+                DB::raw('SUM(transactions.final_total) as total_amount')
+            )
+            ->groupBy('transactions.expense_category_id')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+            $expense_category_labels = $expense_categories->pluck('category_name')->toArray();
+            $expense_category_data = $expense_categories->pluck('total_amount')->toArray();
+
+            // Cash Flow Data
+            // Cash Inflow (Sales + Other Income)
+            $cash_inflow = Transaction::where('business_id', $business_id)
+                ->whereIn('type', ['sell', 'sell_return'])
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $cash_inflow->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $cash_inflow->whereIn('location_id', $permitted_locations);
+            }
+
+            $cash_inflow = $cash_inflow->sum('final_total');
+
+            // Cash Outflow (Purchases + Expenses)
+            $cash_outflow = Transaction::where('business_id', $business_id)
+                ->whereIn('type', ['purchase', 'expense'])
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $cash_outflow->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $cash_outflow->whereIn('location_id', $permitted_locations);
+            }
+
+            $cash_outflow = $cash_outflow->sum('final_total');
+
+            // Net Cash Flow
+            $net_cash_flow = $cash_inflow - $cash_outflow;
+
+            // Cash Runway (in months)
+            $monthly_cash_outflow = $months_in_period > 0 ? $cash_outflow / $months_in_period : $cash_outflow;
+            $cash_runway = $monthly_cash_outflow > 0 ? $net_cash_flow / $monthly_cash_outflow : 0;
+
+            // Cash Flow Trend
+            $cash_flow_trend = [];
+            $cash_inflow_trend = [];
+            $cash_outflow_trend = [];
+            $net_cash_flow_trend = [];
+
+            // Group by month for better visualization
+            $cash_inflow_by_month = Transaction::where('business_id', $business_id)
+                ->whereIn('type', ['sell', 'sell_return'])
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->select(
+                    DB::raw('YEAR(transaction_date) as year'),
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('YEAR(transaction_date)'), DB::raw('MONTH(transaction_date)'))
+                ->orderBy(DB::raw('YEAR(transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transaction_date)'))
+                ->get();
+
+            $cash_outflow_by_month = Transaction::where('business_id', $business_id)
+                ->whereIn('type', ['purchase', 'expense'])
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->select(
+                    DB::raw('YEAR(transaction_date) as year'),
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(final_total) as total_amount')
+                )
+                ->groupBy(DB::raw('YEAR(transaction_date)'), DB::raw('MONTH(transaction_date)'))
+                ->orderBy(DB::raw('YEAR(transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transaction_date)'))
+                ->get();
+
+            // Combine the data
+            $months = [];
+            foreach ($cash_inflow_by_month as $inflow) {
+                $month_key = $inflow->year . '-' . str_pad($inflow->month, 2, '0', STR_PAD_LEFT);
+                $months[$month_key]['inflow'] = $inflow->total_amount;
+            }
+
+            foreach ($cash_outflow_by_month as $outflow) {
+                $month_key = $outflow->year . '-' . str_pad($outflow->month, 2, '0', STR_PAD_LEFT);
+                $months[$month_key]['outflow'] = $outflow->total_amount;
+            }
+
+            // Calculate net flow and prepare data for charts
+            $cash_flow_labels = [];
+            $cash_inflow_data = [];
+            $cash_outflow_data = [];
+            $net_cash_flow_data = [];
+
+            foreach ($months as $month => $data) {
+                $cash_flow_labels[] = date('M Y', strtotime($month . '-01'));
+                $inflow = $data['inflow'] ?? 0;
+                $outflow = $data['outflow'] ?? 0;
+                $net_flow = $inflow - $outflow;
+
+                $cash_inflow_data[] = $inflow;
+                $cash_outflow_data[] = $outflow;
+                $net_cash_flow_data[] = $net_flow;
+            }
+
+            // Seasonal Trends Data
+            // Monthly Sales for Current Year and Previous Year
+            $current_year = date('Y', strtotime($end_date));
+            $previous_year = $current_year - 1;
+
+            $monthly_sales_current_year = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereYear('transaction_date', $current_year)
+                ->select(
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(final_total) as total_sales')
+                )
+                ->groupBy(DB::raw('MONTH(transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transaction_date)'))
+                ->get()
+                ->keyBy('month');
+
+            $monthly_sales_previous_year = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereYear('transaction_date', $previous_year)
+                ->select(
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(final_total) as total_sales')
+                )
+                ->groupBy(DB::raw('MONTH(transaction_date)'))
+                ->orderBy(DB::raw('MONTH(transaction_date)'))
+                ->get()
+                ->keyBy('month');
+
+            // Prepare data for monthly sales trend chart
+            $months_array = [
+                1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun',
+                7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
+            ];
+
+            $monthly_sales_labels = array_values($months_array);
+            $monthly_sales_current_year_data = [];
+            $monthly_sales_previous_year_data = [];
+
+            foreach ($months_array as $month_num => $month_name) {
+                $monthly_sales_current_year_data[] = isset($monthly_sales_current_year[$month_num]) 
+                    ? $monthly_sales_current_year[$month_num]->total_sales 
+                    : 0;
+
+                $monthly_sales_previous_year_data[] = isset($monthly_sales_previous_year[$month_num]) 
+                    ? $monthly_sales_previous_year[$month_num]->total_sales 
+                    : 0;
+            }
+
+            // Identify peak and slow seasons
+            $peak_month_index = array_search(max($monthly_sales_current_year_data), $monthly_sales_current_year_data);
+            $slow_month_index = array_search(min(array_filter($monthly_sales_current_year_data)), $monthly_sales_current_year_data);
+
+            $peak_season = $monthly_sales_labels[$peak_month_index];
+            $slow_season = $monthly_sales_labels[$slow_month_index];
+
+            // Calculate seasonal variance
+            $max_sales = max($monthly_sales_current_year_data);
+            $min_sales = min(array_filter($monthly_sales_current_year_data, function($value) { return $value > 0; }));
+            $seasonal_variance = $max_sales > 0 ? (($max_sales - $min_sales) / $max_sales) * 100 : 0;
+
+            // Peak Season Growth
+            $peak_month_num = $peak_month_index + 1;
+            $peak_current_year = isset($monthly_sales_current_year[$peak_month_num]) 
+                ? $monthly_sales_current_year[$peak_month_num]->total_sales 
+                : 0;
+            $peak_previous_year = isset($monthly_sales_previous_year[$peak_month_num]) 
+                ? $monthly_sales_previous_year[$peak_month_num]->total_sales 
+                : 0;
+
+            $peak_season_growth = $peak_previous_year > 0 
+                ? (($peak_current_year - $peak_previous_year) / $peak_previous_year) * 100 
+                : 0;
+
+            // Quarterly data for comparison
+            $quarterly_sales = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereYear('transaction_date', $current_year)
+                ->select(
+                    DB::raw('QUARTER(transaction_date) as quarter'),
+                    DB::raw('SUM(final_total) as total_sales'),
+                    DB::raw('SUM(final_total - tax_amount - shipping_charges) - 
+                             SUM(COALESCE(
+                                (SELECT SUM(tsl.quantity * pl.purchase_price_inc_tax)
+                                FROM transaction_sell_lines tsl
+                                LEFT JOIN transaction_sell_lines_purchase_lines tspl ON tsl.id = tspl.sell_line_id
+                                LEFT JOIN purchase_lines pl ON tspl.purchase_line_id = pl.id
+                                WHERE tsl.transaction_id = transactions.id),
+                                0
+                             )) as gross_profit')
+                )
+                ->groupBy(DB::raw('QUARTER(transaction_date)'))
+                ->orderBy(DB::raw('QUARTER(transaction_date)'))
+                ->get();
+
+            $quarterly_labels = ['Q1', 'Q2', 'Q3', 'Q4'];
+            $quarterly_sales_data = [0, 0, 0, 0];
+            $quarterly_profit_data = [0, 0, 0, 0];
+
+            foreach ($quarterly_sales as $quarter) {
+                $quarterly_sales_data[$quarter->quarter - 1] = $quarter->total_sales;
+                $quarterly_profit_data[$quarter->quarter - 1] = $quarter->gross_profit;
+            }
+
+            // Business Growth Data
+            // Customer Growth
+            $current_period_customers = Contact::where('business_id', $business_id)
+                ->where('type', 'customer')
+                ->whereBetween(DB::raw('date(created_at)'), [$start_date, $end_date])
+                ->count();
+
+            $previous_period_customers = Contact::where('business_id', $business_id)
+                ->where('type', 'customer')
+                ->whereBetween(DB::raw('date(created_at)'), [$previous_period_start, $previous_period_end])
+                ->count();
+
+            $customer_growth = $previous_period_customers > 0 
+                ? (($current_period_customers - $previous_period_customers) / $previous_period_customers) * 100 
+                : 0;
+
+            // Order Growth
+            $current_period_orders = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date])
+                ->count();
+
+            $previous_period_orders = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$previous_period_start, $previous_period_end])
+                ->count();
+
+            $order_growth = $previous_period_orders > 0 
+                ? (($current_period_orders - $previous_period_orders) / $previous_period_orders) * 100 
+                : 0;
+
+            // Year over Year Growth Data
+            // Get data for the last 5 years
+            $current_year = date('Y', strtotime($end_date));
+            $years = [];
+            $yearly_revenue = [];
+            $yearly_profit = [];
+
+            for ($i = 4; $i >= 0; $i--) {
+                $year = $current_year - $i;
+                $years[] = $year;
+
+                $year_revenue = Transaction::where('business_id', $business_id)
+                    ->where('type', 'sell')
+                    ->where('status', 'final')
+                    ->whereYear('transaction_date', $year)
+                    ->sum('final_total');
+
+                $yearly_revenue[] = $year_revenue;
+
+                $year_cogs = TransactionSellLine::join('transactions', 'transaction_sell_lines.transaction_id', '=', 'transactions.id')
+                    ->leftJoin('transaction_sell_lines_purchase_lines as tspl', 'transaction_sell_lines.id', '=', 'tspl.sell_line_id')
+                    ->leftJoin('purchase_lines', 'tspl.purchase_line_id', '=', 'purchase_lines.id')
+                    ->where('transactions.business_id', $business_id)
+                    ->where('transactions.type', 'sell')
+                    ->where('transactions.status', 'final')
+                    ->whereYear('transactions.transaction_date', $year)
+                    ->sum(DB::raw('transaction_sell_lines.quantity * purchase_lines.purchase_price_inc_tax'));
+
+                $year_expenses = Transaction::where('business_id', $business_id)
+                    ->where('type', 'expense')
+                    ->where('payment_status', 'paid')
+                    ->whereYear('transaction_date', $year)
+                    ->sum('final_total');
+
+                $year_profit = $year_revenue - $year_cogs - $year_expenses;
+                $yearly_profit[] = $year_profit;
+            }
+
+            // Growth Metrics for Radar Chart
+            $growth_metrics_labels = ['Revenue', 'Customers', 'Orders', 'Products', 'Profit', 'Market Share'];
+            $current_year_growth = [
+                $revenue_growth,
+                $customer_growth,
+                $order_growth,
+                0, // Product growth (placeholder)
+                $profit_growth,
+                0  // Market share growth (placeholder)
+            ];
+
+            // Employee Performance Data
+            // Get top performing employees by sales
+            $employee_sales = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'sell')
+                ->where('transactions.status', 'final')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date])
+                ->join('users', 'transactions.created_by', '=', 'users.id')
+                ->select(
+                    'users.id',
+                    'users.first_name',
+                    'users.last_name',
+                    DB::raw('SUM(transactions.final_total) as total_sales')
+                )
+                ->groupBy('users.id')
+                ->orderBy('total_sales', 'desc')
+                ->limit(5)
+                ->get();
+
+            $employee_names = $employee_sales->map(function ($employee) {
+                return $employee->first_name . ' ' . $employee->last_name;
+            })->toArray();
+
+            $employee_sales_data = $employee_sales->pluck('total_sales')->toArray();
+
+            // Get total employees
+            $total_employees = User::where('business_id', $business_id)->count();
+
+            // Top performer
+            $top_performer = !empty($employee_names) ? $employee_names[0] : '';
+
+            // Average sales per employee
+            $avg_sales_per_employee = $total_employees > 0 ? $total_revenue / $total_employees : 0;
+
+            // Average transaction time (placeholder - would need transaction timestamps)
+            $avg_transaction_time = 8.5; // Placeholder value in minutes
+
+            // Home Dashboard Data
+            // Total Sell (same as total_revenue)
+            $total_sell = $total_revenue;
+
+            // Invoice Due
+            $invoice_due_query = clone $sales_query;
+            $invoice_due_query->leftJoin('transaction_payments as tp', 'transactions.id', '=', 'tp.transaction_id')
+                ->select(
+                    DB::raw('SUM(transactions.final_total) as final_total'),
+                    DB::raw('SUM(COALESCE(tp.amount, 0)) as total_paid')
+                );
+            $invoice_due_result = $invoice_due_query->first();
+            $invoice_due = $invoice_due_result->final_total - $invoice_due_result->total_paid;
+
+            // Net (Total Sales - Invoice Due - Expense)
+            $net = $total_sell - $invoice_due - $total_expenses;
+
+            // Total Sell Return
+            $total_sell_return = Transaction::where('business_id', $business_id)
+                ->where('type', 'sell_return')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $total_sell_return->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $total_sell_return->whereIn('location_id', $permitted_locations);
+            }
+
+            $total_sell_return = $total_sell_return->sum('final_total');
+
+            // Total Purchase
+            $total_purchase = Transaction::where('business_id', $business_id)
+                ->where('type', 'purchase')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $total_purchase->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $total_purchase->whereIn('location_id', $permitted_locations);
+            }
+
+            $total_purchase = $total_purchase->sum('final_total');
+
+            // Purchase Due
+            $purchase_due_query = Transaction::where('transactions.business_id', $business_id)
+                ->where('transactions.type', 'purchase')
+                ->whereBetween(DB::raw('date(transactions.transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $purchase_due_query->where('transactions.location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $purchase_due_query->whereIn('transactions.location_id', $permitted_locations);
+            }
+
+            $purchase_due_query->leftJoin('transaction_payments as tp', 'transactions.id', '=', 'tp.transaction_id')
+                ->select(
+                    DB::raw('SUM(transactions.final_total) as final_total'),
+                    DB::raw('SUM(COALESCE(tp.amount, 0)) as total_paid')
+                );
+            $purchase_due_result = $purchase_due_query->first();
+            $purchase_due = $purchase_due_result->final_total - $purchase_due_result->total_paid;
+
+            // Total Purchase Return
+            $total_purchase_return = Transaction::where('business_id', $business_id)
+                ->where('type', 'purchase_return')
+                ->whereBetween(DB::raw('date(transaction_date)'), [$start_date, $end_date]);
+
+            if (!empty($location_id)) {
+                $total_purchase_return->where('location_id', $location_id);
+            }
+
+            if ($permitted_locations != 'all') {
+                $total_purchase_return->whereIn('location_id', $permitted_locations);
+            }
+
+            $total_purchase_return = $total_purchase_return->sum('final_total');
+
             // Prepare data for view
             $data = [
+                // Home Dashboard
+                'total_sell' => $total_sell,
+                'net' => $net,
+                'invoice_due' => $invoice_due,
+                'total_sell_return' => $total_sell_return,
+                'total_purchase' => $total_purchase,
+                'purchase_due' => $purchase_due,
+                'total_purchase_return' => $total_purchase_return,
+                'total_expense' => $total_expenses,
+
                 // Sales Overview
                 'total_sales' => $total_sales,
                 'total_revenue' => $total_revenue,
@@ -7851,7 +8570,73 @@ class ReportController extends Controller
                 'inventory_value' => $inventory_value,
                 'inventory_turnover' => $inventory_turnover,
                 'days_in_inventory' => $days_in_inventory,
-                'stockouts' => $stockouts
+                'stockouts' => $stockouts,
+
+                // Customer Insights
+                'new_customers' => $new_customers,
+                'repeat_purchase_rate' => $repeat_purchase_rate,
+                'avg_customer_value' => $avg_customer_value,
+                'customer_acquisition_labels' => $customer_acquisition_labels,
+                'customer_acquisition_data' => $customer_acquisition_data,
+                'retention_labels' => $retention_labels,
+                'retention_data' => $retention_data,
+
+                // Product Performance
+                'total_products' => $total_products,
+                'best_selling_product' => $best_selling_product ? $best_selling_product->product_name : '',
+                'avg_product_margin' => $avg_product_margin,
+                'products_sold' => $products_sold,
+                'top_products_labels' => $top_products_labels,
+                'top_products_data' => $top_products_data,
+
+                // Expense Analysis
+                'total_expenses' => $total_expenses,
+                'expense_ratio' => $expense_ratio,
+                'expense_growth' => $expense_growth,
+                'monthly_avg_expense' => $monthly_avg_expense,
+                'expense_trend_labels' => $expense_trend_labels,
+                'expense_trend_data' => $expense_trend_data,
+                'expense_category_labels' => $expense_category_labels,
+                'expense_category_data' => $expense_category_data,
+
+                // Cash Flow
+                'cash_inflow' => $cash_inflow,
+                'cash_outflow' => $cash_outflow,
+                'net_cash_flow' => $net_cash_flow,
+                'cash_runway' => $cash_runway,
+                'cash_flow_labels' => $cash_flow_labels,
+                'cash_inflow_data' => $cash_inflow_data,
+                'cash_outflow_data' => $cash_outflow_data,
+                'net_cash_flow_data' => $net_cash_flow_data,
+
+                // Seasonal Trends
+                'peak_season' => $peak_season,
+                'slow_season' => $slow_season,
+                'seasonal_variance' => $seasonal_variance,
+                'peak_season_growth' => $peak_season_growth,
+                'monthly_sales_labels' => $monthly_sales_labels,
+                'monthly_sales_current_year_data' => $monthly_sales_current_year_data,
+                'monthly_sales_previous_year_data' => $monthly_sales_previous_year_data,
+                'quarterly_labels' => $quarterly_labels,
+                'quarterly_sales_data' => $quarterly_sales_data,
+                'quarterly_profit_data' => $quarterly_profit_data,
+
+                // Business Growth
+                'customer_growth' => $customer_growth,
+                'order_growth' => $order_growth,
+                'years' => $years,
+                'yearly_revenue' => $yearly_revenue,
+                'yearly_profit' => $yearly_profit,
+                'growth_metrics_labels' => $growth_metrics_labels,
+                'current_year_growth' => $current_year_growth,
+
+                // Employee Performance
+                'total_employees' => $total_employees,
+                'top_performer' => $top_performer,
+                'avg_sales_per_employee' => $avg_sales_per_employee,
+                'avg_transaction_time' => $avg_transaction_time,
+                'employee_names' => $employee_names,
+                'employee_sales_data' => $employee_sales_data
             ];
 
             return view('report.partials.business_advance_analytics_details', compact('data'));
@@ -7879,10 +8664,10 @@ class ReportController extends Controller
         if ($request->ajax()) {
             $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
 
-            $location_id = ! empty($request->get('location_id')) ? $request->get('location_id') : null;
-            $start_date = ! empty($request->get('start_date')) ? $request->get('start_date') : $fy['start'];
-            $end_date = ! empty($request->get('end_date')) ? $request->get('end_date') : $fy['end'];
-            $supplier_id = ! empty($request->get('supplier_id')) ? $request->get('supplier_id') : null;
+            $location_id = ! empty($request->input('location_id')) ? $request->input('location_id') : null;
+            $start_date = ! empty($request->input('start_date')) ? $request->input('start_date') : $fy['start'];
+            $end_date = ! empty($request->input('end_date')) ? $request->input('end_date') : $fy['end'];
+            $supplier_id = ! empty($request->input('supplier_id')) ? $request->input('supplier_id') : null;
 
             $permitted_locations = auth()->user()->permitted_locations();
 

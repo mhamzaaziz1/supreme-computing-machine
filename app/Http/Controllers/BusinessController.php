@@ -554,6 +554,108 @@ class BusinessController extends Controller
     }
 
     /**
+     * Shows the ecommerce settings form
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getEcommerceSettings()
+    {
+        if (!auth()->user()->can('business_settings.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = request()->session()->get('user.business_id');
+        $business = Business::where('id', $business_id)->first();
+
+        $ecom_settings = $business->ecom_settings ?: [];
+
+        return view('business.ecommerce_settings')
+                ->with(compact('business', 'ecom_settings'));
+    }
+
+    /**
+     * Updates ecommerce settings
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function postEcommerceSettings(Request $request)
+    {
+        if (!auth()->user()->can('business_settings.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $business_id = $request->session()->get('user.business_id');
+            $business = Business::where('id', $business_id)->first();
+
+            $ecom_settings = $business->ecom_settings ?: [];
+
+            // Update ecommerce settings
+            $ecom_settings['enable_ecommerce'] = $request->input('enable_ecommerce', 0);
+            $ecom_settings['store_name'] = $request->input('ecommerce_store_name');
+            $ecom_settings['store_tagline'] = $request->input('ecommerce_store_tagline');
+            $ecom_settings['store_description'] = $request->input('ecommerce_store_description');
+
+            // Make sure the uploads/ecommerce directory exists
+            $upload_dir = public_path('uploads/ecommerce');
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+
+            // Handle logo upload
+            if ($request->hasFile('ecommerce_store_logo')) {
+                $file = $request->file('ecommerce_store_logo');
+                $name = time() . '_' . $file->getClientOriginalName();
+                $file->move($upload_dir, $name);
+                $ecom_settings['store_logo'] = $name;
+            }
+
+            // Handle banner upload
+            if ($request->hasFile('ecommerce_store_banner')) {
+                $file = $request->file('ecommerce_store_banner');
+                $name = time() . '_' . $file->getClientOriginalName();
+                $file->move($upload_dir, $name);
+                $ecom_settings['store_banner'] = $name;
+            }
+
+            // Handle slider images upload
+            if ($request->hasFile('slider_images')) {
+                $slider_images = [];
+
+                // Keep existing slider images if they exist
+                if (!empty($request->input('existing_slider_images'))) {
+                    $slider_images = $request->input('existing_slider_images');
+                }
+
+                foreach ($request->file('slider_images') as $file) {
+                    if ($file->isValid()) {
+                        $name = time() . '_' . rand(1000, 9999) . '_' . $file->getClientOriginalName();
+                        $file->move($upload_dir, $name);
+                        $slider_images[] = $name;
+                    }
+                }
+
+                $ecom_settings['slider_images'] = $slider_images;
+            } elseif (!empty($request->input('existing_slider_images'))) {
+                // If no new images uploaded but existing ones are present
+                $ecom_settings['slider_images'] = $request->input('existing_slider_images');
+            }
+
+            $business->ecom_settings = $ecom_settings;
+            $business->save();
+
+            $output = ['success' => 1, 'msg' => __('business.settings_updated_success')];
+        } catch (\Exception $e) {
+            \Log::emergency("File:" . $e->getFile(). "Line:" . $e->getLine(). "Message:" . $e->getMessage());
+
+            $output = ['success' => 0, 'msg' => __('messages.something_went_wrong')];
+        }
+
+        return redirect()->back()->with(['status' => $output]);
+    }
+
+    /**
      * Handles the testing of email configuration
      *
      * @return \Illuminate\Http\Response

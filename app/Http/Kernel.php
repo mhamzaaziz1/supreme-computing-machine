@@ -35,6 +35,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
         ],
 
         'api' => [
@@ -67,7 +68,7 @@ class Kernel extends HttpKernel
         'setData' => \App\Http\Middleware\IsInstalled::class,
         'authh' => \App\Http\Middleware\IsInstalled::class,
         'EcomApi' => \App\Http\Middleware\EcomApi::class,
-        'AdminSidebarMenu' => \App\Http\Middleware\AdminSidebarMenu::class,
+        'EcomApi' => \App\Http\Middleware\EcomApi::class,
         'superadmin' => \App\Http\Middleware\Superadmin::class,
         'CheckUserLogin' => \App\Http\Middleware\CheckUserLogin::class,
     ];

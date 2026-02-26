@@ -36,7 +36,7 @@ return new class extends Migration
                 ->on('supply_chain_vehicles')
                 ->onDelete('cascade');
 
-            $table->foreign('supply_chain_vehicle_mileage_id')
+            $table->foreign('supply_chain_vehicle_mileage_id', 'scve_scvm_id_foreign')
                 ->references('id')
                 ->on('supply_chain_vehicle_mileage')
                 ->onDelete('set null');

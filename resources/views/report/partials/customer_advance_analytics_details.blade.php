@@ -75,6 +75,15 @@
                     <li>
                         <a href="#seasonal_prediction_tab" data-toggle="tab" aria-expanded="false"><i class="fa fa-snowflake-o"></i> @lang('Seasonal Prediction')</a>
                     </li>
+                    <li>
+                        <a href="#cash_flow_prediction_tab" data-toggle="tab" aria-expanded="false"><i class="fa fa-money"></i> @lang('Cash Flow Prediction')</a>
+                    </li>
+                    <li>
+                        <a href="#cash_flow_seasonality_tab" data-toggle="tab" aria-expanded="false"><i class="fa fa-calendar"></i> @lang('Cash Flow Seasonality')</a>
+                    </li>
+                    <li>
+                        <a href="#cash_flow_risk_tab" data-toggle="tab" aria-expanded="false"><i class="fa fa-exclamation-triangle"></i> @lang('Cash Flow Risk')</a>
+                    </li>
                 </ul>
                 <div class="tab-content">
                     <!-- Sales Trend Analytics Tab -->
@@ -927,6 +936,112 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">RFM Analysis (Recency, Frequency, Monetary) @show_tooltip('RFM Analysis is a customer segmentation technique that uses three key metrics: Recency (how recently a customer made a purchase), Frequency (how often they purchase), and Monetary Value (how much they spend). This powerful analysis helps identify your most valuable customers and those who need attention. Each customer is scored on these three dimensions and placed into segments like Champions, Loyal Customers, At Risk, etc.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                @if(isset($data['rfm_segments']) && count($data['rfm_segments']) > 0)
+                                                    <canvas id="rfm_segments_chart" height="500"></canvas>
+                                                @else
+                                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                                @endif
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h4>RFM Segments Data</h4>
+                                                <table class="table table-bordered table-striped datatable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Segment</th>
+                                                            <th>Customer Count</th>
+                                                            <th>Percentage</th>
+                                                            <th>Description</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if(isset($data['rfm_segments']) && count($data['rfm_segments']) > 0)
+                                                            @php
+                                                                $total_rfm_customers = array_sum(array_column($data['rfm_segments']->toArray(), 'customer_count'));
+                                                                $segment_descriptions = [
+                                                                    'Champions' => 'Recent, frequent buyers with high spending. Your best customers.',
+                                                                    'Loyal Customers' => 'Regular buyers with above average spending.',
+                                                                    'Potential Loyalists' => 'Recent customers with average frequency and spending.',
+                                                                    'Big Spenders' => 'Customers who spend a lot but purchase less frequently.',
+                                                                    'New Customers' => 'First-time recent buyers with low spending.',
+                                                                    'At Risk' => 'Above average spending but haven\'t purchased recently.',
+                                                                    'Can\'t Lose' => 'Previous high-value customers who haven\'t purchased recently.',
+                                                                    'Lost' => 'Customers who haven\'t purchased in a long time with low spending.',
+                                                                    'Promising' => 'Recent customers with low frequency and spending.',
+                                                                    'Needs Attention' => 'Average customers who need nurturing.'
+                                                                ];
+                                                            @endphp
+                                                            @foreach($data['rfm_segments'] as $segment)
+                                                            <tr>
+                                                                <td>{{ $segment->segment }}</td>
+                                                                <td>{{ $segment->customer_count }}</td>
+                                                                <td>{{ @num_format(($segment->customer_count / $total_rfm_customers) * 100) }}%</td>
+                                                                <td>{{ $segment_descriptions[$segment->segment] ?? '' }}</td>
+                                                            </tr>
+                                                            @endforeach
+                                                        @else
+                                                            <tr>
+                                                                <td colspan="4" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
+                                                            </tr>
+                                                        @endif
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mt-4">
+                                            <div class="col-md-12">
+                                                <h4>RFM Customer Details</h4>
+                                                <table class="table table-bordered table-striped datatable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Customer</th>
+                                                            <th>Last Purchase</th>
+                                                            <th>Recency (Days)</th>
+                                                            <th>Frequency</th>
+                                                            <th>Monetary Value</th>
+                                                            <th>RFM Score</th>
+                                                            <th>Segment</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if(isset($data['rfm_customers']) && count($data['rfm_customers']) > 0)
+                                                            @foreach($data['rfm_customers'] as $customer)
+                                                            <tr>
+                                                                <td>{{ $customer->name }}</td>
+                                                                <td>{{ \Carbon\Carbon::parse($customer->last_purchase_date)->format('M d, Y') }}</td>
+                                                                <td>{{ $customer->recency }}</td>
+                                                                <td>{{ $customer->frequency }}</td>
+                                                                <td>{{ @num_format($customer->monetary) }}</td>
+                                                                <td>{{ $customer->r_score }}{{ $customer->f_score }}{{ $customer->m_score }}</td>
+                                                                <td>{{ $customer->rfm_segment }}</td>
+                                                            </tr>
+                                                            @endforeach
+                                                        @else
+                                                            <tr>
+                                                                <td colspan="7" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
+                                                            </tr>
+                                                        @endif
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Customer Growth Tab -->
@@ -1550,6 +1665,457 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Cash Flow Prediction Tab -->
+                    <div class="tab-pane" id="cash_flow_prediction_tab">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Cash Flow Prediction @show_tooltip('This analysis forecasts your cash flow for the next 6 months based on historical data. It helps with financial planning, budgeting, and identifying potential cash shortages. The forecast considers both inflows (sales) and outflows (expenses, purchases) to predict your net cash position. The model uses historical growth rates and seasonal patterns to make predictions.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="alert alert-info">
+                                            <i class="fa fa-info-circle"></i> Cash flow predictions use historical data to forecast future trends. These predictions are estimates and should be used as guidance rather than absolute forecasts.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Cards Row -->
+                        <div class="row">
+                            @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                                <!-- Total Inflow Card -->
+                                <div class="col-md-3">
+                                    <div class="info-box bg-aqua">
+                                        <span class="info-box-icon"><i class="fa fa-arrow-down"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Monthly Inflow</span>
+                                            <span class="info-box-number">
+                                                {{ @num_format(collect($data['cash_flow_data'])->avg('inflow')) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Total Outflow Card -->
+                                <div class="col-md-3">
+                                    <div class="info-box bg-red">
+                                        <span class="info-box-icon"><i class="fa fa-arrow-up"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Monthly Outflow</span>
+                                            <span class="info-box-number">
+                                                {{ @num_format(collect($data['cash_flow_data'])->avg('outflow')) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Net Flow Card -->
+                                <div class="col-md-3">
+                                    <div class="info-box bg-green">
+                                        <span class="info-box-icon"><i class="fa fa-balance-scale"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Net Cash Flow</span>
+                                            <span class="info-box-number">
+                                                {{ @num_format(collect($data['cash_flow_data'])->avg('net_flow')) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Forecast Card -->
+                                <div class="col-md-3">
+                                    <div class="info-box bg-yellow">
+                                        <span class="info-box-icon"><i class="fa fa-line-chart"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Forecast Trend</span>
+                                            <span class="info-box-number">
+                                                @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                                    @php
+                                                        $first_prediction = $data['cash_flow_prediction'][0]['net_flow'];
+                                                        $last_prediction = end($data['cash_flow_prediction'])['net_flow'];
+                                                        $trend = $first_prediction < $last_prediction ? 'Improving' : ($first_prediction > $last_prediction ? 'Declining' : 'Stable');
+                                                    @endphp
+                                                    {{ $trend }}
+                                                @else
+                                                    Stable
+                                                @endif
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <!-- Default Cards when no data -->
+                                <div class="col-md-3">
+                                    <div class="info-box bg-aqua">
+                                        <span class="info-box-icon"><i class="fa fa-arrow-down"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Monthly Inflow</span>
+                                            <span class="info-box-number">؋ 125,000.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="info-box bg-red">
+                                        <span class="info-box-icon"><i class="fa fa-arrow-up"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Monthly Outflow</span>
+                                            <span class="info-box-number">؋ 100,000.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="info-box bg-green">
+                                        <span class="info-box-icon"><i class="fa fa-balance-scale"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Average Net Cash Flow</span>
+                                            <span class="info-box-number">؋ 25,000.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="info-box bg-yellow">
+                                        <span class="info-box-icon"><i class="fa fa-line-chart"></i></span>
+                                        <div class="info-box-content">
+                                            <span class="info-box-text">Forecast Trend</span>
+                                            <span class="info-box-number">Stable</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Cash Flow Forecast (Next 6 Months) @show_tooltip('This chart shows your predicted cash inflows, outflows, and net cash flow for the next 6 months. It helps you anticipate potential cash shortages or surpluses. The forecast is calculated using time series analysis of your historical cash flow data, considering factors like average growth rates and seasonal patterns.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                                    <canvas id="cash_flow_prediction_chart" height="500"></canvas>
+                                                @else
+                                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                                @endif
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h4>Cash Flow Forecast Data</h4>
+                                                <table class="table table-bordered table-striped datatable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Month</th>
+                                                            <th>Year</th>
+                                                            <th>Inflow</th>
+                                                            <th>Outflow</th>
+                                                            <th>Net Flow</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                                            @foreach($data['cash_flow_prediction'] as $prediction)
+                                                            <tr>
+                                                                <td>{{ $prediction['month_name'] }}</td>
+                                                                <td>{{ $prediction['year'] }}</td>
+                                                                <td>{{ @num_format($prediction['inflow']) }}</td>
+                                                                <td>{{ @num_format($prediction['outflow']) }}</td>
+                                                                <td>
+                                                                    <span class="{{ $prediction['net_flow'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                                                        {{ @num_format($prediction['net_flow']) }}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                            @endforeach
+                                                        @else
+                                                            <tr>
+                                                                <td colspan="5" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
+                                                            </tr>
+                                                        @endif
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Historical Cash Flow @show_tooltip('This chart shows your historical cash inflows, outflows, and net cash flow. It helps you understand past patterns and trends in your business\'s cash flow. The data is based on actual transactions recorded in the system.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                                                    <canvas id="historical_cash_flow_chart" height="300"></canvas>
+                                                @else
+                                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cash Flow Seasonality Tab -->
+                    <div class="tab-pane" id="cash_flow_seasonality_tab">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Cash Flow Seasonality Analysis @show_tooltip('This analysis identifies seasonal patterns in your cash flow. It helps you anticipate and prepare for predictable fluctuations throughout the year. The seasonal index represents how a particular month typically performs relative to the average month (1.0 = average, 2.0 = twice average, 0.5 = half average).')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                                    <canvas id="cash_flow_seasonality_chart" height="500"></canvas>
+                                                @else
+                                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                                @endif
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h4>Monthly Seasonal Patterns</h4>
+                                                <table class="table table-bordered table-striped datatable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Month</th>
+                                                            <th>Inflow Index</th>
+                                                            <th>Outflow Index</th>
+                                                            <th>Net Flow Index</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                                            @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                                            <tr>
+                                                                <td>{{ $seasonality['month_name'] }}</td>
+                                                                <td>{{ @num_format($seasonality['inflow_index'], 2) }}</td>
+                                                                <td>{{ @num_format($seasonality['outflow_index'], 2) }}</td>
+                                                                <td>{{ @num_format($seasonality['net_flow_index'], 2) }}</td>
+                                                            </tr>
+                                                            @endforeach
+                                                        @else
+                                                            <tr>
+                                                                <td colspan="4" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
+                                                            </tr>
+                                                        @endif
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Monthly Average Cash Flow @show_tooltip('This chart shows your average cash inflows, outflows, and net cash flow for each month of the year. It helps identify which months typically have higher or lower cash flow. The data is based on historical averages calculated from your transaction records.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                                    <canvas id="monthly_average_cash_flow_chart" height="300"></canvas>
+                                                @else
+                                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cash Flow Risk Tab -->
+                    <div class="tab-pane" id="cash_flow_risk_tab">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Cash Flow Risk Assessment @show_tooltip('This analysis evaluates the risk level of your cash flow based on historical patterns and future predictions. It helps identify potential cash flow problems before they occur. The risk assessment considers factors like the frequency of negative cash flow months, consecutive negative months, average net flow, and predicted future negative months.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        <div class="alert alert-info">
+                                            <i class="fa fa-info-circle"></i> Cash flow risk assessment helps identify potential cash flow problems before they occur. The assessment is based on historical data and predictive analytics.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Score Card -->
+                        <div class="row">
+                            @if(isset($data['cash_flow_risk']))
+                                <div class="col-md-4">
+                                    <div class="box box-solid">
+                                        <div class="box-header with-border">
+                                            <h3 class="box-title">Overall Risk Level</h3>
+                                        </div>
+                                        <div class="box-body text-center">
+                                            <div class="risk-gauge">
+                                                <div class="risk-score-display">
+                                                    <h1 style="font-size: 48px; margin: 10px 0;">
+                                                        <span class="
+                                                            @if($data['cash_flow_risk']['overall_risk'] == 'High') text-danger
+                                                            @elseif($data['cash_flow_risk']['overall_risk'] == 'Medium') text-warning
+                                                            @else text-success
+                                                            @endif
+                                                        ">
+                                                            {{ $data['cash_flow_risk']['overall_risk'] }}
+                                                        </span>
+                                                    </h1>
+                                                    <p>Risk Score: {{ $data['cash_flow_risk']['risk_score'] }}/100</p>
+                                                </div>
+                                                <div class="progress" style="height: 20px; margin-top: 20px;">
+                                                    <div class="progress-bar progress-bar-success" style="width: 33%">Low</div>
+                                                    <div class="progress-bar progress-bar-warning" style="width: 33%">Medium</div>
+                                                    <div class="progress-bar progress-bar-danger" style="width: 34%">High</div>
+                                                </div>
+                                                <div class="progress" style="height: 10px; margin-top: 5px;">
+                                                    <div class="progress-bar 
+                                                        @if($data['cash_flow_risk']['overall_risk'] == 'High') progress-bar-danger
+                                                        @elseif($data['cash_flow_risk']['overall_risk'] == 'Medium') progress-bar-warning
+                                                        @else progress-bar-success
+                                                        @endif"
+                                                        style="width: {{ $data['cash_flow_risk']['risk_score'] }}%">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="box box-solid">
+                                        <div class="box-header with-border">
+                                            <h3 class="box-title">Key Risk Metrics</h3>
+                                        </div>
+                                        <div class="box-body">
+                                            <table class="table table-bordered">
+                                                <tr>
+                                                    <th>Negative Cash Flow Months</th>
+                                                    <td>{{ $data['cash_flow_risk']['negative_months_count'] }} ({{ $data['cash_flow_risk']['negative_months_percentage'] }}%)</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Max Consecutive Negative Months</th>
+                                                    <td>{{ $data['cash_flow_risk']['max_consecutive_negative_months'] }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Average Net Flow</th>
+                                                    <td>{{ @num_format($data['cash_flow_risk']['average_net_flow']) }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Net Flow Trend</th>
+                                                    <td>{{ $data['cash_flow_risk']['net_flow_trend'] }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Predicted Negative Months</th>
+                                                    <td>{{ $data['cash_flow_risk']['predicted_negative_months'] }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="box box-solid">
+                                        <div class="box-header with-border">
+                                            <h3 class="box-title">Risk Factors</h3>
+                                        </div>
+                                        <div class="box-body">
+                                            @if(count($data['cash_flow_risk']['risk_factors']) > 0)
+                                                <ul class="list-group">
+                                                    @foreach($data['cash_flow_risk']['risk_factors'] as $factor)
+                                                        <li class="list-group-item">
+                                                            <i class="fa fa-exclamation-triangle text-warning"></i> {{ $factor }}
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
+                                            @else
+                                                <p class="text-success"><i class="fa fa-check-circle"></i> No significant risk factors identified.</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="col-md-12">
+                                    <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                </div>
+                            @endif
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="box box-primary">
+                                    <div class="box-header with-border">
+                                        <h3 class="box-title">Recommendations @show_tooltip('These recommendations are generated based on the risk assessment of your cash flow. They provide actionable steps to improve your cash flow situation and reduce risks.')</h3>
+                                        <div class="box-tools pull-right">
+                                            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="box-body">
+                                        @if(isset($data['cash_flow_risk']) && count($data['cash_flow_risk']['recommendations']) > 0)
+                                            <div class="row">
+                                                <div class="col-md-12">
+                                                    <div class="panel panel-default">
+                                                        <div class="panel-heading">
+                                                            <h3 class="panel-title">Suggested Actions</h3>
+                                                        </div>
+                                                        <div class="panel-body">
+                                                            <ul class="list-group">
+                                                                @foreach($data['cash_flow_risk']['recommendations'] as $recommendation)
+                                                                    <li class="list-group-item">
+                                                                        <i class="fa fa-lightbulb-o text-yellow"></i> {{ $recommendation }}
+                                                                    </li>
+                                                                @endforeach
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="text-center">{{ __('lang_v1.no_data_found') }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
             </div>
         </div>
     </div>
@@ -1844,6 +2410,83 @@
                         title: {
                             display: true,
                             text: 'Customer Segments'
+                        }
+                    }
+                }
+            });
+        }
+
+        // RFM Segments Chart
+        var rfmSegmentsChart = document.getElementById('rfm_segments_chart');
+        if (rfmSegmentsChart) {
+            var rfmSegmentsCtx = rfmSegmentsChart.getContext('2d');
+            var rfmSegmentsData = {
+                labels: [
+                    @if(isset($data['rfm_segments']) && count($data['rfm_segments']) > 0)
+                        @foreach($data['rfm_segments'] as $segment)
+                            '{{ $segment->segment }}',
+                        @endforeach
+                    @endif
+                ],
+                datasets: [{
+                    label: 'Customer Count',
+                    data: [
+                        @if(isset($data['rfm_segments']) && count($data['rfm_segments']) > 0)
+                            @foreach($data['rfm_segments'] as $segment)
+                                {{ $segment->customer_count }},
+                            @endforeach
+                        @endif
+                    ],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(255, 159, 64, 0.6)',
+                        'rgba(201, 203, 207, 0.6)',
+                        'rgba(255, 99, 71, 0.6)',
+                        'rgba(0, 128, 128, 0.6)',
+                        'rgba(106, 90, 205, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(201, 203, 207, 1)',
+                        'rgba(255, 99, 71, 1)',
+                        'rgba(0, 128, 128, 1)',
+                        'rgba(106, 90, 205, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            };
+            new Chart(rfmSegmentsCtx, {
+                type: 'pie',
+                data: rfmSegmentsData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'RFM Customer Segments'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.label || '';
+                                    var value = context.raw || 0;
+                                    var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    var percentage = Math.round((value / total) * 100);
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
                         }
                     }
                 }
@@ -2850,6 +3493,403 @@
                                     } else {
                                         label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
                                     }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Cash Flow Prediction Chart
+        var cashFlowPredictionChart = document.getElementById('cash_flow_prediction_chart');
+        if (cashFlowPredictionChart) {
+            var cashFlowPredictionCtx = cashFlowPredictionChart.getContext('2d');
+
+            var cashFlowPredictionData = {
+                labels: [
+                    @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                        @foreach($data['cash_flow_prediction'] as $prediction)
+                            '{{ $prediction['month_name'] }} {{ $prediction['year'] }}',
+                        @endforeach
+                    @endif
+                ],
+                datasets: [
+                    {
+                        label: 'Inflow',
+                        data: [
+                            @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                @foreach($data['cash_flow_prediction'] as $prediction)
+                                    {{ $prediction['inflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(60, 141, 188, 0.2)',
+                        borderColor: 'rgba(60, 141, 188, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Outflow',
+                        data: [
+                            @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                @foreach($data['cash_flow_prediction'] as $prediction)
+                                    {{ $prediction['outflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Net Flow',
+                        data: [
+                            @if(isset($data['cash_flow_prediction']) && count($data['cash_flow_prediction']) > 0)
+                                @foreach($data['cash_flow_prediction'] as $prediction)
+                                    {{ $prediction['net_flow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        type: 'line'
+                    }
+                ]
+            };
+
+            new Chart(cashFlowPredictionCtx, {
+                type: 'bar',
+                data: cashFlowPredictionData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Cash Flow Forecast (Next 6 Months)'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Historical Cash Flow Chart
+        var historicalCashFlowChart = document.getElementById('historical_cash_flow_chart');
+        if (historicalCashFlowChart) {
+            var historicalCashFlowCtx = historicalCashFlowChart.getContext('2d');
+
+            var historicalCashFlowData = {
+                labels: [
+                    @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                        @foreach($data['cash_flow_data'] as $data_point)
+                            '{{ $data_point['month_name'] }} {{ $data_point['year'] }}',
+                        @endforeach
+                    @endif
+                ],
+                datasets: [
+                    {
+                        label: 'Inflow',
+                        data: [
+                            @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                                @foreach($data['cash_flow_data'] as $data_point)
+                                    {{ $data_point['inflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(60, 141, 188, 0.2)',
+                        borderColor: 'rgba(60, 141, 188, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Outflow',
+                        data: [
+                            @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                                @foreach($data['cash_flow_data'] as $data_point)
+                                    {{ $data_point['outflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Net Flow',
+                        data: [
+                            @if(isset($data['cash_flow_data']) && count($data['cash_flow_data']) > 0)
+                                @foreach($data['cash_flow_data'] as $data_point)
+                                    {{ $data_point['net_flow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        type: 'line'
+                    }
+                ]
+            };
+
+            new Chart(historicalCashFlowCtx, {
+                type: 'bar',
+                data: historicalCashFlowData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Historical Cash Flow'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Cash Flow Seasonality Chart
+        var cashFlowSeasonalityChart = document.getElementById('cash_flow_seasonality_chart');
+        if (cashFlowSeasonalityChart) {
+            var cashFlowSeasonalityCtx = cashFlowSeasonalityChart.getContext('2d');
+
+            var cashFlowSeasonalityData = {
+                labels: [
+                    @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                        @foreach($data['cash_flow_seasonality'] as $seasonality)
+                            '{{ $seasonality['month_name'] }}',
+                        @endforeach
+                    @endif
+                ],
+                datasets: [
+                    {
+                        label: 'Inflow Index',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['inflow_index'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(60, 141, 188, 0.2)',
+                        borderColor: 'rgba(60, 141, 188, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Outflow Index',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['outflow_index'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Net Flow Index',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['net_flow_index'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        yAxisID: 'y'
+                    }
+                ]
+            };
+
+            new Chart(cashFlowSeasonalityCtx, {
+                type: 'line',
+                data: cashFlowSeasonalityData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Seasonal Index'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Cash Flow Seasonality'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed.y.toFixed(2);
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Monthly Average Cash Flow Chart
+        var monthlyAverageCashFlowChart = document.getElementById('monthly_average_cash_flow_chart');
+        if (monthlyAverageCashFlowChart) {
+            var monthlyAverageCashFlowCtx = monthlyAverageCashFlowChart.getContext('2d');
+
+            var monthlyAverageCashFlowData = {
+                labels: [
+                    @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                        @foreach($data['cash_flow_seasonality'] as $seasonality)
+                            '{{ $seasonality['month_name'] }}',
+                        @endforeach
+                    @endif
+                ],
+                datasets: [
+                    {
+                        label: 'Average Inflow',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['avg_inflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(60, 141, 188, 0.2)',
+                        borderColor: 'rgba(60, 141, 188, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Average Outflow',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['avg_outflow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Average Net Flow',
+                        data: [
+                            @if(isset($data['cash_flow_seasonality']) && count($data['cash_flow_seasonality']) > 0)
+                                @foreach($data['cash_flow_seasonality'] as $seasonality)
+                                    {{ $seasonality['avg_net_flow'] }},
+                                @endforeach
+                            @endif
+                        ],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        type: 'line'
+                    }
+                ]
+            };
+
+            new Chart(monthlyAverageCashFlowCtx, {
+                type: 'bar',
+                data: monthlyAverageCashFlowData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Monthly Average Cash Flow'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
                                     return label;
                                 }
                             }

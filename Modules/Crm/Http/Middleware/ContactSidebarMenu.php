@@ -6,7 +6,7 @@ use App\Business;
 use App\Contact;
 use Closure;
 use Illuminate\Http\Request;
-use Menu;
+// use Menu;
 
 class ContactSidebarMenu
 {
@@ -23,6 +23,7 @@ class ContactSidebarMenu
             return $next($request);
         }
 
+        /*
         Menu::create('contact-sidebar-menu', function ($menu) {
             //retrieve contact type
             $contact = Contact::where('business_id', auth()->user()->business_id)
@@ -54,6 +55,7 @@ class ContactSidebarMenu
                 $menu->url(action([\Modules\Crm\Http\Controllers\ContactBookingController::class, 'index']), __('restaurant.bookings'), ['icon' => 'fas fa fa-calendar-check', 'active' => request()->segment(1) == 'bookings'])->order(3);
             }
         });
+        */
 
         return $next($request);
     }

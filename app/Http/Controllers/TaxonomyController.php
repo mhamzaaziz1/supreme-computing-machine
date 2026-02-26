@@ -161,6 +161,22 @@ class TaxonomyController extends Controller
             $input['business_id'] = $request->session()->get('user.business_id');
             $input['created_by'] = $request->session()->get('user.id');
 
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $image_name = time() . '_' . $image->getClientOriginalName();
+
+                // Make sure the uploads/category directory exists
+                $upload_dir = public_path('uploads/category');
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+
+                // Move the uploaded image to the category directory
+                $image->move($upload_dir, $image_name);
+                $input['image'] = $image_name;
+            }
+
             $category = Category::create($input);
             $output = ['success' => true,
                 'data' => $category,
@@ -255,6 +271,37 @@ class TaxonomyController extends Controller
                 } else {
                     $category->parent_id = 0;
                 }
+
+                // Handle image upload
+                if ($request->hasFile('image')) {
+                    // Delete old image if exists
+                    if (!empty($category->image) && file_exists(public_path('uploads/category/' . $category->image))) {
+                        unlink(public_path('uploads/category/' . $category->image));
+                    }
+
+                    $image = $request->file('image');
+                    $image_name = time() . '_' . $image->getClientOriginalName();
+
+                    // Make sure the uploads/category directory exists
+                    $upload_dir = public_path('uploads/category');
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+
+                    // Move the uploaded image to the category directory
+                    $image->move($upload_dir, $image_name);
+                    $category->image = $image_name;
+                }
+
+                // Handle image deletion
+                if (!empty($request->input('delete_image')) && $request->input('delete_image') == 1) {
+                    // Delete image if exists
+                    if (!empty($category->image) && file_exists(public_path('uploads/category/' . $category->image))) {
+                        unlink(public_path('uploads/category/' . $category->image));
+                    }
+                    $category->image = null;
+                }
+
                 $category->save();
 
                 $output = ['success' => true,

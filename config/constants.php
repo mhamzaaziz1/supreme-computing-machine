@@ -86,6 +86,7 @@ return [
     'show_payment_type_on_contact_pay' => false,
     'enable_gst_report_india' => env('ENABLE_GST_REPORT_INDIA', false),
     'enable_secondary_unit' => false, //Experimental feature, may depreciate
+    'ENHANCED_STOCK_ALERT' => env('ENHANCED_STOCK_ALERT', true), //Enhanced stock alert with advanced forecasting
 
     /*
     |--------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountReportsController;
 use App\Http\Controllers\AccountTypeController;
-// use App\Http\Controllers\Auth;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BackUpController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\BrandController;
@@ -32,6 +32,7 @@ use App\Http\Controllers\ImportSalesController;
 use App\Http\Controllers\Install;
 use App\Http\Controllers\InvoiceLayoutController;
 use App\Http\Controllers\InvoiceSchemeController;
+use App\Http\Controllers\EcommerceController;
 use App\Http\Controllers\LabelsController;
 use App\Http\Controllers\LedgerDiscountController;
 use App\Http\Controllers\LocationSettingsController;
@@ -80,9 +81,29 @@ use Illuminate\Support\Facades\Route;
 include_once 'install_r.php';
 
 Route::middleware(['setData'])->group(function () {
-    Route::get('/', function () {
+    // E-commerce routes
+    Route::get('/', [EcommerceController::class, 'index'])->name('ecommerce.home');
+    Route::get('/shop/products', [EcommerceController::class, 'products'])->name('ecommerce.products');
+    Route::get('/product/{id}', [EcommerceController::class, 'productDetails'])->name('ecommerce.product_details');
+    Route::get('/cart', [EcommerceController::class, 'cart'])->name('ecommerce.cart');
+    Route::post('/cart/add', [EcommerceController::class, 'addToCart'])->name('ecommerce.add_to_cart');
+    Route::post('/cart/update', [EcommerceController::class, 'updateCart'])->name('ecommerce.update_cart');
+    Route::post('/cart/remove', [EcommerceController::class, 'removeFromCart'])->name('ecommerce.remove_from_cart');
+    Route::get('/checkout', [EcommerceController::class, 'checkout'])->name('ecommerce.checkout');
+    Route::post('/place-order', [EcommerceController::class, 'placeOrder'])->name('ecommerce.place_order');
+    Route::get('/order-confirmation', [EcommerceController::class, 'orderConfirmation'])->name('ecommerce.order_confirmation');
+    Route::get('/account', [EcommerceController::class, 'account'])->name('ecommerce.account');
+    Route::get('/track-order', [EcommerceController::class, 'trackOrder'])->name('ecommerce.track_order');
+    Route::get('/help', [EcommerceController::class, 'help'])->name('ecommerce.help');
+    Route::get('/contact', [EcommerceController::class, 'contact'])->name('ecommerce.contact');
+    Route::get('/about', [EcommerceController::class, 'about'])->name('ecommerce.about');
+    Route::get('/terms', [EcommerceController::class, 'terms'])->name('ecommerce.terms');
+    Route::get('/privacy', [EcommerceController::class, 'privacy'])->name('ecommerce.privacy');
+
+    // Original routes
+    Route::get('/admin', function () {
         return view('welcome');
-    });
+    })->name('admin.dashboard');
 
     Auth::routes();
 
@@ -103,7 +124,7 @@ Route::middleware(['setData'])->group(function () {
 });
 
 //Routes for authenticated users only
-Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin'])->group(function () {
+Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 'CheckUserLogin'])->group(function () {
     Route::get('pos/payment/{id}', [SellPosController::class, 'edit'])->name('edit-pos-payment');
     Route::get('service-staff-availability', [SellPosController::class, 'showServiceStaffAvailibility']);
     Route::get('pause-resume-service-staff-timer/{user_id}', [SellPosController::class, 'pauseResumeServiceStaffTimer']);
@@ -128,13 +149,15 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::post('/test-sms', [BusinessController::class, 'testSmsConfiguration']);
     Route::get('/business/settings', [BusinessController::class, 'getBusinessSettings'])->name('business.getBusinessSettings');
     Route::post('/business/update', [BusinessController::class, 'postBusinessSettings'])->name('business.postBusinessSettings');
+    Route::get('/business/ecommerce-settings', [BusinessController::class, 'getEcommerceSettings'])->name('business.getEcommerceSettings');
+    Route::post('/business/ecommerce-settings', [BusinessController::class, 'postEcommerceSettings'])->name('business.postEcommerceSettings');
     Route::get('/user/profile', [UserController::class, 'getProfile'])->name('user.getProfile');
     Route::post('/user/update', [UserController::class, 'updateProfile'])->name('user.updateProfile');
     Route::post('/user/update-password', [UserController::class, 'updatePassword'])->name('user.updatePassword');
 
     Route::resource('brands', BrandController::class);
 
-    Route::resource('payment-account', 'PaymentAccountController');
+    // Route::resource('payment-account', 'PaymentAccountController'); // Commented out due to missing controller
 
     Route::resource('tax-rates', TaxRateController::class);
 
@@ -251,16 +274,16 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::post('/products/toggle-woocommerce-sync', [ProductController::class, 'toggleWooCommerceSync']);
 
     Route::resource('products', ProductController::class);
-    Route::get('/toggle-subscription/{id}', 'SellPosController@toggleRecurringInvoices');
-    Route::post('/sells/pos/get-types-of-service-details', 'SellPosController@getTypesOfServiceDetails');
-    Route::get('/sells/subscriptions', 'SellPosController@listSubscriptions');
-    Route::get('/sells/duplicate/{id}', 'SellController@duplicateSell');
-    Route::get('/sells/drafts', 'SellController@getDrafts');
-    Route::get('/sells/convert-to-draft/{id}', 'SellPosController@convertToInvoice');
-    Route::get('/sells/convert-to-proforma/{id}', 'SellPosController@convertToProforma');
-    Route::get('/sells/quotations', 'SellController@getQuotations');
-    Route::get('/sells/draft-dt', 'SellController@getDraftDatables');
-    Route::resource('sells', 'SellController')->except(['show']);
+    Route::get('/toggle-subscription/{id}', [SellPosController::class, 'toggleRecurringInvoices']);
+    Route::post('/sells/pos/get-types-of-service-details', [SellPosController::class, 'getTypesOfServiceDetails']);
+    Route::get('/sells/subscriptions', [SellPosController::class, 'listSubscriptions']);
+    Route::get('/sells/duplicate/{id}', [SellController::class, 'duplicateSell']);
+    Route::get('/sells/drafts', [SellController::class, 'getDrafts']);
+    Route::get('/sells/convert-to-draft/{id}', [SellPosController::class, 'convertToInvoice']);
+    Route::get('/sells/convert-to-proforma/{id}', [SellPosController::class, 'convertToProforma']);
+    Route::get('/sells/quotations', [SellController::class, 'getQuotations']);
+    Route::get('/sells/draft-dt', [SellController::class, 'getDraftDatables']);
+    Route::resource('sells', SellController::class)->except(['show']);
     Route::get('/sells/copy-quotation/{id}', [SellPosController::class, 'copyQuotation']);
 
     Route::post('/import-purchase-products', [PurchaseController::class, 'importPurchaseProducts']);
@@ -612,3 +635,11 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone'])
 Route::get('/webp/{path}', [App\Http\Controllers\WebpController::class, 'convert'])
     ->where('path', '.*')
     ->name('webp.convert');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/pos/v2', [\App\Http\Controllers\PosV2Controller::class, 'index'])->name('pos.v2');
+    Route::get('/pos/v2/products', [\App\Http\Controllers\PosV2Controller::class, 'getProducts'])->name('pos.v2.products');
+});
+
+Route::get('/readykit-test', function () { return view('readykit-test'); });
+

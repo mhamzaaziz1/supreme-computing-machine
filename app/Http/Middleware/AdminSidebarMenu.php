@@ -961,6 +961,56 @@ class AdminSidebarMenu
                   </svg>', 'active' => request()->segment(1) == 'notification-templates'])->order(80);
             }
 
+            //Ecommerce menu
+            $menu->dropdown(
+                __('ecommerce.ecommerce'),
+                function ($sub) {
+                    $sub->url(
+                        route('ecommerce.home'),
+                        __('ecommerce.dashboard'),
+                        ['icon' => '', 'active' => request()->segment(1) == '' && empty(request()->segment(2))]
+                    );
+
+                    $sub->url(
+                        route('ecommerce.products'),
+                        __('ecommerce.products'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'shop' && request()->segment(2) == 'products']
+                    );
+
+                    $sub->url(
+                        action([\App\Http\Controllers\SellController::class, 'index'], ['type' => 'ecommerce']),
+                        __('ecommerce.orders'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'sells' && request()->input('type') == 'ecommerce']
+                    );
+
+                    $sub->url(
+                        action([\App\Http\Controllers\ContactController::class, 'index'], ['type' => 'customer', 'source' => 'ecommerce']),
+                        __('ecommerce.customers'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'contacts' && request()->input('source') == 'ecommerce']
+                    );
+
+                    $sub->url(
+                        action([\App\Http\Controllers\BusinessController::class, 'getEcommerceSettings']),
+                        __('ecommerce.settings'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'business' && request()->segment(2) == 'ecommerce-settings']
+                    );
+                },
+                ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M3 5m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"></path>
+                <path d="M3 10l18 0"></path>
+                <path d="M7 15l.01 0"></path>
+                <path d="M11 15l2 0"></path>
+                <path d="M6 20l12 0"></path>
+                <path d="M9 16l0 4"></path>
+                <path d="M15 16l0 4"></path>
+                </svg>', 'active' => request()->segment(1) == '' || 
+                                    (request()->segment(1) == 'shop' && request()->segment(2) == 'products') || 
+                                    (request()->segment(1) == 'sells' && request()->input('type') == 'ecommerce') ||
+                                    (request()->segment(1) == 'contacts' && request()->input('source') == 'ecommerce') ||
+                                    (request()->segment(1) == 'business' && request()->segment(2) == 'ecommerce-settings')]
+            )->order(82);
+
             //Settings Dropdown
             if (auth()->user()->can('business_settings.access') ||
                 auth()->user()->can('barcode_settings.access') ||

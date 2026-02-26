@@ -11,9 +11,9 @@
                 <li class="breadcrumb-item active" aria-current="page">My Account</li>
             </ol>
         </nav>
-        
+
         <h1 class="mb-4">My Account</h1>
-        
+
         <div class="row">
             <!-- Account Sidebar -->
             <div class="col-lg-3 mb-4">
@@ -25,11 +25,14 @@
                         <a href="#addresses" class="nav-link" data-bs-toggle="tab">Addresses</a>
                         <a href="#wishlist" class="nav-link" data-bs-toggle="tab">Wishlist</a>
                         <a href="#profile" class="nav-link" data-bs-toggle="tab">Account Details</a>
-                        <a href="{{ route('ecommerce.home') }}" class="nav-link">Logout</a>
+                        <a href="{{ route('logout') }}" class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
+                        <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                            @csrf
+                        </form>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Account Content -->
             <div class="col-lg-9">
                 <div class="tab-content">
@@ -37,9 +40,9 @@
                     <div class="tab-pane fade show active" id="dashboard">
                         <div class="account-content">
                             <h4 class="account-content-title">Dashboard</h4>
-                            <p>Hello <strong>John Doe</strong> (not John? <a href="{{ route('ecommerce.home') }}">Logout</a>)</p>
+                            <p>Hello <strong>{{ $user->user_full_name }}</strong> (not {{ $user->first_name }}? <a href="{{ route('logout') }}">Logout</a>)</p>
                             <p>From your account dashboard you can view your recent orders, manage your shipping and billing addresses, and edit your password and account details.</p>
-                            
+
                             <div class="row mt-4">
                                 <div class="col-md-4 mb-4">
                                     <div class="card text-center h-100">
@@ -72,7 +75,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <h5 class="mt-4 mb-3">Recent Orders</h5>
                             <div class="table-responsive">
                                 <table class="table table-bordered">
@@ -86,27 +89,29 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @forelse($orders->take(3) as $order)
                                         <tr>
-                                            <td>#ORD-12345</td>
-                                            <td>June 15, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$74.52</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                                            <td>#{{ $order->invoice_no }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($order->transaction_date)->format('M d, Y') }}</td>
+                                            <td>
+                                                @if($order->payment_status == 'paid')
+                                                    <span class="badge bg-success">Paid</span>
+                                                @elseif($order->payment_status == 'partial')
+                                                    <span class="badge bg-info">Partially Paid</span>
+                                                @elseif($order->payment_status == 'due')
+                                                    <span class="badge bg-warning">Pending</span>
+                                                @else
+                                                    <span class="badge bg-danger">{{ ucfirst($order->payment_status) }}</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ number_format($order->final_total, 2) }}</td>
+                                            <td><a href="#" class="btn btn-sm btn-outline-primary view-order" data-order-id="{{ $order->id }}" data-bs-toggle="modal" data-bs-target="#orderDetailsModal{{ $order->id }}">View</a></td>
                                         </tr>
+                                        @empty
                                         <tr>
-                                            <td>#ORD-12346</td>
-                                            <td>June 10, 2023</td>
-                                            <td><span class="badge bg-info">Shipped</span></td>
-                                            <td>$125.00</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                                            <td colspan="5" class="text-center">No orders found</td>
                                         </tr>
-                                        <tr>
-                                            <td>#ORD-12347</td>
-                                            <td>June 5, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$49.99</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
-                                        </tr>
+                                        @endforelse
                                     </tbody>
                                 </table>
                             </div>
@@ -115,12 +120,12 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Orders -->
                     <div class="tab-pane fade" id="orders">
                         <div class="account-content">
                             <h4 class="account-content-title">My Orders</h4>
-                            
+
                             <div class="table-responsive">
                                 <table class="table table-bordered">
                                     <thead>
@@ -133,71 +138,102 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @forelse($orders as $order)
                                         <tr>
-                                            <td>#ORD-12345</td>
-                                            <td>June 15, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$74.52</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                                            <td>#{{ $order->invoice_no }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($order->transaction_date)->format('M d, Y') }}</td>
+                                            <td>
+                                                @if($order->payment_status == 'paid')
+                                                    <span class="badge bg-success">Paid</span>
+                                                @elseif($order->payment_status == 'partial')
+                                                    <span class="badge bg-info">Partially Paid</span>
+                                                @elseif($order->payment_status == 'due')
+                                                    <span class="badge bg-warning">Pending</span>
+                                                @else
+                                                    <span class="badge bg-danger">{{ ucfirst($order->payment_status) }}</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ number_format($order->final_total, 2) }}</td>
+                                            <td><a href="#" class="btn btn-sm btn-outline-primary view-order" data-order-id="{{ $order->id }}" data-bs-toggle="modal" data-bs-target="#orderDetailsModal{{ $order->id }}">View</a></td>
                                         </tr>
+                                        @empty
                                         <tr>
-                                            <td>#ORD-12346</td>
-                                            <td>June 10, 2023</td>
-                                            <td><span class="badge bg-info">Shipped</span></td>
-                                            <td>$125.00</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                                            <td colspan="5" class="text-center">No orders found</td>
                                         </tr>
-                                        <tr>
-                                            <td>#ORD-12347</td>
-                                            <td>June 5, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$49.99</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>#ORD-12348</td>
-                                            <td>May 28, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$89.99</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>#ORD-12349</td>
-                                            <td>May 20, 2023</td>
-                                            <td><span class="badge bg-success">Delivered</span></td>
-                                            <td>$35.50</td>
-                                            <td><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
-                                        </tr>
+                                        @endforelse
                                     </tbody>
                                 </table>
                             </div>
-                            
-                            <!-- Order Details Modal -->
-                            <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+
+                            <!-- Order Details Modals -->
+                            @foreach($orders as $order)
+                            <div class="modal fade" id="orderDetailsModal{{ $order->id }}" tabindex="-1" aria-labelledby="orderDetailsModalLabel{{ $order->id }}" aria-hidden="true">
                                 <div class="modal-dialog modal-lg">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title" id="orderDetailsModalLabel">Order #ORD-12345</h5>
+                                            <h5 class="modal-title" id="orderDetailsModalLabel{{ $order->id }}">Order #{{ $order->invoice_no }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body">
                                             <div class="row mb-4">
                                                 <div class="col-md-6">
                                                     <h6>Order Information</h6>
-                                                    <p class="mb-1"><strong>Order Number:</strong> #ORD-12345</p>
-                                                    <p class="mb-1"><strong>Date:</strong> June 15, 2023</p>
-                                                    <p class="mb-1"><strong>Status:</strong> <span class="badge bg-success">Delivered</span></p>
-                                                    <p class="mb-1"><strong>Payment Method:</strong> Credit Card</p>
+                                                    <p class="mb-1"><strong>Order Number:</strong> #{{ $order->invoice_no }}</p>
+                                                    <p class="mb-1"><strong>Date:</strong> {{ \Carbon\Carbon::parse($order->transaction_date)->format('M d, Y') }}</p>
+                                                    <p class="mb-1"><strong>Status:</strong> 
+                                                        @if($order->payment_status == 'paid')
+                                                            <span class="badge bg-success">Paid</span>
+                                                        @elseif($order->payment_status == 'partial')
+                                                            <span class="badge bg-info">Partially Paid</span>
+                                                        @elseif($order->payment_status == 'due')
+                                                            <span class="badge bg-warning">Pending</span>
+                                                        @else
+                                                            <span class="badge bg-danger">{{ ucfirst($order->payment_status) }}</span>
+                                                        @endif
+                                                    </p>
+                                                    <p class="mb-1"><strong>Payment Method:</strong> 
+                                                        @if($order->payment_lines->isNotEmpty())
+                                                            {{ ucfirst($order->payment_lines->first()->method) }}
+                                                        @else
+                                                            Not specified
+                                                        @endif
+                                                    </p>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <h6>Shipping Address</h6>
-                                                    <p class="mb-1">John Doe</p>
-                                                    <p class="mb-1">123 Main St</p>
-                                                    <p class="mb-1">New York, NY 10001</p>
-                                                    <p class="mb-1">United States</p>
+                                                    @php
+                                                        $shipping_address = $order->shipping_address(true);
+                                                    @endphp
+                                                    @if(!empty($shipping_address))
+                                                        @if(!empty($shipping_address['name']))
+                                                            <p class="mb-1">{{ $shipping_address['name'] }}</p>
+                                                        @endif
+                                                        @if(!empty($shipping_address['address_line_1']))
+                                                            <p class="mb-1">{{ $shipping_address['address_line_1'] }}</p>
+                                                        @endif
+                                                        @if(!empty($shipping_address['address_line_2']))
+                                                            <p class="mb-1">{{ $shipping_address['address_line_2'] }}</p>
+                                                        @endif
+                                                        <p class="mb-1">
+                                                            @if(!empty($shipping_address['city']))
+                                                                {{ $shipping_address['city'] }}, 
+                                                            @endif
+                                                            @if(!empty($shipping_address['state']))
+                                                                {{ $shipping_address['state'] }} 
+                                                            @endif
+                                                            @if(!empty($shipping_address['zipcode']))
+                                                                {{ $shipping_address['zipcode'] }}
+                                                            @endif
+                                                        </p>
+                                                        @if(!empty($shipping_address['country']))
+                                                            <p class="mb-1">{{ $shipping_address['country'] }}</p>
+                                                        @endif
+                                                    @else
+                                                        <p class="mb-1">No shipping address provided</p>
+                                                    @endif
                                                 </div>
                                             </div>
-                                            
+
                                             <h6>Order Items</h6>
                                             <div class="table-responsive">
                                                 <table class="table table-bordered">
@@ -210,51 +246,49 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
+                                                        @foreach($order->sell_lines as $line)
                                                         <tr>
                                                             <td>
                                                                 <div class="d-flex align-items-center">
-                                                                    <img src="https://via.placeholder.com/50x50" class="me-3" alt="Product Image">
+                                                                    @if($line->product && $line->product->image)
+                                                                        <img src="{{ asset('storage/products/' . $line->product->image) }}" class="me-3" alt="Product Image" style="width: 50px; height: 50px; object-fit: cover;">
+                                                                    @else
+                                                                        <img src="https://via.placeholder.com/50x50" class="me-3" alt="Product Image">
+                                                                    @endif
                                                                     <div>
-                                                                        <p class="mb-0">Sample Product 1</p>
-                                                                        <small class="text-muted">Variation: Small</small>
+                                                                        <p class="mb-0">{{ $line->product ? $line->product->name : 'Unknown Product' }}</p>
+                                                                        @if($line->variations)
+                                                                            <small class="text-muted">Variation: {{ $line->variations->name }}</small>
+                                                                        @endif
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td>$19.99</td>
-                                                            <td>2</td>
-                                                            <td class="text-end">$39.98</td>
+                                                            <td>{{ number_format($line->unit_price_inc_tax, 2) }}</td>
+                                                            <td>{{ $line->quantity }}</td>
+                                                            <td class="text-end">{{ number_format($line->unit_price_inc_tax * $line->quantity, 2) }}</td>
                                                         </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <div class="d-flex align-items-center">
-                                                                    <img src="https://via.placeholder.com/50x50" class="me-3" alt="Product Image">
-                                                                    <div>
-                                                                        <p class="mb-0">Sample Product 2</p>
-                                                                        <small class="text-muted">Variation: Medium</small>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td>$24.99</td>
-                                                            <td>1</td>
-                                                            <td class="text-end">$24.99</td>
-                                                        </tr>
+                                                        @endforeach
                                                     </tbody>
                                                     <tfoot>
                                                         <tr>
                                                             <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
-                                                            <td class="text-end">$64.97</td>
+                                                            <td class="text-end">{{ number_format($order->total_before_tax, 2) }}</td>
                                                         </tr>
+                                                        @if($order->shipping_charges > 0)
                                                         <tr>
                                                             <td colspan="3" class="text-end"><strong>Shipping:</strong></td>
-                                                            <td class="text-end">$5.00</td>
+                                                            <td class="text-end">{{ number_format($order->shipping_charges, 2) }}</td>
                                                         </tr>
+                                                        @endif
+                                                        @if($order->tax_amount > 0)
                                                         <tr>
                                                             <td colspan="3" class="text-end"><strong>Tax:</strong></td>
-                                                            <td class="text-end">$4.55</td>
+                                                            <td class="text-end">{{ number_format($order->tax_amount, 2) }}</td>
                                                         </tr>
+                                                        @endif
                                                         <tr>
                                                             <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                                                            <td class="text-end"><strong>$74.52</strong></td>
+                                                            <td class="text-end"><strong>{{ number_format($order->final_total, 2) }}</strong></td>
                                                         </tr>
                                                     </tfoot>
                                                 </table>
@@ -262,56 +296,104 @@
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                            <button type="button" class="btn btn-primary">Track Order</button>
+                                            <a href="{{ route('ecommerce.track_order') }}?order_id={{ $order->id }}" class="btn btn-primary">Track Order</a>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            @endforeach
                         </div>
                     </div>
-                    
+
                     <!-- Addresses -->
                     <div class="tab-pane fade" id="addresses">
                         <div class="account-content">
                             <h4 class="account-content-title">My Addresses</h4>
-                            
+
                             <div class="row">
+                                @if(isset($addresses['shipping']))
                                 <div class="col-md-6 mb-4">
                                     <div class="card h-100">
                                         <div class="card-header d-flex justify-content-between align-items-center">
                                             <h5 class="mb-0">Shipping Address</h5>
                                             <div>
-                                                <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editAddressModal">Edit</button>
-                                                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                                <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editShippingAddressModal">Edit</button>
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="mb-1">John Doe</p>
-                                            <p class="mb-1">123 Main St</p>
-                                            <p class="mb-1">New York, NY 10001</p>
-                                            <p class="mb-1">United States</p>
-                                            <p class="mb-1">Phone: (123) 456-7890</p>
+                                            @if(!empty($addresses['shipping']['name']))
+                                                <p class="mb-1">{{ $addresses['shipping']['name'] }}</p>
+                                            @endif
+                                            @if(!empty($addresses['shipping']['address_line_1']))
+                                                <p class="mb-1">{{ $addresses['shipping']['address_line_1'] }}</p>
+                                            @endif
+                                            @if(!empty($addresses['shipping']['address_line_2']))
+                                                <p class="mb-1">{{ $addresses['shipping']['address_line_2'] }}</p>
+                                            @endif
+                                            <p class="mb-1">
+                                                @if(!empty($addresses['shipping']['city']))
+                                                    {{ $addresses['shipping']['city'] }}, 
+                                                @endif
+                                                @if(!empty($addresses['shipping']['state']))
+                                                    {{ $addresses['shipping']['state'] }} 
+                                                @endif
+                                                @if(!empty($addresses['shipping']['zipcode']))
+                                                    {{ $addresses['shipping']['zipcode'] }}
+                                                @endif
+                                            </p>
+                                            @if(!empty($addresses['shipping']['country']))
+                                                <p class="mb-1">{{ $addresses['shipping']['country'] }}</p>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
+                                @endif
+
+                                @if(isset($addresses['billing']))
                                 <div class="col-md-6 mb-4">
                                     <div class="card h-100">
                                         <div class="card-header d-flex justify-content-between align-items-center">
                                             <h5 class="mb-0">Billing Address</h5>
                                             <div>
-                                                <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editAddressModal">Edit</button>
-                                                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                                <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#editBillingAddressModal">Edit</button>
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="mb-1">John Doe</p>
-                                            <p class="mb-1">123 Main St</p>
-                                            <p class="mb-1">New York, NY 10001</p>
-                                            <p class="mb-1">United States</p>
-                                            <p class="mb-1">Phone: (123) 456-7890</p>
+                                            @if(!empty($addresses['billing']['name']))
+                                                <p class="mb-1">{{ $addresses['billing']['name'] }}</p>
+                                            @endif
+                                            @if(!empty($addresses['billing']['address_line_1']))
+                                                <p class="mb-1">{{ $addresses['billing']['address_line_1'] }}</p>
+                                            @endif
+                                            @if(!empty($addresses['billing']['address_line_2']))
+                                                <p class="mb-1">{{ $addresses['billing']['address_line_2'] }}</p>
+                                            @endif
+                                            <p class="mb-1">
+                                                @if(!empty($addresses['billing']['city']))
+                                                    {{ $addresses['billing']['city'] }}, 
+                                                @endif
+                                                @if(!empty($addresses['billing']['state']))
+                                                    {{ $addresses['billing']['state'] }} 
+                                                @endif
+                                                @if(!empty($addresses['billing']['zipcode']))
+                                                    {{ $addresses['billing']['zipcode'] }}
+                                                @endif
+                                            </p>
+                                            @if(!empty($addresses['billing']['country']))
+                                                <p class="mb-1">{{ $addresses['billing']['country'] }}</p>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
+                                @endif
+
+                                @if(!isset($addresses['shipping']) && !isset($addresses['billing']))
+                                <div class="col-md-12 mb-4">
+                                    <div class="alert alert-info">
+                                        You don't have any saved addresses yet. Add an address to make checkout faster.
+                                    </div>
+                                </div>
+                                @endif
                                 <div class="col-md-6 mb-4">
                                     <div class="card h-100 border-dashed">
                                         <div class="card-body d-flex flex-column align-items-center justify-content-center">
@@ -322,7 +404,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Add Address Modal -->
                             <div class="modal fade" id="addAddressModal" tabindex="-1" aria-labelledby="addAddressModalLabel" aria-hidden="true">
                                 <div class="modal-dialog">
@@ -384,7 +466,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Edit Address Modal -->
                             <div class="modal fade" id="editAddressModal" tabindex="-1" aria-labelledby="editAddressModalLabel" aria-hidden="true">
                                 <div class="modal-dialog">
@@ -448,12 +530,12 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Wishlist -->
                     <div class="tab-pane fade" id="wishlist">
                         <div class="account-content">
                             <h4 class="account-content-title">My Wishlist</h4>
-                            
+
                             <div class="row">
                                 <div class="col-md-4 mb-4">
                                     <div class="card product-card h-100">
@@ -516,53 +598,66 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Profile -->
                     <div class="tab-pane fade" id="profile">
                         <div class="account-content">
                             <h4 class="account-content-title">Account Details</h4>
-                            
-                            <form>
+
+                            <form action="{{ route('user.updateProfile') }}" method="POST">
+                                @csrf
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="profile_first_name" class="form-label">First Name</label>
-                                        <input type="text" class="form-control" id="profile_first_name" value="John" required>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="surname" class="form-label">Surname</label>
+                                        <input type="text" class="form-control" id="surname" name="surname" value="{{ $user->surname }}" required>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="profile_last_name" class="form-label">Last Name</label>
-                                        <input type="text" class="form-control" id="profile_last_name" value="Doe" required>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="first_name" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ $user->first_name }}" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="last_name" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ $user->last_name }}">
                                     </div>
                                 </div>
-                                
+
                                 <div class="mb-3">
-                                    <label for="profile_email" class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" id="profile_email" value="john.doe@example.com" required>
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ $user->email }}" required>
                                 </div>
-                                
+
                                 <div class="mb-3">
-                                    <label for="profile_phone" class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="profile_phone" value="(123) 456-7890">
+                                    <label for="contact_number" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="contact_number" name="contact_number" value="{{ $user->contact_number }}">
                                 </div>
-                                
-                                <h5 class="mt-4 mb-3">Password Change</h5>
-                                
-                                <div class="mb-3">
-                                    <label for="profile_current_password" class="form-label">Current Password</label>
-                                    <input type="password" class="form-control" id="profile_current_password">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="profile_new_password" class="form-label">New Password</label>
-                                    <input type="password" class="form-control" id="profile_new_password">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="profile_confirm_password" class="form-label">Confirm New Password</label>
-                                    <input type="password" class="form-control" id="profile_confirm_password">
-                                </div>
-                                
+
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                                </div>
+                            </form>
+
+                            <h5 class="mt-4 mb-3">Password Change</h5>
+
+                            <form action="{{ route('user.updatePassword') }}" method="POST">
+                                @csrf
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                    <small class="text-muted">Password must be at least 8 characters long</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="new_password_confirmation" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation" required>
+                                </div>
+
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-primary">Change Password</button>
                                 </div>
                             </form>
                         </div>

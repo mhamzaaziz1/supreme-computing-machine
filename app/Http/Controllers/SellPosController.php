@@ -96,7 +96,8 @@ class SellPosController extends Controller
         TransactionUtil $transactionUtil,
         CashRegisterUtil $cashRegisterUtil,
         ModuleUtil $moduleUtil,
-        NotificationUtil $notificationUtil
+        NotificationUtil $notificationUtil,
+        \App\Actions\Sell\CreateSellTransaction $createSellTransaction
     ) {
         $this->contactUtil = $contactUtil;
         $this->productUtil = $productUtil;
@@ -105,6 +106,7 @@ class SellPosController extends Controller
         $this->cashRegisterUtil = $cashRegisterUtil;
         $this->moduleUtil = $moduleUtil;
         $this->notificationUtil = $notificationUtil;
+        $this->createSellTransaction = $createSellTransaction;
 
         $this->dummyPaymentLine = ['method' => 'cash', 'amount' => 0, 'note' => '', 'card_transaction_number' => '', 'card_number' => '', 'card_type' => '', 'card_holder_name' => '', 'card_month' => '', 'card_year' => '', 'card_security' => '', 'cheque_number' => '', 'bank_account_number' => '',
             'is_return' => 0, 'transaction_no' => ''];
@@ -349,12 +351,6 @@ class SellPosController extends Controller
                 $input['sub_status'] = 'proforma';
             }
 
-            //Add change return
-            $change_return = $this->dummyPaymentLine;
-            if (!empty($input['payment']['change_return'])) {
-                $change_return = $input['payment']['change_return'];
-                unset($input['payment']['change_return']);
-            }
 
             //Check Customer credit limit
             $is_credit_limit_exeeded = $this->transactionUtil->isCustomerCreditLimitExeeded($input);
@@ -385,12 +381,13 @@ class SellPosController extends Controller
 
                 $user_id = $request->session()->get('user.id');
 
+                $input['business_id'] = $business_id;
+                $input['created_by'] = $user_id;
+
                 $discount = ['discount_type' => $input['discount_type'],
                     'discount_amount' => $input['discount_amount'],
                 ];
                 $invoice_total = $this->productUtil->calculateInvoiceTotal($input['products'], $input['tax_rate_id'], $discount);
-
-                DB::beginTransaction();
 
                 if (empty($request->input('transaction_date'))) {
                     $input['transaction_date'] = \Carbon::now();
@@ -496,141 +493,9 @@ class SellPosController extends Controller
                 //upload document
                 $input['document'] = $this->transactionUtil->uploadFile($request, 'sell_document', 'documents');
 
-                $transaction = $this->transactionUtil->createSellTransaction($business_id, $input, $invoice_total, $user_id);
-
-                //Upload Shipping documents
-                Media::uploadMedia($business_id, $transaction, $request, 'shipping_documents', false, 'shipping_document');
-
-                $this->transactionUtil->createOrUpdateSellLines($transaction, $input['products'], $input['location_id']);
-
-                $change_return['amount'] = $input['change_return'] ?? 0;
-                $change_return['is_return'] = 1;
-
-                $input['payment'][] = $change_return;
-
-                $is_credit_sale = isset($input['is_credit_sale']) && $input['is_credit_sale'] == 1 ? true : false;
-
-                if (!$transaction->is_suspend && !empty($input['payment']) && !$is_credit_sale) {
-                    $this->transactionUtil->createOrUpdatePaymentLines($transaction, $input['payment']);
-                }
-
-                //Check for final and do some processing.
-                if ($input['status'] == 'final') {
-                    if (!$is_direct_sale) {
-                        //set service staff timer
-                        foreach ($input['products'] as $product_line) {
-                            if (!empty($product_line['res_service_staff_id'])) {
-                                $product = Product::find($product_line['product_id']);
-
-                                if (!empty($product->preparation_time_in_minutes)) {
-                                    $service_staff = User::find($product_line['res_service_staff_id']);
-
-                                    $base_time = \Carbon::parse($transaction->transaction_date);
-
-                                    //if already assigned set base time as available_at
-                                    if (!empty($service_staff->available_at) && \Carbon::parse($service_staff->available_at)->gt(\Carbon::now())) {
-                                        $base_time = \Carbon::parse($service_staff->available_at);
-                                    }
-
-                                    $total_minutes = $product->preparation_time_in_minutes * $this->transactionUtil->num_uf($product_line['quantity']);
-
-                                    $service_staff->available_at = $base_time->addMinutes($total_minutes);
-                                    $service_staff->save();
-                                }
-                            }
-                        }
-                    }
-                    //update product stock
-                    foreach ($input['products'] as $product) {
-                        $decrease_qty = $this->productUtil
-                            ->num_uf($product['quantity']);
-                        if (!empty($product['base_unit_multiplier'])) {
-                            $decrease_qty = $decrease_qty * $product['base_unit_multiplier'];
-                        }
-
-                        if ($product['enable_stock']) {
-                            $this->productUtil->decreaseProductQuantity(
-                                $product['product_id'],
-                                $product['variation_id'],
-                                $input['location_id'],
-                                $decrease_qty
-                            );
-                        }
-
-                        if ($product['product_type'] == 'combo') {
-                            //Decrease quantity of combo as well.
-                            $this->productUtil
-                                ->decreaseProductQuantityCombo(
-                                    $product['combo'],
-                                    $input['location_id']
-                                );
-                        }
-                    }
-
-                    //Add payments to Cash Register
-                    if (!$is_direct_sale && !$transaction->is_suspend && !empty($input['payment']) && !$is_credit_sale) {
-                        $this->cashRegisterUtil->addSellPayments($transaction, $input['payment']);
-                    }
-
-                    //Update payment status
-                    $payment_status = $this->transactionUtil->updatePaymentStatus($transaction->id, $transaction->final_total);
-
-                    $transaction->payment_status = $payment_status;
-
-                    if ($request->session()->get('business.enable_rp') == 1) {
-                        $redeemed = !empty($input['rp_redeemed']) ? $input['rp_redeemed'] : 0;
-                        $this->transactionUtil->updateCustomerRewardPoints($contact_id, $transaction->rp_earned, 0, $redeemed);
-                    }
-
-                    //Allocate the quantity from purchase and add mapping of
-                    //purchase & sell lines in
-                    //transaction_sell_lines_purchase_lines table
-                    $business_details = $this->businessUtil->getDetails($business_id);
-                    $pos_settings = empty($business_details->pos_settings) ? $this->businessUtil->defaultPosSettings() : json_decode($business_details->pos_settings, true);
-
-                    $business = ['id' => $business_id,
-                        'accounting_method' => $request->session()->get('business.accounting_method'),
-                        'location_id' => $input['location_id'],
-                        'pos_settings' => $pos_settings,
-                    ];
-                    $this->transactionUtil->mapPurchaseSell($business, $transaction->sell_lines, 'purchase');
-
-                    //Auto send notification
-                    $whatsapp_link = $this->notificationUtil->autoSendNotification($business_id, 'new_sale', $transaction, $transaction->contact);
-                }
-
-                if (!empty($transaction->sales_order_ids)) {
-                    $this->transactionUtil->updateSalesOrderStatus($transaction->sales_order_ids);
-                }
-
-                $this->moduleUtil->getModuleData('after_sale_saved', ['transaction' => $transaction, 'input' => $input]);
-
-                Media::uploadMedia($business_id, $transaction, $request, 'documents');
-
-                $this->transactionUtil->activityLog($transaction, 'added');
-
-                // sync with zatca 
-                $this->moduleUtil->getModuleData('after_sales', ['transaction' => $transaction]);
-
-                // Save vehicle mileage data if vehicle is selected and mileage fields are not empty
-                if (!empty($input['customer_vehicle_id']) && 
-                    ($input['previous_mileage'] != '' || $input['oil_change_mileage'] != '' || $input['next_mileage'] != '')) {
-
-                    // Only save if at least one field has data
-                    if ($input['previous_mileage'] != '' || $input['oil_change_mileage'] != '' || $input['next_mileage'] != '') {
-                        \App\VehicleMileageRecord::create([
-                            'business_id' => $business_id,
-                            'customer_id' => $input['contact_id'],
-                            'vehicle_id' => $input['customer_vehicle_id'],
-                            'invoice_id' => $transaction->id,
-                            'previous_mileage' => $input['previous_mileage'] ?? null,
-                            'oil_change_mileage' => $input['oil_change_mileage'] ?? null,
-                            'next_mileage' => $input['next_mileage'] ?? null
-                        ]);
-                    }
-                }
-
-                DB::commit();
+                $result = $this->createSellTransaction->execute($input, $request);
+                $transaction = $result['transaction'];
+                $whatsapp_link = $result['whatsapp_link'];
 
                 SellCreatedOrModified::dispatch($transaction);
 

@@ -2,50 +2,163 @@
 
 @section('title', 'Home')
 
+@section('styles')
+<style>
+    .hero-banner {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-banner img {
+        width: 100%;
+        height: auto;
+        max-height: 600px;
+        object-fit: cover;
+    }
+
+    .banner-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .banner-content {
+        color: white;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .banner-content h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .banner-content p.lead {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 768px) {
+        .banner-content h1 {
+            font-size: 2rem;
+        }
+
+        .banner-content p.lead {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+@endsection
+
 @section('content')
     <!-- Hero Banner -->
     <div class="container-fluid px-0">
-        <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-indicators">
-                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
-                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
-                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        @if(!empty($slider_images) && count($slider_images) > 0)
+            <!-- Dynamic slider carousel from admin ecommerce settings -->
+            <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-indicators">
+                    @foreach($slider_images as $key => $slider_image)
+                        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ $key }}" class="{{ $key == 0 ? 'active' : '' }}" aria-current="{{ $key == 0 ? 'true' : 'false' }}" aria-label="Slide {{ $key + 1 }}"></button>
+                    @endforeach
+                </div>
+                <div class="carousel-inner">
+                    @foreach($slider_images as $key => $slider_image)
+                        <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
+                            <img src="{{ asset('uploads/ecommerce/' . $slider_image) }}" class="d-block w-100" alt="{{ !empty($ecom_settings['store_name']) ? $ecom_settings['store_name'] : 'Store Slider' }}">
+                            <div class="carousel-caption d-none d-md-block">
+                                @if(!empty($ecom_settings['store_name']))
+                                    <h2>{{ $ecom_settings['store_name'] }}</h2>
+                                @endif
+                                @if(!empty($ecom_settings['store_tagline']))
+                                    <p>{{ $ecom_settings['store_tagline'] }}</p>
+                                @endif
+                                <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Shop Now</a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @if(count($slider_images) > 1)
+                    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                @endif
             </div>
-            <div class="carousel-inner">
-                <div class="carousel-item active">
-                    <img src="https://via.placeholder.com/1920x600?text=Summer+Collection" class="d-block w-100" alt="Summer Collection">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h2>Summer Collection</h2>
-                        <p>Discover our new summer collection with fresh styles and colors.</p>
-                        <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Shop Now</a>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <img src="https://via.placeholder.com/1920x600?text=New+Arrivals" class="d-block w-100" alt="New Arrivals">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h2>New Arrivals</h2>
-                        <p>Check out our latest products just added to our store.</p>
-                        <a href="{{ route('ecommerce.products', ['sort_by' => 'date_desc']) }}" class="btn btn-primary">Shop Now</a>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <img src="https://via.placeholder.com/1920x600?text=Special+Offers" class="d-block w-100" alt="Special Offers">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h2>Special Offers</h2>
-                        <p>Limited time offers with great discounts on selected items.</p>
-                        <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Shop Now</a>
+        @elseif(!empty($store_banner))
+            <!-- Dynamic banner from admin ecommerce settings -->
+            <div class="hero-banner">
+                <img src="{{ asset('uploads/ecommerce/' . $store_banner) }}" class="d-block w-100" alt="{{ !empty($ecom_settings['store_name']) ? $ecom_settings['store_name'] : 'Store Banner' }}">
+                <div class="banner-overlay">
+                    <div class="container">
+                        <div class="banner-content text-center">
+                            @if(!empty($ecom_settings['store_name']))
+                                <h1>{{ $ecom_settings['store_name'] }}</h1>
+                            @endif
+                            @if(!empty($ecom_settings['store_tagline']))
+                                <p class="lead">{{ $ecom_settings['store_tagline'] }}</p>
+                            @endif
+                            <a href="{{ route('ecommerce.products') }}" class="btn btn-primary btn-lg">Shop Now</a>
+                        </div>
                     </div>
                 </div>
             </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Next</span>
-            </button>
-        </div>
+        @else
+            <!-- Fallback carousel if no banner or slider images are set in admin -->
+            <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-indicators">
+                    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                </div>
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <img src="https://via.placeholder.com/1920x600?text=Summer+Collection" class="d-block w-100" alt="Summer Collection">
+                        <div class="carousel-caption d-none d-md-block">
+                            <h2>Summer Collection</h2>
+                            <p>Discover our new summer collection with fresh styles and colors.</p>
+                            <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Shop Now</a>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <img src="https://via.placeholder.com/1920x600?text=New+Arrivals" class="d-block w-100" alt="New Arrivals">
+                        <div class="carousel-caption d-none d-md-block">
+                            <h2>New Arrivals</h2>
+                            <p>Check out our latest products just added to our store.</p>
+                            <a href="{{ route('ecommerce.products', ['sort_by' => 'date_desc']) }}" class="btn btn-primary">Shop Now</a>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <img src="https://via.placeholder.com/1920x600?text=Special+Offers" class="d-block w-100" alt="Special Offers">
+                        <div class="carousel-caption d-none d-md-block">
+                            <h2>Special Offers</h2>
+                            <p>Limited time offers with great discounts on selected items.</p>
+                            <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Shop Now</a>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+            </div>
+        @endif
     </div>
 
     <!-- Featured Categories -->
@@ -56,7 +169,7 @@
                 <div class="col-6 col-md-3 mb-4">
                     <a href="{{ route('ecommerce.products', ['category_id' => $category->id]) }}" class="text-decoration-none">
                         <div class="card h-100">
-                            <img src="https://via.placeholder.com/300x300?text={{ $category->name }}" class="card-img-top" alt="{{ $category->name }}">
+                            <img src="{{ asset('uploads/category/' . $category->image) }}" class="card-img-top" alt="{{ $category->name }}">
                             <div class="card-body text-center">
                                 <h5 class="card-title">{{ $category->name }}</h5>
                             </div>
@@ -77,10 +190,10 @@
                         @if($product->on_sale)
                             <span class="badge-sale">Sale</span>
                         @endif
-                        
+
                         @php
                             $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
-                            
+
                             // Try to get the first variation image
                             foreach($product->product_variations as $product_variation) {
                                 foreach($product_variation->variations as $variation) {
@@ -91,7 +204,7 @@
                                 }
                             }
                         @endphp
-                        
+
                         <a href="{{ route('ecommerce.product_details', $product->id) }}">
                             <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
                         </a>
@@ -136,10 +249,10 @@
                 <div class="col-6 col-md-3 mb-4">
                     <div class="card product-card h-100">
                         <span class="badge-new">New</span>
-                        
+
                         @php
                             $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
-                            
+
                             // Try to get the first variation image
                             foreach($product->product_variations as $product_variation) {
                                 foreach($product_variation->variations as $variation) {
@@ -150,7 +263,7 @@
                                 }
                             }
                         @endphp
-                        
+
                         <a href="{{ route('ecommerce.product_details', $product->id) }}">
                             <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
                         </a>
@@ -196,7 +309,7 @@
                     <div class="card product-card h-100">
                         @php
                             $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
-                            
+
                             // Try to get the first variation image
                             foreach($product->product_variations as $product_variation) {
                                 foreach($product_variation->variations as $variation) {
@@ -207,7 +320,7 @@
                                 }
                             }
                         @endphp
-                        
+
                         <a href="{{ route('ecommerce.product_details', $product->id) }}">
                             <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
                         </a>
@@ -252,10 +365,10 @@
                 <div class="col-6 col-md-3 mb-4">
                     <div class="card product-card h-100">
                         <span class="badge-sale">Sale</span>
-                        
+
                         @php
                             $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
-                            
+
                             // Try to get the first variation image
                             foreach($product->product_variations as $product_variation) {
                                 foreach($product_variation->variations as $variation) {
@@ -266,7 +379,7 @@
                                 }
                             }
                         @endphp
-                        
+
                         <a href="{{ route('ecommerce.product_details', $product->id) }}">
                             <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
                         </a>

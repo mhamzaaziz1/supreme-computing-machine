@@ -1,0 +1,36 @@
+{
+  "name": "pos",
+  "version": "1.0.0",
+  "description": "Ultimate POS is a POS application by [Ultimate Fosters](http://ultimatefosters.com), a brand of [The Web Fosters](http://thewebfosters.com).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mhamzaaziz1/supreme-computing-machine.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mhamzaaziz1/supreme-computing-machine/issues"
+  },
+  "homepage": "https://github.com/mhamzaaziz1/supreme-computing-machine#readme",
+  "devDependencies": {
+    "@inertiajs/vue3": "^2.3.12",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "autoprefixer": "^10.4.23",
+    "laravel-vite-plugin": "^2.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1",
+    "vue": "^3.5.27"
+  }
+}

@@ -1,5 +1,3 @@
-<link href="{{ asset('css/tailwind/app.css?v='.$asset_v) }}" rel="stylesheet">
-
 <link rel="stylesheet" href="{{ asset('css/vendor.css?v='.$asset_v) }}">
 
 @if( in_array(session()->get('user.language', config('app.locale')), config('constants.langs_rtl')) )
@@ -9,7 +7,8 @@
 @yield('css')
 
 <!-- app css -->
-<link rel="stylesheet" href="{{ asset('css/app.css?v='.$asset_v) }}">
+<link href="{{ asset('css/tailwind/app.css?v=' . time()) }}" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/app.css?v=' . time()) }}">
 
 @if(isset($pos_layout) && $pos_layout)
 	<style type="text/css">

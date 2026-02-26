@@ -144,6 +144,35 @@
             locale: locale,
             isRTL: isRTL
         });
+
+        //Manual sidebar toggle fix
+        $(document).on('click', '.sidebar-menu .treeview > a', function(e) {
+            e.preventDefault();
+            var $parent = $(this).parent();
+            var $menu = $parent.find('> .treeview-menu');
+            
+            if ($parent.hasClass('menu-open')) {
+                $menu.slideUp(200, function() {
+                    $parent.removeClass('menu-open');
+                });
+            } else {
+                //Accordion behavior: close other open items
+                var $others = $parent.siblings('.treeview.menu-open');
+                $others.find('> .treeview-menu').slideUp(200, function() {
+                    $others.removeClass('menu-open');
+                });
+                
+                $menu.slideDown(200, function() {
+                    $parent.addClass('menu-open');
+                });
+            }
+        });
+
+        //Initialize if plugin exists (backup)
+        if(typeof $.fn.tree === 'function'){
+             $('.sidebar-menu').tree(); 
+        }
+
         // side bar toggle  
         $(".drop_down").click(function(event) {
             event.preventDefault();

@@ -1,7 +1,7 @@
 <div class="modal-dialog" role="document">
   <div class="modal-content">
 
-    {!! Form::open(['url' => action([\App\Http\Controllers\TaxonomyController::class, 'update'], [$category->id]), 'method' => 'PUT', 'id' => 'category_edit_form' ]) !!}
+    {!! Form::open(['url' => action([\App\Http\Controllers\TaxonomyController::class, 'update'], [$category->id]), 'method' => 'PUT', 'id' => 'category_edit_form', 'files' => true ]) !!}
 
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -33,6 +33,21 @@
       <div class="form-group">
         {!! Form::label('description', __( 'lang_v1.description' ) . ':') !!}
         {!! Form::textarea('description', $category->description, ['class' => 'form-control', 'placeholder' => __( 'lang_v1.description'), 'rows' => 3]); !!}
+      </div>
+      <div class="form-group">
+        {!! Form::label('image', __( 'lang_v1.image' ) . ':') !!}
+        {!! Form::file('image', ['class' => 'form-control', 'accept' => 'image/*']); !!}
+        <p class="help-block">@lang('lang_v1.category_image_help')</p>
+        @if(!empty($category->image))
+          <div class="thumbnail">
+            <img src="{{ asset('/uploads/category/' . $category->image) }}" alt="{{ $category->name }}" width="100">
+            <p>
+              <label class="checkbox-inline">
+                {!! Form::checkbox('delete_image', 1, false, ['class' => 'input-icheck']); !!} @lang('lang_v1.delete_image')
+              </label>
+            </p>
+          </div>
+        @endif
       </div>
       @if(!empty($parent_categories) && $enable_sub_category)
           <div class="form-group">

@@ -744,15 +744,36 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <h4>Inventory Age - How long products have been in stock</h4>
+
+                                    @php
+                                        $enhanced_stock_alert = config('constants.ENHANCED_STOCK_ALERT', false);
+                                    @endphp
+
                                     <table class="table table-bordered table-striped">
                                         <thead>
                                             <tr>
                                                 <th>Product</th>
                                                 <th>Variation</th>
                                                 <th>Quantity in Stock</th>
-                                                <th>Last Purchase Date</th>
-                                                <th>Days in Inventory</th>
-                                                <th>Days to Stock Out</th>
+                                                @if($enhanced_stock_alert)
+                                                    <th>Avg Daily Sales</th>
+                                                    <th>Days of Cover</th>
+                                                    <th>Projected Need (30d)</th>
+                                                    <th>On-Order Qty</th>
+                                                    <th>Reserved Qty</th>
+                                                    <th>Available to Promise</th>
+                                                    <th>Reorder Qty</th>
+                                                    <th>Reorder Cost</th>
+                                                    <th>Potential Sales (30d)</th>
+                                                    <th>Potential Profit (30d)</th>
+                                                    <th>Stockout Risk %</th>
+                                                    <th>Supplier Lead Time</th>
+                                                    <th>Expiry (soonest)</th>
+                                                @else
+                                                    <th>Last Purchase Date</th>
+                                                    <th>Days in Inventory</th>
+                                                    <th>Days to Stock Out</th>
+                                                @endif
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -762,44 +783,123 @@
                                                     <td>{{ $item->product_name }}</td>
                                                     <td>{{ $item->variation_name == 'DUMMY' ? 'Default' : $item->variation_name }}</td>
                                                     <td>{{ @num_format($item->qty_available) }}</td>
-                                                    <td>{{ $item->last_purchased_date ? @format_date($item->last_purchased_date) : 'N/A' }}</td>
-                                                    <td>
-                                                        @if($item->days_in_inventory)
-                                                            {{ $item->days_in_inventory }}
-                                                            @if($item->days_in_inventory > 90)
-                                                                <span class="label label-danger">Slow Moving</span>
-                                                            @elseif($item->days_in_inventory > 30)
-                                                                <span class="label label-warning">Moderate</span>
+
+                                                    @if($enhanced_stock_alert)
+                                                        <td>{{ @num_format($item->avg_daily_sales, 2) }}</td>
+                                                        <td>
+                                                            @if($item->days_of_cover)
+                                                                {{ $item->days_of_cover }}
+                                                                @if($item->days_of_cover < 7)
+                                                                    <span class="label label-danger">Critical</span>
+                                                                @elseif($item->days_of_cover < 30)
+                                                                    <span class="label label-warning">Low</span>
+                                                                @else
+                                                                    <span class="label label-success">Adequate</span>
+                                                                @endif
                                                             @else
-                                                                <span class="label label-success">Fast Moving</span>
+                                                                <span class="label label-default">No Sales Data</span>
                                                             @endif
-                                                        @else
-                                                            N/A
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if($item->days_to_stock_out)
-                                                            {{ $item->days_to_stock_out }}
-                                                            @if($item->days_to_stock_out < 7)
-                                                                <span class="label label-danger">Critical</span>
-                                                            @elseif($item->days_to_stock_out < 30)
-                                                                <span class="label label-warning">Low</span>
+                                                        </td>
+                                                        <td>{{ @num_format($item->projected_need, 2) }}</td>
+                                                        <td>{{ @num_format($item->on_order_qty) }}</td>
+                                                        <td>{{ @num_format($item->reserved_qty) }}</td>
+                                                        <td>{{ @num_format($item->available_to_promise) }}</td>
+                                                        <td>{{ @num_format($item->reorder_qty) }}</td>
+                                                        <td>{{ @format_currency($item->reorder_cost) }}</td>
+                                                        <td>{{ @format_currency($item->potential_sales) }}</td>
+                                                        <td>{{ @format_currency($item->potential_profit) }}</td>
+                                                        <td>
+                                                            {{ @num_format($item->stockout_risk, 1) }}%
+                                                            @if($item->stockout_risk < 25)
+                                                                <span class="label label-danger">High Risk</span>
+                                                            @elseif($item->stockout_risk < 75)
+                                                                <span class="label label-warning">Medium Risk</span>
                                                             @else
-                                                                <span class="label label-success">Adequate</span>
+                                                                <span class="label label-success">Low Risk</span>
                                                             @endif
-                                                        @else
-                                                            <span class="label label-default">No Sales Data</span>
-                                                        @endif
-                                                    </td>
+                                                        </td>
+                                                        <td>{{ $item->supplier_lead_time ? @num_format($item->supplier_lead_time, 1) . ' days' : 'N/A' }}</td>
+                                                        <td>{{ $item->soonest_expiry ? @format_date($item->soonest_expiry) : 'N/A' }}</td>
+                                                    @else
+                                                        <td>{{ $item->last_purchased_date ? @format_date($item->last_purchased_date) : 'N/A' }}</td>
+                                                        <td>
+                                                            @if($item->days_in_inventory)
+                                                                {{ $item->days_in_inventory }}
+                                                                @if($item->days_in_inventory > 90)
+                                                                    <span class="label label-danger">Slow Moving</span>
+                                                                @elseif($item->days_in_inventory > 30)
+                                                                    <span class="label label-warning">Moderate</span>
+                                                                @else
+                                                                    <span class="label label-success">Fast Moving</span>
+                                                                @endif
+                                                            @else
+                                                                N/A
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @if($item->days_to_stock_out)
+                                                                {{ $item->days_to_stock_out }}
+                                                                @if($item->days_to_stock_out < 7)
+                                                                    <span class="label label-danger">Critical</span>
+                                                                @elseif($item->days_to_stock_out < 30)
+                                                                    <span class="label label-warning">Low</span>
+                                                                @else
+                                                                    <span class="label label-success">Adequate</span>
+                                                                @endif
+                                                            @else
+                                                                <span class="label label-default">No Sales Data</span>
+                                                            @endif
+                                                        </td>
+                                                    @endif
                                                 </tr>
                                                 @endforeach
                                             @else
                                                 <tr>
-                                                    <td colspan="6" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
+                                                    <td colspan="{{ $enhanced_stock_alert ? '17' : '6' }}" class="text-center">{{ __('lang_v1.no_data_found') }}</td>
                                                 </tr>
                                             @endif
                                         </tbody>
                                     </table>
+
+                                    @if($enhanced_stock_alert)
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="box box-solid">
+                                                <div class="box-header with-border">
+                                                    <h3 class="box-title">Formula Reference</h3>
+                                                    <div class="box-tools pull-right">
+                                                        <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+                                                    </div>
+                                                </div>
+                                                <div class="box-body">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <ul class="list-unstyled">
+                                                                <li><strong>Avg Daily Sales (ADS):</strong> Total sales over last 30 days ÷ 30</li>
+                                                                <li><strong>Days of Cover:</strong> OnHand ÷ ADS</li>
+                                                                <li><strong>Projected Need (30d):</strong> ADS × 30</li>
+                                                                <li><strong>On-Order Qty:</strong> Open purchase orders not received</li>
+                                                                <li><strong>Reserved Qty:</strong> Committed to invoices/orders</li>
+                                                                <li><strong>Available to Promise (ATP):</strong> OnHand - Reserved + OnOrder</li>
+                                                                <li><strong>Reorder Qty:</strong> (Need30 + SafetyStock + Reserved) - (OnHand + OnOrder)</li>
+                                                            </ul>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <ul class="list-unstyled">
+                                                                <li><strong>Reorder Cost:</strong> RecoQty × PurchasePrice</li>
+                                                                <li><strong>Potential Sales (30d):</strong> Need30 × SellingPrice</li>
+                                                                <li><strong>Potential Profit (30d):</strong> (SellingPrice - PurchasePrice) × MIN(Need30, OnHand + OnOrder)</li>
+                                                                <li><strong>Stockout Risk %:</strong> (OnHand ÷ Need30) × 100</li>
+                                                                <li><strong>Supplier Lead Time:</strong> Average days from PO to receipt</li>
+                                                                <li><strong>Expiry:</strong> Soonest expiry date of available lots</li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

@@ -9,7 +9,7 @@ use App\Utils\ModuleUtil;
 use App\Utils\Util;
 use DB;
 use Illuminate\Routing\Controller;
-use Menu;
+// use Menu;
 use Modules\Crm\Entities\CrmContactPersonCommission;
 use Modules\Crm\Entities\Schedule;
 use Modules\Crm\Utils\CrmUtil;
@@ -134,6 +134,7 @@ class DataController extends Controller
      */
     public function modifyAdminMenu()
     {
+        /*
         $business_id = session()->get('user.business_id');
         $module_util = new ModuleUtil();
 
@@ -172,6 +173,7 @@ class DataController extends Controller
                 });
             }
         }
+        */
     }
 
     /**

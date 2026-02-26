@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,10 +14,8 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('supply_chain_vehicles', function (Blueprint $table) {
-            // Make customer_route_id nullable
-            $table->unsignedInteger('customer_route_id')->nullable()->change();
-        });
+        // Use raw SQL to make customer_route_id nullable
+        DB::statement('ALTER TABLE supply_chain_vehicles MODIFY customer_route_id INT UNSIGNED NULL');
     }
 
     /**
@@ -26,9 +25,7 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::table('supply_chain_vehicles', function (Blueprint $table) {
-            // Revert back to non-nullable
-            $table->unsignedInteger('customer_route_id')->nullable(false)->change();
-        });
+        // Use raw SQL to make customer_route_id non-nullable
+        DB::statement('ALTER TABLE supply_chain_vehicles MODIFY customer_route_id INT UNSIGNED NOT NULL');
     }
 };

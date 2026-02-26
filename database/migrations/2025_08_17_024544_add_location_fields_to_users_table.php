@@ -13,11 +13,14 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->decimal('latitude', 10, 7)->nullable()->after('language');
-            $table->decimal('longitude', 10, 7)->nullable()->after('latitude');
-            $table->timestamp('location_updated_at')->nullable()->after('longitude');
-        });
+        // Check if the columns exist before trying to add them
+        if (!Schema::hasColumn('users', 'latitude') && !Schema::hasColumn('users', 'longitude') && !Schema::hasColumn('users', 'location_updated_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->decimal('latitude', 10, 7)->nullable()->after('language');
+                $table->decimal('longitude', 10, 7)->nullable()->after('latitude');
+                $table->timestamp('location_updated_at')->nullable()->after('longitude');
+            });
+        }
     }
 
     /**

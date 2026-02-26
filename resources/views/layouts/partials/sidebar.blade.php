@@ -1,9 +1,9 @@
 <!-- Left side column. contains the logo and sidebar -->
-<aside class="side-bar tw-relative tw-hidden lg:tw-flex tw-flex-col tw-shrink-0 tw-w-72 tw-h-[calc(100vh-2rem)] tw-m-4 tw-rounded-3xl tw-bg-white dark:tw-bg-dark-surface tw-shadow-xl tw-transition-all tw-duration-300 tw-overflow-hidden tw-z-30">
+<aside class="side-bar tw-relative tw-hidden lg:tw-flex tw-flex-col tw-shrink-0 tw-w-72 tw-h-[calc(100vh-2rem)] tw-m-4 tw-rounded-xl tw-bg-white dark:tw-bg-dark-surface tw-border tw-border-gray-200 dark:tw-border-gray-800 tw-transition-all tw-duration-300 tw-overflow-hidden tw-z-30">
 
     <!-- Brand / Logo -->
     <a href="{{route('home')}}"
-        class="tw-flex tw-items-center tw-gap-3 tw-h-20 tw-px-6 tw-bg-gradient-to-r tw-from-primary-600/10 tw-to-transparent dark:tw-from-primary-500/10 tw-border-b tw-border-gray-100/50 dark:tw-border-white/5 tw-shrink-0">
+        class="tw-flex tw-items-center tw-gap-3 tw-h-20 tw-px-6 tw-border-b tw-border-gray-100 dark:tw-border-gray-800 tw-shrink-0">
         <div class="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-xl tw-bg-primary-600 tw-text-white tw-shadow-lg tw-shadow-primary-500/30">
             <span class="tw-text-xl tw-font-bold">{{ substr(Session::get('business.name'), 0, 1) }}</span>
         </div>
@@ -33,7 +33,7 @@
         .sidebar-menu-container::-webkit-scrollbar-track { background: transparent; }
         .sidebar-menu-container::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.3); border-radius: 20px; }
         
-        /* --- Soft UI Dashboard Styles --- */
+        /* --- Clean Flat Dashboard Styles (New Design) --- */
 
         /* 1. Icon Box Styling (Common) */
         .sidebar-menu i, .sidebar-menu svg {
@@ -42,49 +42,45 @@
             justify-content: center;
             width: 32px;
             height: 32px;
-            border-radius: 0.5rem; /* rounded-lg */
             margin-right: 12px;
-            background-color: #fff; /* Default Light Bkg */
-            color: #344767; /* Dark Gray Icon */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
-            font-size: 0.75rem; /* 12px */
+            background-color: transparent !important; /* No background for inactive */
+            color: #6b7280; /* Tailwind gray-500 */
+            box-shadow: none !important; /* Flat */
+            font-size: 1rem; /* Adjust based on icon size needed */
             transition: all 0.2s ease;
         }
 
-        /* Dark Mode Icon Box Matches Surface */
-        .dark .sidebar-menu i, .dark .sidebar-menu svg {
-            background-color: #1e293b; /* slate-800 */
-            color: #fff;
-            box-shadow: none; /* Flat in dark mode, or keep subtle shadow */
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        /* 2. Active State (The "Card" Row) */
+        /* 2. Active State (The Item Row) */
         .sidebar-menu > li.active > a {
-            background-color: #fff !important;
-            box-shadow: 0 20px 27px 0 rgba(0,0,0,0.05) !important; /* Soft Shadow */
-            border-radius: 0.5rem !important; /* rounded-lg */
-            color: #344767 !important; /* Dark Text */
-            border-right: none !important; /* Remove neon border */
+            background-color: #3b82f6 !important; /* Tailwind blue-500 */
+            color: #ffffff !important; /* White text */
+            border-radius: 0.375rem !important; /* Standard rounded */
+            box-shadow: none !important; /* Flat */
         }
+        
         .dark .sidebar-menu > li.active > a {
-            background-color: #1e293b !important; /* slate-800 */
-            color: #fff !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important; 
+            background-color: #2563eb !important; /* Tailwind blue-600 */
         }
 
-        /* 3. Active Icon (The Gradient Box) */
-        .sidebar-menu > li.active > a > i {
-            /* Creative Tim Purple Gradient */
-            background-image: linear-gradient(310deg, #7928CA 0%, #FF0080 100%) !important; 
-            color: #ffffff !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: none !important;
+        /* 3. Active Icon */
+        .sidebar-menu > li.active > a > i, 
+        .sidebar-menu > li.active > a > svg {
+            color: #ffffff !important; /* White icon */
         }
 
-        /* Hover Effects */
+        /* Hover Effects (Inactive Items) */
+        .sidebar-menu > li:not(.active) > a:hover {
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+            border-radius: 0.375rem;
+        }
+
+        .dark .sidebar-menu > li:not(.active) > a:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* General Item Spacing */
         .sidebar-menu > li > a {
-            margin-bottom: 2px;
+            margin-bottom: 4px; /* Slight spacing between items */
             padding: 10px 16px;
         }
         

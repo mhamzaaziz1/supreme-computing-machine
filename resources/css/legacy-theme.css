@@ -1,0 +1,556 @@
+/**
+ * The new design, applied to the legacy Blade surface.
+ *
+ * The app is mid-migration: a handful of screens are Inertia/Vue on the design
+ * tokens, and ~700 are still Bootstrap 3 + AdminLTE markup. Converting those
+ * one at a time means the app looks half-old for a long time, so this maps the
+ * same tokens onto the legacy component classes. Every Blade screen picks up
+ * the new look without its markup changing, and because both surfaces read
+ * tokens.css, rebranding still happens in exactly one place.
+ *
+ * This replaced a block of hardcoded hex (#f2b52a amber on #0b1220 navy) that
+ * had been pasted into layouts/partials/css.blade.php: it themed only whatever
+ * had been noticed so far, forced a dark palette regardless of the user's
+ * choice, and could not follow a rebrand.
+ *
+ * It is a reskin, not a rebuild — the markup, jQuery and DataTables underneath
+ * are unchanged. Screens still get properly rebuilt on Inertia over time; this
+ * is what they look like until their turn comes.
+ *
+ * Loaded after vendor.css, so equal-specificity rules win on order alone.
+ * !important appears only where AdminLTE hardcodes a skin colour inline.
+ */
+
+/* ---------------------------------------------------------------- *
+ * Page chrome
+ * ---------------------------------------------------------------- */
+
+body,
+.wrapper,
+.content-wrapper,
+.main-footer {
+    background-color: rgb(var(--surface-page)) !important;
+    color: rgb(var(--text-primary));
+}
+
+body {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.content-header > h1,
+.content-header > h1 > small {
+    color: rgb(var(--text-primary));
+    font-weight: 600;
+}
+
+.content-header > h1 > small {
+    color: rgb(var(--text-muted));
+    font-weight: 400;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    color: rgb(var(--text-muted));
+}
+
+.breadcrumb > li > a {
+    color: rgb(var(--brand-500));
+}
+
+a {
+    color: rgb(var(--brand-500));
+}
+
+a:hover,
+a:focus {
+    color: rgb(var(--brand-400));
+}
+
+hr {
+    border-color: rgb(var(--border-subtle));
+}
+
+/* ---------------------------------------------------------------- *
+ * Cards — AdminLTE .box, Bootstrap .panel
+ * ---------------------------------------------------------------- */
+
+.box,
+.panel,
+.nav-tabs-custom {
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.5rem;
+    border-top-width: 1px;
+    box-shadow: none;
+    color: rgb(var(--text-primary));
+}
+
+.box-header,
+.panel-heading {
+    background-color: transparent;
+    border-bottom: 1px solid rgb(var(--border-subtle));
+    color: rgb(var(--text-primary));
+}
+
+.box-header .box-title,
+.panel-heading {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.box-footer,
+.panel-footer {
+    background-color: rgb(var(--surface-sunken));
+    border-top: 1px solid rgb(var(--border-subtle));
+    color: rgb(var(--text-secondary));
+}
+
+/* AdminLTE tints the top border by "solid box" colour; the tokens decide now. */
+.box.box-primary,
+.box.box-info,
+.box.box-success,
+.box.box-warning,
+.box.box-danger,
+.box.box-default {
+    border-top-color: rgb(var(--border-subtle));
+}
+
+/* ---------------------------------------------------------------- *
+ * Buttons
+ * ---------------------------------------------------------------- */
+
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-default {
+    background-color: rgb(var(--surface-raised));
+    border-color: rgb(var(--border-subtle));
+    color: rgb(var(--text-secondary));
+}
+
+.btn-default:hover,
+.btn-default:focus {
+    background-color: rgb(var(--surface-sunken));
+    border-color: rgb(var(--border-strong));
+    color: rgb(var(--text-primary));
+}
+
+/* Primary is the accent: it marks money and the next action. */
+.btn-primary,
+.bg-light-blue,
+.label-primary,
+.badge-primary {
+    background-color: rgb(var(--accent-500)) !important;
+    border-color: rgb(var(--accent-600)) !important;
+    color: rgb(var(--brand-950)) !important;
+    font-weight: 600;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+    background-color: rgb(var(--accent-400)) !important;
+    border-color: rgb(var(--accent-500)) !important;
+    color: rgb(var(--brand-950)) !important;
+}
+
+.btn-success,
+.label-success,
+.badge-success,
+.bg-green {
+    background-color: rgb(var(--success)) !important;
+    border-color: rgb(var(--success)) !important;
+    color: #fff !important;
+}
+
+.btn-danger,
+.label-danger,
+.badge-danger,
+.bg-red {
+    background-color: rgb(var(--danger)) !important;
+    border-color: rgb(var(--danger)) !important;
+    color: #fff !important;
+}
+
+.btn-warning,
+.label-warning,
+.badge-warning,
+.bg-yellow {
+    background-color: rgb(var(--warning)) !important;
+    border-color: rgb(var(--warning)) !important;
+    color: rgb(var(--brand-950)) !important;
+}
+
+.btn-info,
+.label-info,
+.badge-info,
+.bg-aqua,
+.bg-blue {
+    background-color: rgb(var(--info)) !important;
+    border-color: rgb(var(--info)) !important;
+    color: #fff !important;
+}
+
+.btn-link {
+    color: rgb(var(--brand-500));
+}
+
+.label,
+.badge {
+    border-radius: 0.25rem;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- *
+ * Forms
+ * ---------------------------------------------------------------- */
+
+.form-control,
+.input-group-addon,
+input[type='text'],
+input[type='number'],
+input[type='email'],
+input[type='password'],
+input[type='date'],
+input[type='search'],
+textarea,
+select {
+    background-color: rgb(var(--surface-page));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.375rem;
+    box-shadow: none;
+    color: rgb(var(--text-primary));
+}
+
+.input-group-addon {
+    background-color: rgb(var(--surface-sunken));
+    color: rgb(var(--text-muted));
+}
+
+.form-control:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgb(var(--accent-500)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-500) / 0.25) !important;
+    outline: none;
+}
+
+.form-control[disabled],
+.form-control[readonly],
+fieldset[disabled] .form-control {
+    background-color: rgb(var(--surface-sunken));
+    color: rgb(var(--text-muted));
+}
+
+::placeholder {
+    color: rgb(var(--text-muted));
+    opacity: 1;
+}
+
+label,
+.control-label {
+    color: rgb(var(--text-secondary));
+    font-weight: 500;
+}
+
+.help-block {
+    color: rgb(var(--text-muted));
+}
+
+.has-error .form-control {
+    border-color: rgb(var(--danger));
+}
+
+.has-error .control-label,
+.has-error .help-block {
+    color: rgb(var(--danger));
+}
+
+/* Native dropdown lists follow the surface rather than the OS default. */
+select option,
+select optgroup {
+    background-color: rgb(var(--surface-raised));
+    color: rgb(var(--text-primary));
+}
+
+/* ---------------------------------------------------------------- *
+ * Tables and DataTables
+ * ---------------------------------------------------------------- */
+
+.table {
+    color: rgb(var(--text-primary));
+}
+
+.table > thead > tr > th {
+    background-color: rgb(var(--surface-sunken));
+    border-bottom: 1px solid rgb(var(--border-subtle)) !important;
+    color: rgb(var(--text-muted));
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.table > tbody > tr > td,
+.table > tfoot > tr > td,
+.table > tfoot > tr > th {
+    border-top: 1px solid rgb(var(--border-subtle)) !important;
+    color: rgb(var(--text-primary));
+}
+
+.table-striped > tbody > tr:nth-of-type(odd),
+.table-hover > tbody > tr:hover {
+    background-color: rgb(var(--surface-sunken));
+}
+
+.table-bordered,
+.table-bordered > thead > tr > th,
+.table-bordered > tbody > tr > td {
+    border-color: rgb(var(--border-subtle)) !important;
+}
+
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_processing,
+.dataTables_wrapper .dataTables_paginate {
+    color: rgb(var(--text-secondary));
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button,
+.pagination > li > a,
+.pagination > li > span {
+    background-color: rgb(var(--surface-raised)) !important;
+    border: 1px solid rgb(var(--border-subtle)) !important;
+    color: rgb(var(--text-secondary)) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover,
+.pagination > li > a:hover,
+.pagination > li.active > a,
+.pagination > li.active > span {
+    background: rgb(var(--accent-500)) !important;
+    border-color: rgb(var(--accent-500)) !important;
+    color: rgb(var(--brand-950)) !important;
+    font-weight: 600;
+}
+
+table.dataTable tbody tr {
+    background-color: transparent;
+}
+
+/* ---------------------------------------------------------------- *
+ * Dropdowns, select2, autocomplete
+ * ---------------------------------------------------------------- */
+
+.dropdown-menu {
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+    padding: 0.25rem 0;
+}
+
+.dropdown-menu > li > a,
+.dropdown-item {
+    color: rgb(var(--text-secondary));
+    padding: 0.5rem 1rem;
+}
+
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus,
+.dropdown-menu > .active > a,
+.dropdown-item:hover,
+.dropdown-item:focus,
+.dropdown-item.active {
+    background-color: rgb(var(--accent-500));
+    color: rgb(var(--brand-950));
+    font-weight: 600;
+}
+
+.dropdown-menu .divider {
+    background-color: rgb(var(--border-subtle));
+}
+
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    background-color: rgb(var(--surface-page));
+    border: 1px solid rgb(var(--border-subtle)) !important;
+    border-radius: 0.375rem !important;
+    color: rgb(var(--text-primary));
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: rgb(var(--text-primary));
+}
+
+.select2-dropdown {
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+
+.select2-search--dropdown .select2-search__field {
+    background-color: rgb(var(--surface-page));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.375rem;
+    color: rgb(var(--text-primary));
+}
+
+.select2-results__option {
+    background-color: transparent;
+    color: rgb(var(--text-primary));
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: rgb(var(--accent-500));
+    color: rgb(var(--brand-950));
+    font-weight: 600;
+}
+
+.select2-container--default .select2-results__option[aria-selected='true'] {
+    background-color: rgb(var(--surface-sunken));
+    color: rgb(var(--text-primary));
+}
+
+.ui-menu-item:hover,
+.ui-menu-item-wrapper.ui-state-active,
+.ui-state-highlight,
+.ui-state-hover,
+.ui-state-focus,
+.tt-suggestion:hover,
+.tt-cursor {
+    background-color: rgb(var(--accent-500)) !important;
+    color: rgb(var(--brand-950)) !important;
+    font-weight: 600 !important;
+}
+
+/* ---------------------------------------------------------------- *
+ * Modals, tabs, alerts
+ * ---------------------------------------------------------------- */
+
+.modal-content {
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.75rem;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.28);
+    color: rgb(var(--text-primary));
+}
+
+.modal-header,
+.modal-footer {
+    border-color: rgb(var(--border-subtle));
+}
+
+.modal-title {
+    color: rgb(var(--text-primary));
+    font-weight: 600;
+}
+
+.modal-backdrop.in {
+    opacity: 0.55;
+}
+
+.nav-tabs {
+    border-bottom: 1px solid rgb(var(--border-subtle));
+}
+
+.nav-tabs > li > a {
+    border: none;
+    color: rgb(var(--text-muted));
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover,
+.nav-tabs > li.active > a:focus,
+.nav-tabs > li > a:hover {
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid rgb(var(--accent-500)) !important;
+    color: rgb(var(--text-primary)) !important;
+}
+
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:hover,
+.nav-pills > li > a:hover {
+    background-color: rgb(var(--accent-500)) !important;
+    border-color: rgb(var(--accent-500)) !important;
+    color: rgb(var(--brand-950)) !important;
+}
+
+.alert {
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+}
+
+.alert-success {
+    background-color: rgb(var(--success) / 0.12);
+    border-color: rgb(var(--success) / 0.3);
+    color: rgb(var(--success));
+}
+
+.alert-danger,
+.alert-error {
+    background-color: rgb(var(--danger) / 0.12);
+    border-color: rgb(var(--danger) / 0.3);
+    color: rgb(var(--danger));
+}
+
+.alert-warning {
+    background-color: rgb(var(--warning) / 0.12);
+    border-color: rgb(var(--warning) / 0.3);
+    color: rgb(var(--warning));
+}
+
+.alert-info {
+    background-color: rgb(var(--info) / 0.12);
+    border-color: rgb(var(--info) / 0.3);
+    color: rgb(var(--info));
+}
+
+/* ---------------------------------------------------------------- *
+ * Dashboard widgets
+ * ---------------------------------------------------------------- */
+
+.small-box,
+.info-box {
+    background-color: rgb(var(--surface-raised)) !important;
+    border: 1px solid rgb(var(--border-subtle));
+    border-radius: 0.5rem;
+    box-shadow: none;
+    color: rgb(var(--text-primary)) !important;
+}
+
+.small-box h3,
+.small-box p,
+.info-box-number,
+.info-box-text {
+    color: rgb(var(--text-primary)) !important;
+}
+
+.small-box .icon,
+.info-box-icon {
+    background-color: transparent !important;
+    color: rgb(var(--accent-500) / 0.35) !important;
+}
+
+.small-box > .small-box-footer {
+    background-color: rgb(var(--surface-sunken)) !important;
+    color: rgb(var(--text-muted)) !important;
+}
+
+.progress {
+    background-color: rgb(var(--surface-sunken));
+}
+
+.progress-bar {
+    background-color: rgb(var(--accent-500));
+}

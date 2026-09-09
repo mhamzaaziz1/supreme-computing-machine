@@ -14,6 +14,16 @@ import Icon from '../components/Icon.vue';
 
 defineProps({
     title: { type: String, default: '' },
+    /**
+     * Fill the viewport instead of letting the page scroll.
+     *
+     * The default lets `main` scroll, which suits a document-shaped page. A
+     * list or a form is better off fitting the screen with its own region
+     * scrolling — the header, totals and pagination stay put instead of
+     * sliding away, so the controls are where you left them. Pages that opt
+     * in must lay themselves out as `h-full` columns.
+     */
+    fill: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -73,7 +83,10 @@ const toggleSidebar = () => {
                 </button>
             </div>
 
-            <main class="scrollbar-slim flex-1 overflow-y-auto">
+            <main
+                class="scrollbar-slim min-h-0 flex-1"
+                :class="fill ? 'overflow-hidden' : 'overflow-y-auto'"
+            >
                 <slot />
             </main>
         </div>

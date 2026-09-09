@@ -1,20 +1,20 @@
 {
-  "_Money-DSb4FlUG.js": {
-    "file": "assets/Money-DSb4FlUG.js",
+  "_Money-Dia5j9IE.js": {
+    "file": "assets/Money-Dia5j9IE.js",
     "name": "Money",
     "imports": [
       "resources/js/app.js"
     ]
   },
-  "_Popover-D9E5NZqB.js": {
-    "file": "assets/Popover-D9E5NZqB.js",
+  "_Popover-BI-G4qJR.js": {
+    "file": "assets/Popover-BI-G4qJR.js",
     "name": "Popover",
     "imports": [
       "resources/js/app.js"
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-dNQpsuME.css",
+    "file": "assets/app-3z7ZoSWF.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -23,7 +23,7 @@
     ]
   },
   "resources/js/Pages/Pos/Index.vue": {
-    "file": "assets/Index-aUIZKg0b.js",
+    "file": "assets/Index-OU5AIqqB.js",
     "name": "Index",
     "src": "resources/js/Pages/Pos/Index.vue",
     "isDynamicEntry": true,
@@ -35,39 +35,39 @@
     ]
   },
   "resources/js/Pages/Sales/Create.vue": {
-    "file": "assets/Create-Db1tnBXz.js",
+    "file": "assets/Create-TsT6Upem.js",
     "name": "Create",
     "src": "resources/js/Pages/Sales/Create.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-DSb4FlUG.js",
-      "_Popover-D9E5NZqB.js"
+      "_Money-Dia5j9IE.js",
+      "_Popover-BI-G4qJR.js"
     ]
   },
   "resources/js/Pages/Sales/Index.vue": {
-    "file": "assets/Index-BFfaKjHM.js",
+    "file": "assets/Index-zXCsDRM2.js",
     "name": "Index",
     "src": "resources/js/Pages/Sales/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-DSb4FlUG.js",
-      "_Popover-D9E5NZqB.js"
+      "_Money-Dia5j9IE.js",
+      "_Popover-BI-G4qJR.js"
     ]
   },
   "resources/js/Pages/Today/Index.vue": {
-    "file": "assets/Index-CqI8hcB5.js",
+    "file": "assets/Index-xGAio8Yy.js",
     "name": "Index",
     "src": "resources/js/Pages/Today/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-DSb4FlUG.js"
+      "_Money-Dia5j9IE.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B-bdcFYV.js",
+    "file": "assets/app-ZKTA5i-g.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

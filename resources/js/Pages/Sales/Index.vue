@@ -131,10 +131,6 @@ const shortDate = (value) =>
         year: 'numeric',
     });
 
-/**
- * A compact window of pages around the current one: enough to jump a few
- * steps without rendering hundreds of buttons on a large result set.
- */
 // -----------------------------------------------------------------
 // Row actions
 // -----------------------------------------------------------------
@@ -215,6 +211,10 @@ const destroy = async (sell) => {
     }
 };
 
+/**
+ * A compact window of pages around the current one: enough to jump a few
+ * steps without rendering hundreds of buttons on a large result set.
+ */
 const pages = computed(() => {
     const { current_page: current, last_page: last } = props.sells;
     const span = 2;
@@ -228,10 +228,10 @@ const pages = computed(() => {
 <template>
     <Head :title="heading" />
 
-    <AppShell :title="heading">
-        <div class="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
+    <AppShell :title="heading" fill>
+        <div class="mx-auto flex h-full w-full max-w-[1600px] flex-col p-4 sm:px-6 sm:py-4">
             <!-- Header -->
-            <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-content-primary">{{ heading }}</h1>
                     <p class="mt-0.5 text-[13px] text-content-muted">
@@ -260,29 +260,29 @@ const pages = computed(() => {
             </div>
 
             <!-- Totals for the filtered set -->
-            <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
+            <div class="mb-3 grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
+                <div class="rounded-lg border border-edge-subtle bg-surface-raised px-3 py-2">
                     <div class="text-xs font-medium uppercase tracking-wide text-content-muted">Invoices</div>
-                    <div class="mt-1 text-2xl font-semibold text-content-primary numeric">
+                    <div class="text-xl font-semibold text-content-primary numeric">
                         {{ summary.invoices.toLocaleString() }}
                     </div>
                 </div>
-                <div class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
+                <div class="rounded-lg border border-edge-subtle bg-surface-raised px-3 py-2">
                     <div class="text-xs font-medium uppercase tracking-wide text-content-muted">Total</div>
-                    <div class="mt-1 text-2xl font-semibold text-content-primary">
+                    <div class="text-xl font-semibold text-content-primary">
                         <Money :value="summary.total" compact />
                     </div>
                 </div>
-                <div class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
+                <div class="rounded-lg border border-edge-subtle bg-surface-raised px-3 py-2">
                     <div class="text-xs font-medium uppercase tracking-wide text-content-muted">Collected</div>
-                    <div class="mt-1 text-2xl font-semibold text-success">
+                    <div class="text-xl font-semibold text-success">
                         <Money :value="summary.paid" compact />
                     </div>
                 </div>
-                <div class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
+                <div class="rounded-lg border border-edge-subtle bg-surface-raised px-3 py-2">
                     <div class="text-xs font-medium uppercase tracking-wide text-content-muted">Due</div>
                     <div
-                        class="mt-1 text-2xl font-semibold"
+                        class="text-xl font-semibold"
                         :class="summary.due > 0 ? 'text-danger' : 'text-content-primary'"
                     >
                         <Money :value="summary.due" compact />
@@ -291,7 +291,7 @@ const pages = computed(() => {
             </div>
 
             <!-- Filters -->
-            <div class="mb-3 flex flex-wrap items-center gap-2">
+            <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
                 <div class="relative min-w-[240px] flex-1">
                     <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-muted">
                         <Icon name="search" :size="16" />
@@ -421,13 +421,13 @@ const pages = computed(() => {
 
             <!-- Table -->
             <div
-                class="overflow-hidden rounded-lg border border-edge-subtle bg-surface-raised transition-opacity"
+                class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-edge-subtle bg-surface-raised transition-opacity"
                 :class="busy ? 'opacity-60' : ''"
             >
-                <div class="overflow-x-auto">
+                <div class="scrollbar-slim min-h-0 flex-1 overflow-auto">
                     <table class="w-full min-w-[900px] border-collapse text-sm">
                         <thead>
-                            <tr class="border-b border-edge-subtle bg-surface-sunken text-left">
+                            <tr class="sticky top-0 z-10 border-b border-edge-subtle bg-surface-sunken text-left">
                                 <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-content-muted">Date</th>
                                 <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-content-muted">Invoice</th>
                                 <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-content-muted">Customer</th>
@@ -529,7 +529,7 @@ const pages = computed(() => {
                 <!-- Pagination -->
                 <div
                     v-if="sells.total"
-                    class="flex flex-wrap items-center justify-between gap-3 border-t border-edge-subtle px-4 py-3"
+                    class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-edge-subtle px-4 py-2.5"
                 >
                     <div class="text-[13px] text-content-muted">
                         Showing <span class="text-content-secondary">{{ sells.from }}–{{ sells.to }}</span>

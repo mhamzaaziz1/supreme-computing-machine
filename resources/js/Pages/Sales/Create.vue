@@ -323,9 +323,9 @@ const submit = (saveAs) => {
 <template>
     <Head title="Add sale" />
 
-    <AppShell title="Add sale">
-        <div class="mx-auto w-full max-w-[1400px] p-4 sm:p-6">
-            <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <AppShell title="Add sale" fill>
+        <div class="mx-auto flex h-full w-full max-w-[1400px] flex-col p-4 sm:px-6 sm:py-4">
+            <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-content-primary">Add sale</h1>
                     <p class="mt-0.5 text-[13px] text-content-muted">
@@ -344,11 +344,11 @@ const submit = (saveAs) => {
                 {{ error }}
             </div>
 
-            <div class="grid gap-4 lg:grid-cols-[1fr_340px]">
+            <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_340px]">
                 <!-- Left: who, what -->
-                <div class="space-y-4">
+                <div class="flex min-h-0 flex-col gap-4">
                     <!-- Header fields -->
-                    <section class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
+                    <section class="shrink-0 rounded-lg border border-edge-subtle bg-surface-raised p-4">
                         <div class="grid gap-3 sm:grid-cols-2">
                             <label class="block">
                                 <span class="mb-1 block text-xs font-medium uppercase tracking-wide text-content-muted">Location</span>
@@ -420,8 +420,8 @@ const submit = (saveAs) => {
                     </section>
 
                     <!-- Products -->
-                    <section class="rounded-lg border border-edge-subtle bg-surface-raised">
-                        <div class="relative border-b border-edge-subtle p-4">
+                    <section class="flex min-h-0 flex-1 flex-col rounded-lg border border-edge-subtle bg-surface-raised">
+                        <div class="relative shrink-0 border-b border-edge-subtle p-4">
                             <span class="pointer-events-none absolute left-7 top-[calc(50%+2px)] -translate-y-1/2 text-content-muted">
                                 <Icon name="search" :size="16" />
                             </span>
@@ -466,10 +466,10 @@ const submit = (saveAs) => {
                             <p v-if="searching" class="mt-2 text-xs text-content-muted">Searching…</p>
                         </div>
 
-                        <div class="overflow-x-auto">
+                        <div class="scrollbar-slim min-h-0 flex-1 overflow-auto">
                             <table class="w-full min-w-[640px] border-collapse text-sm">
                                 <thead>
-                                    <tr class="border-b border-edge-subtle bg-surface-sunken text-left">
+                                    <tr class="sticky top-0 z-10 border-b border-edge-subtle bg-surface-sunken text-left">
                                         <th class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-content-muted">Product</th>
                                         <th class="w-28 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-content-muted">Qty</th>
                                         <th class="w-32 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-content-muted">Unit price</th>
@@ -540,7 +540,7 @@ const submit = (saveAs) => {
                 </div>
 
                 <!-- Right: money -->
-                <aside class="space-y-4">
+                <aside class="scrollbar-slim min-h-0 space-y-4 overflow-y-auto pl-1">
                     <section class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
                         <div class="mb-3 flex items-center justify-between">
                             <h2 class="text-xs font-semibold uppercase tracking-wide text-content-muted">Totals</h2>

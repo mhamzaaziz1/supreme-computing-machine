@@ -1,0 +1,109 @@
+/**
+ * Design tokens.
+ *
+ * This is the single swap point for branding. Values are space-separated RGB
+ * channels so Tailwind can apply opacity to them (`bg-brand-600/40`).
+ *
+ * The palette below is a placeholder chosen for a lubricants distributor:
+ * a deep petroleum blue carries the chrome, amber marks money and action,
+ * and the status colours are reserved for state (overdue, violation, low
+ * stock) so they never compete with the brand. Replace the --brand-* and
+ * --accent-* ramps with the Gujjar Oil palette and the whole app follows.
+ */
+
+:root {
+    /* Brand — petroleum blue */
+    --brand-50: 236 244 248;
+    --brand-100: 208 228 238;
+    --brand-200: 163 202 220;
+    --brand-300: 110 170 197;
+    --brand-400: 62 136 170;
+    --brand-500: 26 105 141;
+    --brand-600: 16 84 116;
+    --brand-700: 13 67 94;
+    --brand-800: 12 53 74;
+    --brand-900: 11 42 59;
+    --brand-950: 6 26 37;
+
+    /* Accent — amber. Money, primary actions, "do this next". */
+    --accent-50: 255 248 235;
+    --accent-100: 254 239 199;
+    --accent-200: 253 223 141;
+    --accent-300: 252 202 84;
+    --accent-400: 250 178 41;
+    --accent-500: 245 152 11;
+    --accent-600: 217 119 6;
+    --accent-700: 180 88 9;
+    --accent-800: 146 69 14;
+    --accent-900: 120 57 15;
+    --accent-950: 69 30 5;
+
+    /* Neutrals — slate, tuned slightly cool to sit under the brand */
+    --neutral-0: 255 255 255;
+    --neutral-50: 248 250 252;
+    --neutral-100: 241 245 249;
+    --neutral-200: 226 232 240;
+    --neutral-300: 203 213 225;
+    --neutral-400: 148 163 184;
+    --neutral-500: 100 116 139;
+    --neutral-600: 71 85 105;
+    --neutral-700: 51 65 85;
+    --neutral-800: 30 41 59;
+    --neutral-900: 15 23 42;
+    --neutral-950: 2 6 23;
+
+    /* State. Deliberately distinct from brand and accent. */
+    --success: 22 133 86;
+    --warning: 202 138 4;
+    --danger: 190 42 42;
+    --info: 37 99 173;
+
+    /* Semantic surfaces — what components actually reference */
+    --surface-page: var(--neutral-100);
+    --surface-raised: var(--neutral-0);
+    --surface-sunken: var(--neutral-200);
+    --surface-inverse: var(--brand-900);
+
+    --border-subtle: var(--neutral-200);
+    --border-strong: var(--neutral-300);
+
+    --text-primary: var(--neutral-900);
+    --text-secondary: var(--neutral-600);
+    --text-muted: var(--neutral-500);
+    --text-inverse: var(--neutral-0);
+
+    /* The sidebar is a dark chrome in both themes: it frames the work
+       instead of competing with it, and stops the eye re-adapting when
+       you move between the nav and a dense table. */
+    --nav-bg: var(--brand-900);
+    --nav-fg: 203 219 230;
+    --nav-fg-active: var(--neutral-0);
+    --nav-active-bg: var(--brand-700);
+    --nav-border: var(--brand-800);
+}
+
+.dark {
+    --surface-page: var(--neutral-950);
+    --surface-raised: var(--neutral-900);
+    --surface-sunken: var(--neutral-800);
+    --surface-inverse: var(--neutral-100);
+
+    --border-subtle: var(--neutral-800);
+    --border-strong: var(--neutral-700);
+
+    --text-primary: var(--neutral-100);
+    --text-secondary: var(--neutral-400);
+    --text-muted: var(--neutral-500);
+    --text-inverse: var(--neutral-950);
+
+    --nav-bg: var(--neutral-900);
+    --nav-fg: var(--neutral-400);
+    --nav-fg-active: var(--neutral-0);
+    --nav-active-bg: var(--brand-800);
+    --nav-border: var(--neutral-800);
+
+    --success: 52 168 116;
+    --warning: 224 168 48;
+    --danger: 226 88 88;
+    --info: 88 150 220;
+}

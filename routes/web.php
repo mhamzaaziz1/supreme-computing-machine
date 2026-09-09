@@ -59,6 +59,7 @@ use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\TaxonomyController;
 use App\Http\Controllers\TaxRateController;
+use App\Http\Controllers\TodayController;
 use App\Http\Controllers\TransactionPaymentController;
 use App\Http\Controllers\TypesOfServiceController;
 use App\Http\Controllers\UnitController;
@@ -136,6 +137,10 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('get-purchase-requisition-lines/{purchase_requisition_id}', [PurchaseRequisitionController::class, 'getPurchaseRequisitionLines']);
 
     Route::get('/sign-in-as-user/{id}', [ManageUserController::class, 'signInAsUser'])->name('sign-in-as-user');
+
+    // The redesigned operational dashboard (Inertia). The legacy Blade
+    // dashboard stays on /home until this fully replaces it.
+    Route::get('/today', [TodayController::class, 'index'])->name('today');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/home/get-totals', [HomeController::class, 'getTotals']);
@@ -642,4 +647,3 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/readykit-test', function () { return view('readykit-test'); });
-

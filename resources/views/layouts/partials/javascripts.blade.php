@@ -233,8 +233,15 @@
             
         });
 
+        // Collapse to an icon rail rather than hiding the sidebar outright:
+        // the old toggle left no visible way back to navigation.
         $('.side-bar-collapse').click(function() {
-            $('.side-bar').toggle('slow');
+            var railed = $('.side-bar').toggleClass('is-rail').hasClass('is-rail');
+            try {
+                localStorage.setItem('upos_sidebar_collapse', railed ? 'true' : 'false');
+            } catch (err) {
+                // Blocked storage: the preference just will not persist.
+            }
         });
 
         $('.dt-buttons.btn-group').find('a.btn').removeClass('btn-default');

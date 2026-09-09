@@ -20,6 +20,10 @@ import RowActions from '../../components/Sales/RowActions.vue';
 import SaleDrawer from '../../components/Sales/SaleDrawer.vue';
 
 const props = defineProps({
+    /** all | pos | drafts | quotations — the screens this list serves. */
+    view: { type: String, default: 'all' },
+    heading: { type: String, default: 'Sales' },
+    noun: { type: String, default: 'invoice' },
     filters: { type: Object, required: true },
     summary: { type: Object, required: true },
     locations: { type: Array, default: () => [] },
@@ -100,6 +104,9 @@ const statusTone = {
     draft: 'bg-warning/10 text-warning',
     quotation: 'bg-surface-sunken text-content-muted',
 };
+
+/** A quotation is stored as a draft with a flag, so name it from the flag. */
+const kind = (sell) => (sell.status === 'draft' && sell.is_quotation ? 'quotation' : sell.status);
 
 const shortDate = (value) =>
     new Date(String(value).replace(' ', 'T')).toLocaleDateString(undefined, {
@@ -203,17 +210,17 @@ const pages = computed(() => {
 </script>
 
 <template>
-    <Head title="Sales" />
+    <Head :title="heading" />
 
-    <AppShell title="Sales">
+    <AppShell :title="heading">
         <div class="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
             <!-- Header -->
             <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-semibold text-content-primary">Sales</h1>
+                    <h1 class="text-xl font-semibold text-content-primary">{{ heading }}</h1>
                     <p class="mt-0.5 text-[13px] text-content-muted">
                         {{ sells.total.toLocaleString() }}
-                        {{ sells.total === 1 ? 'invoice' : 'invoices' }}
+                        {{ sells.total === 1 ? noun : noun + 's' }}
                         <span v-if="hasFilters">matching your filters</span>
                     </p>
                 </div>
@@ -310,7 +317,9 @@ const pages = computed(() => {
                     <option value="overdue">Overdue</option>
                 </select>
 
+                <!-- Pointless where the screen already pins the status. -->
                 <select
+                    v-if="view === 'all'"
                     v-model="form.status"
                     aria-label="Status"
                     class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
@@ -394,9 +403,9 @@ const pages = computed(() => {
                                         <span
                                             v-if="sell.status !== 'final'"
                                             class="rounded px-1.5 py-0.5 text-xs font-medium capitalize"
-                                            :class="statusTone[sell.status] ?? statusTone.final"
+                                            :class="statusTone[kind(sell)] ?? statusTone.final"
                                         >
-                                            {{ sell.status }}
+                                            {{ kind(sell) }}
                                         </span>
                                         <span
                                             class="rounded px-1.5 py-0.5 text-xs font-medium capitalize"

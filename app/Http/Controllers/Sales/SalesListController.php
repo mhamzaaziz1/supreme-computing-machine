@@ -31,24 +31,55 @@ class SalesListController extends Controller
     /** Page sizes the UI is allowed to ask for. */
     private const PER_PAGE = [25, 50, 100];
 
+    /**
+     * The list serves four screens that differ only in what they pin.
+     *
+     * "Quotation" is not a status: a quotation is a draft carrying
+     * is_quotation = 1, and a plain draft is the same status with the flag
+     * clear. The only statuses a sell ever has are draft and final.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private const VIEWS = [
+        'all' => [
+            'heading' => 'Sales',
+            'noun' => 'invoice',
+            'can' => ['sell.view', 'sell.create', 'direct_sell.access', 'direct_sell.view',
+                'view_own_sell_only', 'view_commission_agent_sell',
+                'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping'],
+        ],
+        'pos' => [
+            'heading' => 'POS sales',
+            'noun' => 'sale',
+            'can' => ['sell.view'],
+        ],
+        'drafts' => [
+            'heading' => 'Drafts',
+            'noun' => 'draft',
+            'can' => ['draft.view_all', 'draft.view_own'],
+        ],
+        'quotations' => [
+            'heading' => 'Quotations',
+            'noun' => 'quotation',
+            'can' => ['quotation.view_all', 'quotation.view_own'],
+        ],
+    ];
+
     public function __construct(private BusinessUtil $businessUtil) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, string $view = 'all'): Response
     {
+        $view = isset(self::VIEWS[$view]) ? $view : 'all';
         $isAdmin = $this->businessUtil->is_admin(auth()->user());
 
-        if (! $isAdmin && ! auth()->user()->hasAnyPermission([
-            'sell.view', 'sell.create', 'direct_sell.access', 'direct_sell.view',
-            'view_own_sell_only', 'view_commission_agent_sell',
-            'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping',
-        ])) {
+        if (! $isAdmin && ! auth()->user()->hasAnyPermission(self::VIEWS[$view]['can'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $businessId = $request->session()->get('user.business_id');
         $filters = $this->filters($request);
 
-        $rows = $this->query($businessId, $isAdmin, $filters)
+        $rows = $this->query($businessId, $isAdmin, $filters, $view)
             ->orderByDesc('t.transaction_date')
             ->orderByDesc('t.id')
             ->paginate($filters['per_page'])
@@ -57,8 +88,11 @@ class SalesListController extends Controller
         $can = $this->abilities($isAdmin);
 
         return Inertia::render('Sales/Index', [
+            'view' => $view,
+            'heading' => self::VIEWS[$view]['heading'],
+            'noun' => self::VIEWS[$view]['noun'],
             'filters' => $filters,
-            'summary' => $this->summary($businessId, $isAdmin, $filters),
+            'summary' => $this->summary($businessId, $isAdmin, $filters, $view),
             'locations' => $this->locations($businessId),
             'sells' => [
                 'data' => collect($rows->items())->map(fn ($row) => $this->present($row, $can))->all(),
@@ -192,7 +226,7 @@ class SalesListController extends Controller
      *
      * @param  array<string, mixed>  $filters
      */
-    private function query(int $businessId, bool $isAdmin, array $filters): \Illuminate\Database\Query\Builder
+    private function query(int $businessId, bool $isAdmin, array $filters, string $view = 'all'): \Illuminate\Database\Query\Builder
     {
         $sells = DB::table('transactions AS t')
             ->leftJoin('contacts AS c', 'c.id', '=', 't.contact_id')
@@ -211,6 +245,7 @@ class SalesListController extends Controller
                 't.payment_status',
                 't.final_total',
                 't.is_direct_sale',
+                't.is_quotation',
                 't.shipping_status',
                 't.document',
                 'c.name AS customer',
@@ -223,10 +258,25 @@ class SalesListController extends Controller
                 ), 0) AS paid'),
             );
 
+        $this->pin($sells, $view);
         $this->scope($sells, $isAdmin);
         $this->applyFilters($sells, $filters);
 
         return $sells;
+    }
+
+    /**
+     * What each screen fixes regardless of the user's filters.
+     */
+    private function pin(\Illuminate\Database\Query\Builder $sells, string $view): void
+    {
+        match ($view) {
+            // A POS sale is one raised at the till rather than on the sell form.
+            'pos' => $sells->where('t.is_direct_sale', 0)->where('t.status', 'final'),
+            'drafts' => $sells->where('t.status', 'draft')->where('t.is_quotation', 0),
+            'quotations' => $sells->where('t.status', 'draft')->where('t.is_quotation', 1),
+            default => null,
+        };
     }
 
     /**
@@ -295,9 +345,13 @@ class SalesListController extends Controller
             $sells->whereDate('t.transaction_date', '<=', $filters['date_to']);
         }
 
-        if ($filters['status']) {
-            $sells->where('t.status', $filters['status']);
-        }
+        // "Quotation" is a draft with the flag set, not a status of its own.
+        match ($filters['status']) {
+            'final' => $sells->where('t.status', 'final'),
+            'draft' => $sells->where('t.status', 'draft')->where('t.is_quotation', 0),
+            'quotation' => $sells->where('t.status', 'draft')->where('t.is_quotation', 1),
+            default => null,
+        };
 
         if ($filters['payment_status']) {
             $sells->where('t.payment_status', $filters['payment_status']);
@@ -315,9 +369,9 @@ class SalesListController extends Controller
      * @param  array<string, mixed>  $filters
      * @return array<string, float|int>
      */
-    private function summary(int $businessId, bool $isAdmin, array $filters): array
+    private function summary(int $businessId, bool $isAdmin, array $filters, string $view = 'all'): array
     {
-        $totals = $this->query($businessId, $isAdmin, $filters)
+        $totals = $this->query($businessId, $isAdmin, $filters, $view)
             ->selectRaw('COUNT(*) AS invoices, COALESCE(SUM(t.final_total), 0) AS total, COALESCE(SUM((
                 SELECT SUM(tp.amount) FROM transaction_payments tp
                 WHERE tp.transaction_id = t.id AND tp.is_return = 0
@@ -416,6 +470,7 @@ class SalesListController extends Controller
             'invoice_no' => $row->invoice_no,
             'date' => $row->transaction_date,
             'status' => $row->status,
+            'is_quotation' => (bool) $row->is_quotation,
             'payment_status' => $row->payment_status,
             'total' => $total,
             'paid' => $paid,

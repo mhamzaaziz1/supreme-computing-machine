@@ -31,7 +31,7 @@
                         <a href="{{ route('ecommerce.track_order', ['order_id' => $order_id]) }}" class="btn btn-outline-primary">
                             <i class="fas fa-truck me-2"></i> Track Order
                         </a>
-                        <a href="{{ route('ecommerce.home') }}" class="btn btn-primary">
+                        <a href="{{ route('ecommerce.home') }}" class="btn btn-theme">
                             <i class="fas fa-shopping-bag me-2"></i> Continue Shopping
                         </a>
                     </div>
@@ -241,7 +241,7 @@
                                             <span class="original-price">${{ number_format($product->sell_price_inc_tax * 1.2, 2) }}</span>
                                         @endif
                                     </p>
-                                    <button class="btn btn-primary btn-sm mt-2 w-100" onclick="addToCart('{{ $product->product_variations->first()->variations->first()->id }}', 1)">
+                                    <button class="btn btn-theme btn-sm mt-2 w-100" onclick="addToCart('{{ $product->product_variations->first()->variations->first()->id }}', 1)">
                                         Add to Cart
                                     </button>
                                 </div>

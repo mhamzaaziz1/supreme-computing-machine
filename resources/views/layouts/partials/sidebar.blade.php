@@ -1,22 +1,34 @@
 <!-- Left side column. contains the logo and sidebar -->
-<aside class="side-bar tw-relative tw-hidden lg:tw-flex tw-flex-col tw-shrink-0 tw-w-72 tw-h-[calc(100vh-2rem)] tw-m-4 tw-rounded-xl tw-bg-white dark:tw-bg-dark-surface tw-border tw-border-gray-200 dark:tw-border-gray-800 tw-transition-all tw-duration-300 tw-overflow-hidden tw-z-30">
+<aside class="side-bar tw-relative tw-hidden lg:tw-flex tw-flex-col tw-shrink-0 tw-w-72 tw-h-[calc(100vh-2rem)] tw-m-4 tw-rounded-2xl tw-bg-white dark:tw-bg-[#1c1f2e] tw-shadow-xl tw-transition-all tw-duration-300 tw-overflow-hidden tw-z-30">
 
-    <!-- Brand / Logo -->
-    <a href="{{route('home')}}"
-        class="tw-flex tw-items-center tw-gap-3 tw-h-20 tw-px-6 tw-border-b tw-border-gray-100 dark:tw-border-gray-800 tw-shrink-0">
-        <div class="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-xl tw-bg-primary-600 tw-text-white tw-shadow-lg tw-shadow-primary-500/30">
-            <span class="tw-text-xl tw-font-bold">{{ substr(Session::get('business.name'), 0, 1) }}</span>
+    <!-- Window Controls & Logo Area -->
+    <div class="tw-flex tw-flex-col tw-px-6 tw-pt-5 tw-pb-4 tw-shrink-0">
+        <!-- Window Controls -->
+        <div class="tw-flex tw-gap-2 tw-mb-4">
+            <div class="tw-w-3 tw-h-3 tw-rounded-full tw-bg-[#ff5f56]"></div>
+            <div class="tw-w-3 tw-h-3 tw-rounded-full tw-bg-[#ffbd2e]"></div>
+            <div class="tw-w-3 tw-h-3 tw-rounded-full tw-bg-[#27c93f]"></div>
         </div>
-        <div class="tw-flex tw-flex-col">
-            <h1 class="tw-text-base tw-font-bold tw-text-gray-900 dark:tw-text-white tw-tracking-tight tw-leading-tight">
+
+        <!-- Brand / Logo -->
+        <a href="{{route('home')}}" class="tw-flex tw-items-center tw-gap-3 tw-mb-4">
+            @if(Session::has('business.logo') && !empty(Session::get('business.logo')))
+                <img src="{{ asset('uploads/business_logos/' . Session::get('business.logo')) }}" alt="{{ Session::get('business.name') }}" class="tw-w-8 tw-h-8 tw-object-contain tw-rounded-md tw-bg-white">
+            @else
+                <div class="tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8">
+                    <!-- Sleek logo placeholder -->
+                    <div class="tw-flex tw-gap-1">
+                        <div class="tw-w-2 tw-h-5 tw-rounded-full tw-bg-[#1a73e8]"></div>
+                        <div class="tw-w-2 tw-h-4 tw-rounded-full tw-bg-[#ffbd2e] tw-mt-1"></div>
+                        <div class="tw-w-2 tw-h-6 tw-rounded-full tw-bg-[#27c93f] tw-mt-[-4px]"></div>
+                    </div>
+                </div>
+            @endif
+            <h1 class="tw-text-lg tw-font-bold tw-text-gray-900 dark:tw-text-white tw-tracking-tight tw-truncate">
                 {{ Session::get('business.name') }}
             </h1>
-            <span class="tw-flex tw-items-center tw-gap-1.5 tw-text-[10px] tw-font-medium tw-uppercase tw-tracking-wider tw-text-primary-600 dark:tw-text-primary-400">
-                <span class="tw-w-1.5 tw-h-1.5 tw-rounded-full tw-bg-green-500 tw-animate-pulse"></span>
-                Online
-            </span>
-        </div>
-    </a>
+        </a>
+    </div>
 
 
     @php
@@ -26,7 +38,6 @@
         $is_admin = auth()->user()->hasRole('Admin#' . session('business.id')) ? true : false;
     @endphp
 
-    <style>
     <style>
         /* Custom Scrollbar */
         .sidebar-menu-container::-webkit-scrollbar { width: 4px; }
@@ -40,50 +51,59 @@
             display: inline-flex !important;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             margin-right: 12px;
-            background-color: transparent !important; /* No background for inactive */
-            color: #6b7280; /* Tailwind gray-500 */
-            box-shadow: none !important; /* Flat */
-            font-size: 1rem; /* Adjust based on icon size needed */
+            background-color: transparent !important;
+            color: #9ca3af; /* Tailwind gray-400 */
+            font-size: 1.1rem;
             transition: all 0.2s ease;
         }
 
         /* 2. Active State (The Item Row) */
         .sidebar-menu > li.active > a {
-            background-color: #3b82f6 !important; /* Tailwind blue-500 */
-            color: #ffffff !important; /* White text */
-            border-radius: 0.375rem !important; /* Standard rounded */
-            box-shadow: none !important; /* Flat */
+            background-color: #1a73e8 !important; /* Bright Blue */
+            color: #ffffff !important;
+            border-radius: 0.5rem !important; /* Rounded-lg */
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3) !important;
+            font-weight: 600 !important;
         }
         
-        .dark .sidebar-menu > li.active > a {
-            background-color: #2563eb !important; /* Tailwind blue-600 */
-        }
-
         /* 3. Active Icon */
         .sidebar-menu > li.active > a > i, 
         .sidebar-menu > li.active > a > svg {
-            color: #ffffff !important; /* White icon */
+            color: #ffffff !important;
         }
 
         /* Hover Effects (Inactive Items) */
         .sidebar-menu > li:not(.active) > a:hover {
-            background-color: #f3f4f6; /* Tailwind gray-100 */
-            border-radius: 0.375rem;
+            background-color: #f3f4f6; /* gray-100 */
+            border-radius: 0.5rem;
+            color: #374151 !important; /* gray-700 */
+        }
+        .sidebar-menu > li:not(.active) > a:hover > i {
+            color: #6b7280 !important; /* gray-500 */
         }
 
         .dark .sidebar-menu > li:not(.active) > a:hover {
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: #282c3f !important;
+            color: #f3f4f6 !important;
+        }
+        .dark .sidebar-menu > li:not(.active) > a:hover > i {
+            color: #d1d5db !important;
         }
 
         /* General Item Spacing */
         .sidebar-menu > li > a {
-            margin-bottom: 4px; /* Slight spacing between items */
+            margin-bottom: 4px;
             padding: 10px 16px;
+            color: #6b7280; /* gray-500 */
+            font-weight: 500;
         }
         
+        .dark .sidebar-menu > li > a {
+            color: #9ca3af;
+        }
     </style>
     
     <div class="sidebar-menu-container tw-flex-1 tw-overflow-y-auto tw-py-4 tw-px-3">
@@ -96,18 +116,12 @@
             </a>
         </li>
 
-        <!-- POS V2 (New) -->
-        <li class="{{ request()->segment(1) == 'pos' && request()->segment(2) == 'v2' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/5">
-            <a href="{{ route('pos.v2') }}" class="tw-flex tw-items-center tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
-                <i class="fa fa-cash-register tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i> 
-                <span>POS V2</span>
-            </a>
-        </li>
 
         <!-- Advanced Dashboard -->
-        <li class="{{ request()->segment(2) == 'business-advance-analytics' ? 'active' : '' }}">
-            <a href="{{action([\App\Http\Controllers\ReportController::class, 'getBusinessAdvanceAnalytics'])}}">
-                <i class="fa fa-chart-line"></i> <span>@lang('Advanced Dashboard')</span>
+        <li class="{{ request()->segment(2) == 'business-advance-analytics' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/5">
+            <a href="{{action([\App\Http\Controllers\ReportController::class, 'getBusinessAdvanceAnalytics'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
+                <i class="fa fa-chart-line tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i> 
+                <span>@lang('Advanced Dashboard')</span>
             </a>
         </li>
 
@@ -125,26 +139,34 @@
             </a>
             <ul class="treeview-menu tw-bg-gray-50 dark:tw-bg-dark-bg/50 tw-rounded-lg tw-px-2 tw-py-1 tw-mt-1 tw-mx-2">
                 @can('user.view')
-                <li class="{{ request()->segment(1) == 'users' ? 'active' : '' }}">
-                    <a href="{{action([\App\Http\Controllers\ManageUserController::class, 'index'])}}">
-                        <i class="fa fa-user"></i>
+                <li class="{{ request()->segment(1) == 'users' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ManageUserController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-user tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('user.users')</span>
                     </a>
                 </li>
                 @endcan
                 @can('roles.view')
-                <li class="{{ request()->segment(1) == 'roles' ? 'active' : '' }}">
-                    <a href="{{action([\App\Http\Controllers\RoleController::class, 'index'])}}">
-                        <i class="fa fa-briefcase"></i>
+                <li class="{{ request()->segment(1) == 'roles' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\RoleController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-briefcase tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('user.roles')</span>
                     </a>
                 </li>
                 @endcan
                 @can('user.create')
-                <li class="{{ request()->segment(1) == 'sales-commission-agents' ? 'active' : '' }}">
-                    <a href="{{action([\App\Http\Controllers\SalesCommissionAgentController::class, 'index'])}}">
-                        <i class="fa fa-handshake"></i>
+                <li class="{{ request()->segment(1) == 'sales-commission-agents' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SalesCommissionAgentController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-handshake tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('lang_v1.sales_commission_agents')</span>
+                    </a>
+                </li>
+                @endcan
+                @can('user.view')
+                <li class="{{ request()->segment(1) == 'user-locations' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\UserLocationController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-map-marker-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.active_users_location')</span>
                     </a>
                 </li>
                 @endcan
@@ -154,7 +176,7 @@
 
         <!-- Contacts -->
         @if(auth()->user()->can('supplier.view') || auth()->user()->can('customer.view') || auth()->user()->can('supplier.view_own') || auth()->user()->can('customer.view_own'))
-        <li class="treeview {{ in_array(request()->segment(1), ['contacts', 'customer-group']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
+        <li class="treeview {{ in_array(request()->segment(1), ['contacts', 'customer-group', 'route-followups']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
             <a href="#" class="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
                 <div class="tw-flex tw-items-center">
                     <i class="fa fa-address-book tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -180,18 +202,34 @@
                         <span>@lang('report.customer')</span>
                     </a>
                 </li>
-                <li class="{{ request()->segment(1) == 'customer-group' ? 'active' : '' }}">
-                    <a href="{{action([\App\Http\Controllers\CustomerGroupController::class, 'index'])}}">
-                        <i class="fa fa-users"></i>
+                <li class="{{ request()->segment(1) == 'customer-group' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\CustomerGroupController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-users tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('lang_v1.customer_groups')</span>
                     </a>
                 </li>
                 @endif
                 @if(auth()->user()->can('supplier.create') || auth()->user()->can('customer.create'))
-                <li class="{{ request()->segment(1) == 'contacts' && request()->segment(2) == 'import' ? 'active' : '' }}">
-                    <a href="{{action([\App\Http\Controllers\ContactController::class, 'getImportContacts'])}}">
-                        <i class="fa fa-download"></i>
+                <li class="{{ request()->segment(1) == 'contacts' && request()->segment(2) == 'import' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ContactController::class, 'getImportContacts'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-download tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('lang_v1.import_contacts')</span>
+                    </a>
+                </li>
+                @endif
+                @if(!empty(config('services.google_maps.api_key')))
+                <li class="{{ request()->segment(1) == 'contacts' && request()->segment(2) == 'map' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ContactController::class, 'contactMap'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-map-marker-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.map')</span>
+                    </a>
+                </li>
+                @endif
+                @if(auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own'))
+                <li class="{{ request()->segment(1) == 'route-followups' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\RouteFollowupController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-route tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.route_followups')</span>
                     </a>
                 </li>
                 @endif
@@ -293,7 +331,7 @@
 
         <!-- Products -->
         @if(auth()->user()->can('product.view') || auth()->user()->can('product.create') || auth()->user()->can('brand.view') || auth()->user()->can('unit.view') || auth()->user()->can('category.view'))
-        <li class="treeview {{ in_array(request()->segment(1), ['products', 'brands', 'units', 'taxonomies', 'variation-templates', 'selling-price-group', 'warranties', 'labels']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
+        <li class="treeview {{ in_array(request()->segment(1), ['products', 'brands', 'units', 'taxonomies', 'variation-templates', 'selling-price-group', 'warranties', 'labels', 'import-products', 'import-opening-stock', 'update-product-price']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
             <a href="#" class="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
                 <div class="tw-flex tw-items-center">
                     <i class="fa fa-cubes tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -319,6 +357,12 @@
                         <span>@lang('product.add_product')</span>
                     </a>
                 </li>
+                <li class="{{ request()->segment(1) == 'update-product-price' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellingPriceGroupController::class, 'updateProductPrice'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-edit tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.update_product_price')</span>
+                    </a>
+                </li>
                 @endcan
                 @can('product.view')
                 <li class="{{ request()->segment(1) == 'labels' && request()->segment(2) == 'show' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
@@ -333,6 +377,28 @@
                     <a href="{{action([\App\Http\Controllers\VariationTemplateController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
                         <i class="fa fa-circle tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('product.variations')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(1) == 'import-products' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ImportProductsController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-download tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('product.import_products')</span>
+                    </a>
+                </li>
+                @endcan
+                @can('product.opening_stock')
+                <li class="{{ request()->segment(1) == 'import-opening-stock' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ImportOpeningStockController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-boxes tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.import_opening_stock')</span>
+                    </a>
+                </li>
+                @endcan
+                @can('product.create')
+                <li class="{{ request()->segment(1) == 'selling-price-group' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellingPriceGroupController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-tag tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.selling_price_group')</span>
                     </a>
                 </li>
                 <li class="{{ request()->segment(1) == 'units' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
@@ -353,6 +419,12 @@
                         <span>@lang('brand.brands')</span>
                     </a>
                 </li>
+                <li class="{{ request()->segment(1) == 'warranties' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\WarrantyController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-shield-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.warranties')</span>
+                    </a>
+                </li>
                 @endcan
             </ul>
         </li>
@@ -371,6 +443,22 @@
                 </span>
             </a>
             <ul class="treeview-menu tw-bg-gray-50 dark:tw-bg-dark-bg/50 tw-rounded-lg tw-px-2 tw-py-1 tw-mt-1 tw-mx-2">
+                @if(!empty($common_settings['enable_purchase_requisition']) && (auth()->user()->can('purchase_requisition.view_all') || auth()->user()->can('purchase_requisition.view_own')))
+                <li class="{{ request()->segment(1) == 'purchase-requisition' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\PurchaseRequisitionController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.purchase_requisition')</span>
+                    </a>
+                </li>
+                @endif
+                @if(!empty($common_settings['enable_purchase_order']) && (auth()->user()->can('purchase_order.view_all') || auth()->user()->can('purchase_order.view_own')))
+                <li class="{{ request()->segment(1) == 'purchase-order' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\PurchaseOrderController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-list-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.purchase_order')</span>
+                    </a>
+                </li>
+                @endif
                 @if(auth()->user()->can('purchase.view') || auth()->user()->can('view_own_purchase'))
                 <li class="{{ request()->segment(1) == 'purchases' && request()->segment(2) == null ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\PurchaseController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
@@ -400,8 +488,8 @@
         @endif
 
         <!-- Sell -->
-        @if($is_admin || auth()->user()->hasAnyPermission(['sell.view', 'sell.create', 'direct_sell.access', 'view_own_sell_only']))
-        <li class="treeview {{ in_array(request()->segment(1), ['sells', 'pos', 'sell-return', 'shipments', 'discount', 'subscriptions', 'import-sales']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
+        @if($is_admin || auth()->user()->hasAnyPermission(['sell.view', 'sell.create', 'direct_sell.access', 'view_own_sell_only', 'view_commission_agent_sell', 'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping', 'access_sell_return', 'direct_sell.view', 'direct_sell.update', 'access_own_sell_return']))
+        <li class="treeview {{ in_array(request()->segment(1), ['sells', 'pos', 'sell-return', 'shipments', 'discount', 'subscriptions', 'import-sales', 'sales-order']) ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
             <a href="#" class="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
                 <div class="tw-flex tw-items-center">
                     <i class="fa fa-arrow-circle-up tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -412,7 +500,15 @@
                 </span>
             </a>
             <ul class="treeview-menu tw-bg-gray-50 dark:tw-bg-dark-bg/50 tw-rounded-lg tw-px-2 tw-py-1 tw-mt-1 tw-mx-2">
-                @if($is_admin || auth()->user()->hasAnyPermission(['sell.view', 'sell.create', 'direct_sell.access', 'view_own_sell_only']))
+                @if(!empty($pos_settings['enable_sales_order']) && ($is_admin || auth()->user()->hasAnyPermission(['so.view_own', 'so.view_all', 'so.create'])))
+                <li class="{{ request()->segment(1) == 'sales-order' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SalesOrderController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-invoice tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.sales_order')</span>
+                    </a>
+                </li>
+                @endif
+                @if($is_admin || auth()->user()->hasAnyPermission(['sell.view', 'sell.create', 'direct_sell.access', 'direct_sell.view', 'view_own_sell_only', 'view_commission_agent_sell', 'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping']))
                 <li class="{{ request()->segment(1) == 'sells' && request()->segment(2) == null ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\SellController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
                         <i class="fa fa-list tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -420,8 +516,24 @@
                     </a>
                 </li>
                 @endif
+                @if(in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access'))
+                <li class="{{ request()->segment(1) == 'sells' && request()->segment(2) == 'create' && empty(request()->get('status')) ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'create'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-plus-circle tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('sale.add_sale')</span>
+                    </a>
+                </li>
+                @endif
                 @can('sell.create')
                 @if(in_array('pos_sale', $enabled_modules))
+                @can('sell.view')
+                <li class="{{ request()->segment(1) == 'pos' && request()->segment(2) == null ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellPosController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-list-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('sale.list_pos')</span>
+                    </a>
+                </li>
+                @endcan
                 <li class="{{ request()->segment(1) == 'pos' && request()->segment(2) == 'create' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\SellPosController::class, 'create'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
                         <i class="fa fa-cash-register tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -431,10 +543,34 @@
                 @endif
                 @endcan
                 @if(in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access'))
-                <li class="{{ request()->segment(1) == 'sells' && request()->segment(2) == 'create' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
-                    <a href="{{action([\App\Http\Controllers\SellController::class, 'create'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
-                        <i class="fa fa-plus-circle tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
-                        <span>@lang('sale.add_sale')</span>
+                <li class="{{ request()->get('status') == 'draft' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'create'], ['status' => 'draft'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.add_draft')</span>
+                    </a>
+                </li>
+                @endif
+                @if(in_array('add_sale', $enabled_modules) && ($is_admin || auth()->user()->hasAnyPermission(['draft.view_all', 'draft.view_own'])))
+                <li class="{{ request()->segment(1) == 'sells' && request()->segment(2) == 'drafts' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'getDrafts'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-pen-square tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.list_drafts')</span>
+                    </a>
+                </li>
+                @endif
+                @if(in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access'))
+                <li class="{{ request()->get('status') == 'quotation' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'create'], ['status' => 'quotation'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-signature tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.add_quotation')</span>
+                    </a>
+                </li>
+                @endif
+                @if(in_array('add_sale', $enabled_modules) && ($is_admin || auth()->user()->hasAnyPermission(['quotation.view_all', 'quotation.view_own'])))
+                <li class="{{ request()->segment(1) == 'sells' && request()->segment(2) == 'quotations' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'getQuotations'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-clipboard-list tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.list_quotations')</span>
                     </a>
                 </li>
                 @endif
@@ -446,11 +582,35 @@
                     </a>
                 </li>
                 @endif
+                @if($is_admin || auth()->user()->hasAnyPermission(['access_shipping', 'access_own_shipping', 'access_commission_agent_shipping']))
+                <li class="{{ request()->segment(1) == 'shipments' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellController::class, 'shipments'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-truck tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.shipments')</span>
+                    </a>
+                </li>
+                @endif
                 @if(auth()->user()->can('discount.access'))
                 <li class="{{ request()->segment(1) == 'discount' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\DiscountController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
                         <i class="fa fa-percent tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('lang_v1.discounts')</span>
+                    </a>
+                </li>
+                @endif
+                @if(in_array('subscription', $enabled_modules) && auth()->user()->can('direct_sell.access'))
+                <li class="{{ request()->segment(1) == 'subscriptions' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SellPosController::class, 'listSubscriptions'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-sync tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.subscriptions')</span>
+                    </a>
+                </li>
+                @endif
+                @if(auth()->user()->can('sell.create'))
+                <li class="{{ request()->segment(1) == 'import-sales' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ImportSalesController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-download tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.import_sales')</span>
                     </a>
                 </li>
                 @endif
@@ -600,13 +760,19 @@
                         <span>@lang('lang_v1.cash_flow')</span>
                     </a>
                 </li>
+                <li class="{{ request()->segment(1) == 'account' && request()->segment(2) == 'payment-account-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\AccountReportsController::class, 'paymentAccountReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-invoice-dollar tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('account.payment_account_report')</span>
+                    </a>
+                </li>
             </ul>
         </li>
         @endif
         
         <!-- Reports -->
-        @if(auth()->user()->can('purchase_n_sell_report.view') || auth()->user()->can('contacts_report.view') || auth()->user()->can('stock_report.view') || auth()->user()->can('tax_report.view') || auth()->user()->can('trending_product_report.view') || auth()->user()->can('sales_representative.view') || auth()->user()->can('expense_report.view'))
-        <li class="treeview {{ request()->segment(1) == 'reports' ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
+        @if(auth()->user()->can('purchase_n_sell_report.view') || auth()->user()->can('contacts_report.view') || auth()->user()->can('stock_report.view') || auth()->user()->can('tax_report.view') || auth()->user()->can('trending_product_report.view') || auth()->user()->can('sales_representative.view') || auth()->user()->can('register_report.view') || auth()->user()->can('expense_report.view'))
+        <li class="treeview {{ in_array(request()->segment(1), ['reports', 'supply-chain-analytics']) || request()->segment(2) == 'activity-log' ? 'active menu-open' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-50 dark:hover:tw-bg-white/5">
             <a href="#" class="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-text-gray-700 dark:tw-text-gray-300 tw-font-medium tw-text-sm tw-rounded-lg group">
                 <div class="tw-flex tw-items-center">
                     <i class="fa fa-chart-bar tw-w-5 tw-h-5 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
@@ -620,19 +786,63 @@
                 @can('profit_loss_report.view')
                 <li class="{{ request()->segment(2) == 'profit-loss' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\ReportController::class, 'getProfitLoss'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
-                        <i class="fa fa-file-invoice tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <i class="fa fa-file-invoice-dollar tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('report.profit_loss')</span>
                     </a>
                 </li>
                 @endcan
-                @can('purchase_n_sell_report.view')
+
+                @if(config('constants.show_report_606') == true)
+                <li class="{{ request()->segment(2) == 'purchase-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'purchaseReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Report 606 (@lang('lang_v1.purchase'))</span>
+                    </a>
+                </li>
+                @endif
+
+                @if(config('constants.show_report_607') == true)
+                <li class="{{ request()->segment(2) == 'sale-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'saleReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Report 607 (@lang('business.sale'))</span>
+                    </a>
+                </li>
+                @endif
+
+                @if((in_array('purchases', $enabled_modules) || in_array('add_sale', $enabled_modules) || in_array('pos_sale', $enabled_modules)) && auth()->user()->can('purchase_n_sell_report.view'))
                 <li class="{{ request()->segment(2) == 'purchase-sell' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\ReportController::class, 'getPurchaseSell'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
                         <i class="fa fa-exchange-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
                         <span>@lang('report.purchase_sell_report')</span>
                     </a>
                 </li>
+                @endif
+
+                @can('tax_report.view')
+                <li class="{{ request()->segment(2) == 'tax-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getTaxReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-percent tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.tax_report')</span>
+                    </a>
+                </li>
                 @endcan
+
+                @can('contacts_report.view')
+                <li class="{{ request()->segment(2) == 'customer-supplier' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getCustomerSuppliers'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-address-book tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.contacts')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'customer-group' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getCustomerGroup'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-users tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.customer_groups_report')</span>
+                    </a>
+                </li>
+                @endcan
+
                 @can('stock_report.view')
                 <li class="{{ request()->segment(2) == 'stock-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
                     <a href="{{action([\App\Http\Controllers\ReportController::class, 'getStockReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
@@ -640,7 +850,175 @@
                         <span>@lang('report.stock_report')</span>
                     </a>
                 </li>
+                @if(session('business.enable_product_expiry') == 1)
+                <li class="{{ request()->segment(2) == 'stock-expiry' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getStockExpiryReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-calendar-times tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.stock_expiry_report')</span>
+                    </a>
+                </li>
+                @endif
+                @if(session('business.enable_lot_number') == 1)
+                <li class="{{ request()->segment(2) == 'lot-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getLotReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-barcode tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.lot_report')</span>
+                    </a>
+                </li>
+                @endif
+                @if(in_array('stock_adjustment', $enabled_modules))
+                <li class="{{ request()->segment(2) == 'stock-adjustment-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getStockAdjustmentReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-sliders-h tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.stock_adjustment_report')</span>
+                    </a>
+                </li>
+                @endif
                 @endcan
+
+                @can('trending_product_report.view')
+                <li class="{{ request()->segment(2) == 'trending-products' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getTrendingProducts'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-chart-line tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.trending_products')</span>
+                    </a>
+                </li>
+                @endcan
+
+                @can('purchase_n_sell_report.view')
+                <li class="{{ request()->segment(2) == 'items-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'itemsReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-list-ol tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.items_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'product-purchase-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getproductPurchaseReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-arrow-circle-down tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.product_purchase_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'product-sell-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getproductSellReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-arrow-circle-up tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.product_sell_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'purchase-payment-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'purchasePaymentReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-money-check-alt tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.purchase_payment_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'sell-payment-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'sellPaymentReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-cash-register tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.sell_payment_report')</span>
+                    </a>
+                </li>
+                @endcan
+
+                @if(in_array('expenses', $enabled_modules) && auth()->user()->can('expense_report.view'))
+                <li class="{{ request()->segment(2) == 'expense-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getExpenseReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-minus-circle tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.expense_report')</span>
+                    </a>
+                </li>
+                @endif
+
+                @can('register_report.view')
+                <li class="{{ request()->segment(2) == 'register-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getRegisterReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-briefcase tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.register_report')</span>
+                    </a>
+                </li>
+                @endcan
+
+                @can('sales_representative.view')
+                <li class="{{ request()->segment(2) == 'sales-representative-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getSalesRepresentativeReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-user-tie tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('report.sales_representative')</span>
+                    </a>
+                </li>
+                @endcan
+
+                @if(auth()->user()->can('purchase_n_sell_report.view') && in_array('tables', $enabled_modules))
+                <li class="{{ request()->segment(2) == 'table-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getTableReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-table tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('restaurant.table_report')</span>
+                    </a>
+                </li>
+                @endif
+
+                @if(auth()->user()->can('tax_report.view') && !empty(config('constants.enable_gst_report_india')))
+                <li class="{{ request()->segment(2) == 'gst-sales-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'gstSalesReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-invoice tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.gst_sales_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'gst-purchase-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'gstPurchaseReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-file-invoice tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.gst_purchase_report')</span>
+                    </a>
+                </li>
+                @endif
+
+                @if(auth()->user()->can('sales_representative.view') && in_array('service_staff', $enabled_modules))
+                <li class="{{ request()->segment(2) == 'service-staff-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getServiceStaffReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-user-clock tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('restaurant.service_staff_report')</span>
+                    </a>
+                </li>
+                @endif
+
+                @if(auth()->user()->can('customer.view') || auth()->user()->can('customer.view_own'))
+                <li class="{{ request()->segment(2) == 'route-followup-report' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getRouteFollowupReport'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-route tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.route_followup_report')</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'customer-advance-analytics' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getCustomerAdvanceAnalytics'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-chart-pie tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Customer Advance Analytics</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'product-advance-analytics' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getProductAdvanceAnalytics'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-cubes tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Product Advance Analytics</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(2) == 'purchase-advance-analytics' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'getPurchaseAdvanceAnalytics'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-shopping-bag tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Purchase Advance Analytics</span>
+                    </a>
+                </li>
+                <li class="{{ request()->segment(1) == 'supply-chain-analytics' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\SupplyChainAnalyticsController::class, 'index'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-truck-loading tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>Supply Chain Analytics</span>
+                    </a>
+                </li>
+                @endif
+
+                @if($is_admin)
+                <li class="{{ request()->segment(2) == 'activity-log' ? 'active' : '' }} tw-rounded-lg tw-transition-colors tw-duration-200 hover:tw-bg-gray-100 dark:hover:tw-bg-white/10 tw-mt-0.5">
+                    <a href="{{action([\App\Http\Controllers\ReportController::class, 'activityLog'])}}" class="tw-flex tw-items-center tw-px-3 tw-py-2 tw-text-gray-600 dark:tw-text-gray-400 tw-font-medium tw-text-sm tw-rounded-lg group">
+                        <i class="fa fa-history tw-w-4 tw-h-4 tw-mr-3 tw-text-gray-400 group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors"></i>
+                        <span>@lang('lang_v1.activity_log')</span>
+                    </a>
+                </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -838,24 +1216,23 @@
     </div>
 
     <!-- User Profile Section (Bottom) -->
-    <div class="tw-p-4 tw-mt-auto tw-border-t tw-border-gray-100/50 dark:tw-border-white/5">
-        <a href="{{ action([\App\Http\Controllers\UserController::class, 'getProfile']) }}" class="tw-flex tw-items-center tw-gap-3 tw-p-3 tw-rounded-2xl tw-bg-gray-50 dark:tw-bg-white/5 hover:tw-bg-primary-50 dark:hover:tw-bg-white/10 tw-transition-all tw-duration-300 tw-group">
-            <div class="tw-relative">
-                <div class="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-gradient-to-br tw-from-primary-400 tw-to-primary-600 tw-text-white tw-font-bold tw-text-sm tw-shadow-md">
-                    {{ strtoupper(substr(auth()->user()->first_name, 0, 1)) }}{{ strtoupper(substr(auth()->user()->last_name, 0, 1)) }}
-                </div>
-                <span class="tw-absolute tw-bottom-0 tw-right-0 tw-w-2.5 tw-h-2.5 tw-bg-green-500 tw-border-2 tw-border-white dark:tw-border-dark-surface tw-rounded-full"></span>
+    <div class="tw-px-4 tw-py-4 tw-mt-auto tw-shrink-0">
+        <div class="tw-flex tw-items-center tw-gap-3 tw-w-full">
+            <div class="tw-flex tw-items-center tw-justify-center tw-w-9 tw-h-9 tw-rounded-full tw-bg-[#00bfa5] tw-text-white tw-font-bold tw-text-sm tw-shrink-0">
+                {{ strtoupper(substr(auth()->user()->first_name, 0, 1)) }}
             </div>
-            <div class="tw-flex tw-flex-col tw-overflow-hidden">
-                <span class="tw-text-sm tw-font-bold tw-text-gray-900 dark:tw-text-white tw-truncate group-hover:tw-text-primary-600 dark:group-hover:tw-text-primary-400 tw-transition-colors">
+            <div class="tw-flex tw-flex-col tw-overflow-hidden tw-flex-1">
+                <span class="tw-text-sm tw-font-semibold tw-text-gray-900 dark:tw-text-white tw-truncate">
                     {{ auth()->user()->first_name }}
                 </span>
-                <span class="tw-text-xs tw-text-gray-500 dark:tw-text-gray-400 tw-truncate">
-                    View Profile
+                <span class="tw-text-xs tw-text-gray-400 dark:tw-text-gray-500 tw-truncate">
+                    {{ auth()->user()->email ?? 'user@example.com' }}
                 </span>
             </div>
-            <i class="fa fa-chevron-right tw-ml-auto tw-text-xs tw-text-gray-400 group-hover:tw-text-primary-500 tw-transition-transform group-hover:tw-translate-x-1"></i>
-        </a>
+            <a href="{{ action([\App\Http\Controllers\Auth\LoginController::class, 'logout']) }}" class="tw-text-gray-400 hover:tw-text-gray-600 dark:hover:tw-text-white tw-transition-colors">
+                <i class="fa fa-sign-out-alt tw-text-lg"></i>
+            </a>
+        </div>
     </div>
 
 </aside>

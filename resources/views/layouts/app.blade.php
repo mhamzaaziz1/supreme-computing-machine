@@ -50,7 +50,7 @@
             @include('layouts.partials.sidebar')
         @endif
 
-        @if (in_array($_SERVER['REMOTE_ADDR'], $whitelist))
+        @if (in_array($_SERVER['REMOTE_ADDR'] ?? '', $whitelist))
             <input type="hidden" id="__is_localhost" value="true">
         @endif
 

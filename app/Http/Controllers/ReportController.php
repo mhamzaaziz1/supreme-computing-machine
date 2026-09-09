@@ -8681,22 +8681,25 @@ class ReportController extends Controller
                 } else {
                     // If no previous year data, set target as current year plus 5-15%
                     $growth_factor = 1.05 + (mt_rand(0, 10) / 100);
+                    $positive_months_count = count(array_filter($monthly_sales_current_year_data, function($value) { return $value > 0; }));
                     $monthly_target_data[] = $current_sales > 0 
                         ? round($current_sales * $growth_factor) 
-                        : round(array_sum($monthly_sales_current_year_data) / count(array_filter($monthly_sales_current_year_data, function($value) { return $value > 0; })) * 0.8);
+                        : ($positive_months_count > 0 ? round(array_sum($monthly_sales_current_year_data) / $positive_months_count * 0.8) : 0);
                 }
             }
 
             // Identify peak and slow seasons
             $peak_month_index = array_search(max($monthly_sales_current_year_data), $monthly_sales_current_year_data);
-            $slow_month_index = array_search(min(array_filter($monthly_sales_current_year_data)), $monthly_sales_current_year_data);
+            
+            $filtered_sales = array_filter($monthly_sales_current_year_data, function($value) { return $value > 0; });
+            $slow_month_index = !empty($filtered_sales) ? array_search(min($filtered_sales), $monthly_sales_current_year_data) : 0;
 
             $peak_season = $monthly_sales_labels[$peak_month_index];
             $slow_season = $monthly_sales_labels[$slow_month_index];
 
             // Calculate seasonal variance
             $max_sales = max($monthly_sales_current_year_data);
-            $min_sales = min(array_filter($monthly_sales_current_year_data, function($value) { return $value > 0; }));
+            $min_sales = !empty($filtered_sales) ? min($filtered_sales) : 0;
             $seasonal_variance = $max_sales > 0 ? (($max_sales - $min_sales) / $max_sales) * 100 : 0;
 
             // Peak Season Growth
@@ -9101,7 +9104,7 @@ class ReportController extends Controller
                     DB::raw('SUM(COALESCE(tp.amount, 0)) as total_paid')
                 );
             $invoice_due_result = $invoice_due_query->first();
-            $invoice_due = $invoice_due_result->final_total - $invoice_due_result->total_paid;
+            $invoice_due = $invoice_due_result ? (($invoice_due_result->final_total ?? 0) - ($invoice_due_result->total_paid ?? 0)) : 0;
 
             // Net (Total Sales - Invoice Due - Expense)
             $net = $total_sell - $invoice_due - $total_expenses;

@@ -43,9 +43,9 @@
                         </div>
                         
                         <!-- Shipping Information -->
-                        <div class="card mb-4 checkout-section" id="shipping-section">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">Shipping Information</h5>
+                        <div class="card border-0 shadow-sm mb-4 checkout-section" id="shipping-section">
+                            <div class="card-header bg-white border-bottom pt-4 pb-3">
+                                <h5 class="mb-0 fw-bold">Shipping Information</h5>
                             </div>
                             <div class="card-body">
                                 <div class="row">
@@ -113,10 +113,10 @@
                                 </div>
                                 
                                 <div class="d-flex justify-content-between mt-4">
-                                    <a href="{{ route('ecommerce.cart') }}" class="btn btn-outline-secondary">
+                                    <a href="{{ route('ecommerce.cart') }}" class="btn btn-outline-dark">
                                         <i class="fas fa-arrow-left me-2"></i> Back to Cart
                                     </a>
-                                    <button type="button" class="btn btn-primary" id="shipping-next-btn">
+                                    <button type="button" class="btn btn-theme" id="shipping-next-btn">
                                         Continue to Payment <i class="fas fa-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -124,9 +124,9 @@
                         </div>
                         
                         <!-- Payment Information -->
-                        <div class="card mb-4 checkout-section d-none" id="payment-section">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">Payment Information</h5>
+                        <div class="card border-0 shadow-sm mb-4 checkout-section d-none" id="payment-section">
+                            <div class="card-header bg-white border-bottom pt-4 pb-3">
+                                <h5 class="mb-0 fw-bold">Payment Information</h5>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
@@ -237,10 +237,10 @@
                                 </div>
                                 
                                 <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" id="payment-back-btn">
+                                    <button type="button" class="btn btn-outline-dark" id="payment-back-btn">
                                         <i class="fas fa-arrow-left me-2"></i> Back to Shipping
                                     </button>
-                                    <button type="button" class="btn btn-primary" id="payment-next-btn">
+                                    <button type="button" class="btn btn-theme" id="payment-next-btn">
                                         Review Order <i class="fas fa-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -248,9 +248,9 @@
                         </div>
                         
                         <!-- Order Review -->
-                        <div class="card mb-4 checkout-section d-none" id="review-section">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">Review Your Order</h5>
+                        <div class="card border-0 shadow-sm mb-4 checkout-section d-none" id="review-section">
+                            <div class="card-header bg-white border-bottom pt-4 pb-3">
+                                <h5 class="mb-0 fw-bold">Review Your Order</h5>
                             </div>
                             <div class="card-body">
                                 <h5 class="mb-3">Shipping Information</h5>
@@ -308,10 +308,10 @@
                                 </div>
                                 
                                 <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" id="review-back-btn">
+                                    <button type="button" class="btn btn-outline-dark" id="review-back-btn">
                                         <i class="fas fa-arrow-left me-2"></i> Back to Payment
                                     </button>
-                                    <button type="submit" class="btn btn-success" id="place-order-btn">
+                                    <button type="submit" class="btn btn-theme" id="place-order-btn">
                                         <i class="fas fa-check me-2"></i> Place Order
                                     </button>
                                 </div>
@@ -396,12 +396,12 @@
             </form>
         @else
             <!-- Empty Cart -->
-            <div class="card text-center py-5">
+            <div class="card border-0 shadow-sm text-center py-5">
                 <div class="card-body">
                     <i class="fas fa-shopping-cart fa-4x mb-3 text-muted"></i>
                     <h3>Your cart is empty</h3>
-                    <p class="mb-4">You need to add items to your cart before proceeding to checkout.</p>
-                    <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Start Shopping</a>
+                    <p class="mb-4 text-muted">You need to add items to your cart before proceeding to checkout.</p>
+                    <a href="{{ route('ecommerce.products') }}" class="btn btn-theme px-4 py-2">Start Shopping</a>
                 </div>
             </div>
         @endif

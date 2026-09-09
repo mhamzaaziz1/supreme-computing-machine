@@ -100,7 +100,7 @@
                                 $in_stock = false;
                                 foreach($product->product_variations as $product_variation) {
                                     foreach($product_variation->variations as $variation) {
-                                        if(isset($variation->variation_location_details) && $variation->variation_location_details->qty_available > 0) {
+                                        if(isset($variation->variation_location_details) && $variation->variation_location_details->sum('qty_available') > 0) {
                                             $in_stock = true;
                                             break 2;
                                         }
@@ -147,8 +147,8 @@
                                 <input type="number" class="form-control text-center" id="product_quantity" value="1" min="1">
                                 <button class="btn btn-outline-secondary" type="button" onclick="incrementQuantity()">+</button>
                             </div>
-                            <button class="btn btn-primary flex-grow-1" id="add_to_cart_button" onclick="addToCartFromDetails()">
-                                Add to Cart
+                            <button class="btn btn-theme flex-grow-1 fw-bold" id="add_to_cart_button" onclick="addToCartFromDetails()">
+                                ADD TO CART
                             </button>
                         </div>
                     </div>
@@ -173,7 +173,7 @@
                     <div class="product-share">
                         <h5 class="mb-2">Share</h5>
                         <div class="d-flex">
-                            <a href="#" class="me-2 btn btn-sm btn-outline-primary"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#" class="me-2 btn btn-sm btn-outline-dark"><i class="fab fa-facebook-f"></i></a>
                             <a href="#" class="me-2 btn btn-sm btn-outline-info"><i class="fab fa-twitter"></i></a>
                             <a href="#" class="me-2 btn btn-sm btn-outline-danger"><i class="fab fa-pinterest"></i></a>
                             <a href="#" class="btn btn-sm btn-outline-secondary"><i class="fas fa-envelope"></i></a>
@@ -335,7 +335,7 @@
                                         <label for="reviewText" class="form-label">Your Review</label>
                                         <textarea class="form-control" id="reviewText" rows="4" required></textarea>
                                     </div>
-                                    <button type="submit" class="btn btn-primary">Submit Review</button>
+                                    <button type="submit" class="btn btn-theme">Submit Review</button>
                                 </form>
                             </div>
                         </div>
@@ -352,20 +352,24 @@
                     <div class="row">
                         @foreach($related_products as $related_product)
                             <div class="col-6 col-md-3 mb-4">
-                                <div class="card product-card h-100">
+                                <div class="card product-card">
                                     @if($related_product->on_sale)
                                         <span class="badge-sale">Sale</span>
                                     @endif
                                     
                                     @php
-                                        $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
+                                        $image_url = 'https://dummyimage.com/300x300/f8f9fa/6c757d.png&text=No+Image';
                                         
                                         // Try to get the first variation image
-                                        foreach($related_product->product_variations as $product_variation) {
-                                            foreach($product_variation->variations as $variation) {
-                                                if($variation->media->isNotEmpty()) {
-                                                    $image_url = $variation->media->first()->display_url;
-                                                    break 2;
+                                        if(isset($related_product->product_variations) && is_iterable($related_product->product_variations)) {
+                                            foreach($related_product->product_variations as $product_variation) {
+                                                if(isset($product_variation->variations) && is_iterable($product_variation->variations)) {
+                                                    foreach($product_variation->variations as $variation) {
+                                                        if(isset($variation->media) && $variation->media->isNotEmpty()) {
+                                                            $image_url = $variation->media->first()->display_url;
+                                                            break 2;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -375,23 +379,30 @@
                                         <img src="{{ $image_url }}" class="card-img-top" alt="{{ $related_product->name }}">
                                     </a>
                                     <div class="card-body d-flex flex-column">
-                                        <h5 class="card-title">
+                                        <div class="text-muted small mb-1">{{ $related_product->category->name ?? 'Uncategorized' }}</div>
+                                        <h5 class="card-title text-truncate">
                                             <a href="{{ route('ecommerce.product_details', $related_product->id) }}" class="text-decoration-none text-dark">
                                                 {{ $related_product->name }}
                                             </a>
                                         </h5>
-                                        <p class="card-text small">
-                                            {{ Str::limit($related_product->product_description, 50) }}
-                                        </p>
+                                        
+                                        <div class="mb-2 text-warning" style="font-size: 12px;">
+                                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i>
+                                        </div>
+                                        
                                         <div class="mt-auto">
-                                            <p class="price mb-0">
-                                                ${{ number_format($related_product->sell_price_inc_tax, 2) }}
-                                                @if($related_product->on_sale)
-                                                    <span class="original-price">${{ number_format($related_product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                            <div class="price mb-3">
+                                                @if(isset($related_product->sell_price_inc_tax))
+                                                    ${{ number_format($related_product->sell_price_inc_tax, 2) }}
+                                                    @if($related_product->on_sale)
+                                                        <span class="original-price">${{ number_format($related_product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                                    @endif
+                                                @else
+                                                    $0.00
                                                 @endif
-                                            </p>
-                                            <button class="btn btn-primary btn-sm mt-2 w-100" onclick="addToCart('{{ $related_product->product_variations->first()->variations->first()->id }}', 1)">
-                                                Add to Cart
+                                            </div>
+                                            <button class="btn w-100" style="background:#f5f5f5; border:1px solid #e5e5e5; font-size:13px; font-weight:600;" onclick="addToCart('{{ isset($related_product->product_variations) && $related_product->product_variations->isNotEmpty() && $related_product->product_variations->first()->variations->isNotEmpty() ? $related_product->product_variations->first()->variations->first()->id : 0 }}', 1)">
+                                                ADD TO CART
                                             </button>
                                         </div>
                                     </div>
@@ -404,44 +415,31 @@
         @endif
         
         <!-- Recently Viewed Products -->
-        @php
-            $recently_viewed = Session::get('recently_viewed', []);
-            $recently_viewed = array_filter($recently_viewed, function($id) use ($product) {
-                return $id != $product->id;
-            });
-            
-            if(count($recently_viewed) > 0) {
-                $recently_viewed_products = App\Product::whereIn('id', $recently_viewed)
-                    ->active()
-                    ->with(['product_variations', 'product_variations.variations', 'product_variations.variations.media'])
-                    ->take(4)
-                    ->get();
-            } else {
-                $recently_viewed_products = collect([]);
-            }
-        @endphp
-        
-        @if($recently_viewed_products->isNotEmpty())
+        @if(!empty($recently_viewed_products) && $recently_viewed_products->isNotEmpty())
             <div class="row mt-5">
                 <div class="col-12">
                     <h2 class="text-center mb-4">Recently Viewed</h2>
                     <div class="row">
                         @foreach($recently_viewed_products as $recently_viewed_product)
                             <div class="col-6 col-md-3 mb-4">
-                                <div class="card product-card h-100">
+                                <div class="card product-card">
                                     @if($recently_viewed_product->on_sale)
                                         <span class="badge-sale">Sale</span>
                                     @endif
                                     
                                     @php
-                                        $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
+                                        $image_url = 'https://dummyimage.com/300x300/f8f9fa/6c757d.png&text=No+Image';
                                         
                                         // Try to get the first variation image
-                                        foreach($recently_viewed_product->product_variations as $product_variation) {
-                                            foreach($product_variation->variations as $variation) {
-                                                if($variation->media->isNotEmpty()) {
-                                                    $image_url = $variation->media->first()->display_url;
-                                                    break 2;
+                                        if(isset($recently_viewed_product->product_variations) && is_iterable($recently_viewed_product->product_variations)) {
+                                            foreach($recently_viewed_product->product_variations as $product_variation) {
+                                                if(isset($product_variation->variations) && is_iterable($product_variation->variations)) {
+                                                    foreach($product_variation->variations as $variation) {
+                                                        if(isset($variation->media) && $variation->media->isNotEmpty()) {
+                                                            $image_url = $variation->media->first()->display_url;
+                                                            break 2;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -451,23 +449,30 @@
                                         <img src="{{ $image_url }}" class="card-img-top" alt="{{ $recently_viewed_product->name }}">
                                     </a>
                                     <div class="card-body d-flex flex-column">
-                                        <h5 class="card-title">
+                                        <div class="text-muted small mb-1">{{ $recently_viewed_product->category->name ?? 'Uncategorized' }}</div>
+                                        <h5 class="card-title text-truncate">
                                             <a href="{{ route('ecommerce.product_details', $recently_viewed_product->id) }}" class="text-decoration-none text-dark">
                                                 {{ $recently_viewed_product->name }}
                                             </a>
                                         </h5>
-                                        <p class="card-text small">
-                                            {{ Str::limit($recently_viewed_product->product_description, 50) }}
-                                        </p>
+                                        
+                                        <div class="mb-2 text-warning" style="font-size: 12px;">
+                                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i>
+                                        </div>
+                                        
                                         <div class="mt-auto">
-                                            <p class="price mb-0">
-                                                ${{ number_format($recently_viewed_product->sell_price_inc_tax, 2) }}
-                                                @if($recently_viewed_product->on_sale)
-                                                    <span class="original-price">${{ number_format($recently_viewed_product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                            <div class="price mb-3">
+                                                @if(isset($recently_viewed_product->sell_price_inc_tax))
+                                                    ${{ number_format($recently_viewed_product->sell_price_inc_tax, 2) }}
+                                                    @if($recently_viewed_product->on_sale)
+                                                        <span class="original-price">${{ number_format($recently_viewed_product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                                    @endif
+                                                @else
+                                                    $0.00
                                                 @endif
-                                            </p>
-                                            <button class="btn btn-primary btn-sm mt-2 w-100" onclick="addToCart('{{ $recently_viewed_product->product_variations->first()->variations->first()->id }}', 1)">
-                                                Add to Cart
+                                            </div>
+                                            <button class="btn w-100" style="background:#f5f5f5; border:1px solid #e5e5e5; font-size:13px; font-weight:600;" onclick="addToCart('{{ isset($recently_viewed_product->product_variations) && $recently_viewed_product->product_variations->isNotEmpty() && $recently_viewed_product->product_variations->first()->variations->isNotEmpty() ? $recently_viewed_product->product_variations->first()->variations->first()->id : 0 }}', 1)">
+                                                ADD TO CART
                                             </button>
                                         </div>
                                     </div>

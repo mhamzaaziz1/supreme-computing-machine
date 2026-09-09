@@ -189,7 +189,7 @@ $(document).ready(function() {
         //Add Product
         $('#search_product')
             .autocomplete({
-                delay: 1000,
+                delay: 250,
                 source: function(request, response) {
                     var price_group = '';
                     var search_fields = [];
@@ -1332,6 +1332,12 @@ $(document).ready(function() {
                     .find('input.pos_quantity')
                     .focus()
                     .select();
+            }
+        } else if (key == 13) {
+            // the enter key code
+            e.preventDefault();
+            if ($(this).val()) {
+                $(this).autocomplete("search");
             }
         }
     });

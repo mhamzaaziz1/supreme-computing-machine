@@ -16,185 +16,431 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <!-- Custom styles -->
     <style>
         :root {
-            --primary-color: #3490dc;
-            --secondary-color: #6c757d;
-            --accent-color: #f39c12;
-            --success-color: #38c172;
-            --danger-color: #e3342f;
-            --light-color: #f8f9fa;
-            --dark-color: #343a40;
+            --primary-bg: #f5f5f5;
+            --header-dark: #000000;
+            --header-darker: #111111;
+            --accent-yellow: #ffb800;
+            --accent-yellow-hover: #e2a300;
+            --accent-red: #ff0000;
+            --text-main: #333333;
+            --text-light: #777777;
+            --border-color: #e5e5e5;
+            --radius-sm: 4px;
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #333;
-            background-color: #f8f9fa;
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-main);
+            background-color: var(--primary-bg);
+            font-size: 14px;
         }
         
-        .navbar-brand {
-            font-weight: 700;
-            font-size: 1.5rem;
+        a {
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
         }
         
-        .navbar-nav .nav-link {
+        a:hover {
+            color: var(--accent-yellow);
+        }
+
+        /* --- HEADER STYLES --- */
+        .header-top {
+            background-color: var(--header-dark);
+            color: #ffffff;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header-logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: #ffffff !important;
+            letter-spacing: -0.5px;
+            margin-right: 20px;
+        }
+
+        .header-logo span {
+            color: var(--accent-yellow);
+        }
+
+        /* Search Bar */
+        .search-container {
+            display: flex;
+            width: 100%;
+            max-width: 650px;
+            background: #ffffff;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            height: 42px;
+        }
+
+        .search-category {
+            background: #f5f5f5;
+            border: none;
+            border-right: 1px solid #ddd;
+            padding: 0 15px;
+            font-size: 13px;
+            color: #555;
+            outline: none;
+            min-width: 140px;
+            cursor: pointer;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            border: none;
+            padding: 0 15px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .search-btn {
+            background-color: var(--accent-yellow);
+            color: #000;
+            border: none;
+            width: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .search-btn:hover {
+            background-color: var(--accent-yellow-hover);
+        }
+
+        /* Header Actions (Right) */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 20px;
+        }
+
+        .header-action-item {
+            color: #ffffff;
+            position: relative;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-action-text {
+            font-size: 13px;
+            margin-left: 5px;
             font-weight: 500;
         }
-        
-        .dropdown-menu {
-            border-radius: 0;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+
+        .cart-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: var(--accent-red);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- MAIN NAVBAR --- */
+        .header-nav {
+            background-color: var(--header-dark);
+            color: #ffffff;
+        }
+
+        /* All Departments Dropdown */
+        .departments-menu {
+            position: relative;
         }
         
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
+        .departments-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent-yellow);
+            font-weight: 600;
+            padding: 15px 0;
+            cursor: pointer;
         }
-        
-        .btn-primary:hover {
-            background-color: #2779bd;
-            border-color: #2779bd;
-        }
-        
-        .card {
-            border-radius: 0.5rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+
+        .departments-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 300px;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
             transition: all 0.3s ease;
+        }
+
+        .departments-dropdown.show {
+            display: flex;
+        }
+
+        .department-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            color: var(--text-main);
+            text-decoration: none;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .department-item:last-child {
+            border-bottom: none;
+        }
+
+        .department-item:hover {
+            background-color: #f9f9f9;
+            color: var(--accent-dark);
+        }
+
+        .department-item i.fa-chevron-right {
+            font-size: 10px;
+            color: #999;
+        }
+
+        .badge-mini {
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 2px;
+            text-transform: uppercase;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .badge-mini.sale { background-color: #ff0000; }
+        .badge-mini.hot { background-color: #ff5722; }
+        .badge-mini.new { background-color: #10b981; }
+
+        .departments-footer {
+            background-color: var(--accent-yellow);
+            padding: 12px;
+            text-align: center;
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        }
+
+        .departments-footer a {
+            color: #000;
+            font-weight: 700;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        /* Nav Links */
+        .main-nav-links {
+            display: flex;
+            gap: 25px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .main-nav-links a {
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 14px;
+            padding: 15px 0;
+            display: block;
+        }
+
+        .main-nav-links a.active, .main-nav-links a:hover {
+            color: var(--accent-yellow);
+        }
+
+        .nav-right-links {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+        }
+        
+        .nav-right-links a {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* --- GENERAL COMPONENTS --- */
+        .btn-theme {
+            background-color: var(--accent-yellow);
+            color: #000;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 20px;
+        }
+
+        .btn-theme:hover {
+            background-color: var(--accent-yellow-hover);
+            color: #000;
+        }
+
+        /* Card / Product styles mapped to new variables */
+        .card {
+            border: none;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            background: #ffffff;
         }
         
         .card:hover {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        
+
         .product-card {
             height: 100%;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
         }
         
         .product-card .card-img-top {
-            height: 200px;
-            object-fit: cover;
+            height: 220px;
+            object-fit: contain;
+            padding: 10px;
         }
         
         .product-card .card-title {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 14px;
+            color: var(--text-main);
+            margin-bottom: 5px;
         }
         
         .product-card .price {
             font-weight: 700;
-            color: var(--primary-color);
+            color: var(--accent-red);
+            font-size: 16px;
         }
         
         .product-card .original-price {
             text-decoration: line-through;
-            color: var(--secondary-color);
-            font-size: 0.875rem;
+            color: var(--text-light);
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        
+        .badge-sale, .badge-new, .badge-hot {
+            position: absolute;
+            top: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 2px;
+            text-transform: uppercase;
+            z-index: 10;
         }
         
         .badge-sale {
-            position: absolute;
-            top: 10px;
             right: 10px;
-            background-color: var(--danger-color);
+            background: var(--accent-red);
             color: white;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            border-radius: 0.25rem;
         }
         
         .badge-new {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: var(--success-color);
+            left: 10px;
+            background: #green; /* TBD based exactly on demo if present, fallback standard */
+            background: #10b981;
             color: white;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            border-radius: 0.25rem;
         }
-        
-        .footer {
-            background-color: var(--dark-color);
+
+        .badge-hot {
+            right: 10px;
+            background: #ff5722;
             color: white;
-            padding: 3rem 0;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--header-dark);
+            color: #cccccc;
+            padding: 40px 0 20px;
+            margin-top: 60px;
+            border-top: 2px solid var(--accent-yellow);
         }
         
         .footer h5 {
+            color: #ffffff;
             font-weight: 600;
-            margin-bottom: 1.5rem;
+            font-size: 16px;
+            margin-bottom: 20px;
         }
-        
+
         .footer ul {
             list-style: none;
             padding-left: 0;
         }
         
         .footer ul li {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
-        
+
         .footer ul li a {
-            color: rgba(255, 255, 255, 0.7);
-            text-decoration: none;
+            color: #999999;
         }
-        
+
         .footer ul li a:hover {
-            color: white;
+            color: var(--accent-yellow);
         }
         
         .footer-bottom {
-            background-color: rgba(0, 0, 0, 0.2);
-            padding: 1rem 0;
+            background-color: var(--header-darker);
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+            border-top: 1px solid #333;
         }
         
-        .cart-icon {
-            position: relative;
-        }
-        
-        .cart-count {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background-color: var(--danger-color);
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .breadcrumb {
-            background-color: transparent;
-            padding: 0.75rem 0;
-        }
-        
-        .breadcrumb-item + .breadcrumb-item::before {
-            content: ">";
-        }
-        
-        /* Mobile sticky cart */
-        @media (max-width: 767.98px) {
+        /* Mobile adjustments */
+        @media (max-width: 991px) {
+            .search-container {
+                margin: 15px 0;
+            }
+            .header-actions {
+                justify-content: flex-start;
+                margin-top: 10px;
+            }
+            
             .sticky-cart {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background-color: white;
-                box-shadow: 0 -0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-                padding: 0.5rem 1rem;
+                background: #ffffff;
+                border-top: 1px solid var(--border-color);
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.05);
+                padding: 0.75rem 1rem;
                 z-index: 1000;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-            }
-            
-            .sticky-cart .btn {
-                padding: 0.375rem 0.75rem;
             }
             
             body {
@@ -507,79 +753,118 @@
 <body>
     <!-- Header -->
     <header>
-        <!-- Top bar -->
-        <div class="bg-dark text-white py-2">
+        <!-- Top Bar (Dark) -->
+        <div class="header-top">
             <div class="container">
                 <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <small>Free shipping on orders over $50</small>
+                    <!-- Logo -->
+                    <div class="col-12 col-lg-3 text-center text-lg-start mb-3 mb-lg-0">
+                        <a href="{{ route('ecommerce.home') }}" class="header-logo text-decoration-none">
+                            @if(Session::has('business.logo') && !empty(Session::get('business.logo')))
+                                <img src="{{ asset('uploads/business_logos/' . Session::get('business.logo')) }}" alt="{{ Session::get('business.name') }}" style="max-height: 50px; width: auto;">
+                            @elseif(Session::has('business.name'))
+                                <span class="text-white">{{ Session::get('business.name') }}</span>
+                            @else
+                                urna<span>auto</span>
+                            @endif
+                        </a>
                     </div>
-                    <div class="col-md-6 text-md-end">
-                        <small>
-                            <a href="{{ route('ecommerce.help') }}" class="text-white me-3">Help</a>
-                            <a href="{{ route('ecommerce.contact') }}" class="text-white me-3">Contact</a>
-                            <a href="{{ route('ecommerce.track_order') }}" class="text-white">Track Order</a>
-                        </small>
+                    
+                    <!-- Search Bar -->
+                    <div class="col-12 col-lg-6 d-flex justify-content-center justify-content-lg-start mb-3 mb-lg-0">
+                        <form class="search-container" action="{{ route('ecommerce.products') }}" method="GET">
+                            <select class="search-category" name="category_id">
+                                <option value="">All Categories</option>
+                                @foreach($categories ?? [] as $category)
+                                    <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
+                                        {{ $category->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <input type="text" class="search-input" name="search" placeholder="I'm shopping for..." value="{{ request('search') }}">
+                            <button type="submit" class="search-btn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- User Actions -->
+                    <div class="col-12 col-lg-3">
+                        <div class="header-actions">
+                            <div class="header-action-item">
+                                <span class="header-action-text me-2">USD <i class="fas fa-chevron-down ms-1" style="font-size:10px;"></i></span>
+                            </div>
+                            <a href="{{ route('ecommerce.account') }}" class="header-action-item" title="Account">
+                                <i class="far fa-user"></i>
+                            </a>
+                            <a href="#" class="header-action-item" title="Wishlist">
+                                <i class="far fa-heart"></i>
+                                <span class="cart-badge bg-danger">0</span>
+                            </a>
+                            <a href="{{ route('ecommerce.cart') }}" class="header-action-item" title="Cart">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span class="cart-badge">{{ count(session('cart', [])) }}</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Main navbar -->
-        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <!-- Navigation Bar (Darker) -->
+        <div class="header-nav d-none d-lg-block">
             <div class="container">
-                <a class="navbar-brand" href="{{ route('ecommerce.home') }}">
-                    {{ config('app.name', 'UltimatePOS') }}
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('ecommerce.home') ? 'active' : '' }}" href="{{ route('ecommerce.home') }}">Home</a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCategories" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Categories
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownCategories">
+                <div class="row align-items-center">
+                    <div class="col-lg-3">
+                        <div class="departments-menu">
+                            <div class="departments-btn" id="all-departments-btn">
+                                <i class="fas fa-bars"></i>
+                                All Departments <i class="fas fa-chevron-down ms-auto" style="font-size:10px;"></i>
+                            </div>
+                            <div class="departments-dropdown" id="all-departments-sidebar">
                                 @foreach($categories ?? [] as $category)
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('ecommerce.products', ['category_id' => $category->id]) }}">
-                                            {{ $category->name }}
-                                        </a>
-                                    </li>
+                                    <a href="{{ action([\App\Http\Controllers\EcommerceController::class, 'products']) }}?category_id={{ $category->id }}" class="department-item">
+                                        <span>{{ $category->name }}</span>
+                                        <div class="d-flex align-items-center">
+                                            @if($loop->index == 0)
+                                                <span class="badge-mini sale">Sale</span>
+                                            @elseif($loop->index == 1)
+                                                <span class="badge-mini hot">Hot</span>
+                                            @elseif($loop->index == 2)
+                                                <i class="fas fa-chevron-right"></i>
+                                            @elseif($loop->index == 8)
+                                                <span class="badge-mini new">New</span>
+                                            @endif
+                                        </div>
+                                    </a>
                                 @endforeach
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('ecommerce.products') ? 'active' : '' }}" href="{{ route('ecommerce.products') }}">Products</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('ecommerce.about') ? 'active' : '' }}" href="{{ route('ecommerce.about') }}">About</a>
-                        </li>
-                    </ul>
-                    <form class="d-flex me-3" action="{{ route('ecommerce.products') }}" method="GET">
-                        <input class="form-control me-2" type="search" name="search" placeholder="Search products..." aria-label="Search" value="{{ request('search') }}">
-                        <button class="btn btn-outline-primary" type="submit">Search</button>
-                    </form>
-                    <ul class="navbar-nav">
-                        <li class="nav-item me-3">
-                            <a class="nav-link cart-icon" href="{{ route('ecommerce.cart') }}">
-                                <i class="fas fa-shopping-cart"></i>
-                                <span class="cart-count">{{ count(session('cart', [])) }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('ecommerce.account') }}">
-                                <i class="fas fa-user"></i>
-                            </a>
-                        </li>
-                    </ul>
+                                <div class="departments-footer">
+                                    <a href="{{ action([\App\Http\Controllers\EcommerceController::class, 'products']) }}">
+                                        <i class="fas fa-cog"></i> Shop All Departments
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <ul class="main-nav-links">
+                            <li><a href="{{ route('ecommerce.home') }}" class="{{ request()->routeIs('ecommerce.home') ? 'active' : '' }}">Home</a></li>
+                            <li><a href="{{ route('ecommerce.products') }}" class="{{ request()->routeIs('ecommerce.products') ? 'active' : '' }}">Shop</a></li>
+                            <li><a href="{{ route('ecommerce.products') }}">Product</a></li>
+                            <li><a href="#">Blog</a></li>
+                            <li><a href="{{ route('ecommerce.about') }}" class="{{ request()->routeIs('ecommerce.about') ? 'active' : '' }}">Pages</a></li>
+                            <li><a href="{{ route('ecommerce.contact') }}">Become Vendor</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="nav-right-links justify-content-end">
+                            <a href="#"><i class="fas fa-history"></i> Recently Viewed <i class="fas fa-chevron-down ms-1" style="font-size:10px;"></i></a>
+                            <a href="{{ route('ecommerce.track_order') }}"><i class="fas fa-truck"></i> Order Tracking</a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </nav>
+        </div>
     </header>
     
     <!-- Mobile sticky cart (visible on mobile only) -->
@@ -587,7 +872,7 @@
         <div>
             <span class="fw-bold">{{ count(session('cart', [])) }} items</span>
         </div>
-        <a href="{{ route('ecommerce.cart') }}" class="btn btn-primary">
+        <a href="{{ route('ecommerce.cart') }}" class="btn btn-theme">
             <i class="fas fa-shopping-cart me-1"></i> View Cart
         </a>
     </div>
@@ -745,6 +1030,19 @@
                 $('.product-gallery .main-image').attr('src', src);
                 $('.product-gallery .thumbnail').removeClass('active');
                 $(this).addClass('active');
+            });
+
+            // Toggle Departments Sidebar
+            $('#all-departments-btn').on('click', function(e) {
+                e.stopPropagation();
+                $('#all-departments-sidebar').toggleClass('show');
+            });
+
+            // Close sidebar when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.departments-menu').length) {
+                    $('#all-departments-sidebar').removeClass('show');
+                }
             });
         });
     </script>

@@ -642,6 +642,61 @@ class BusinessController extends Controller
                 $ecom_settings['slider_images'] = $request->input('existing_slider_images');
             }
 
+            // Handle brand logos and links
+            $brands = [];
+            $brand_links = $request->input('brand_links');
+            $existing_brand_logos = $request->input('existing_brand_logos');
+
+            if (!empty($existing_brand_logos)) {
+                foreach ($existing_brand_logos as $key => $logo) {
+                    $brands[] = [
+                        'logo' => $logo,
+                        'link' => $brand_links[$key] ?? ''
+                    ];
+                }
+            }
+
+            if ($request->hasFile('brand_logos')) {
+                foreach ($request->file('brand_logos') as $key => $file) {
+                    if ($file->isValid()) {
+                        $name = time() . '_' . rand(1000, 9999) . '_brand_' . $file->getClientOriginalName();
+                        $file->move($upload_dir, $name);
+                        // Find the corresponding link for this new logo
+                        // New logos are appended, so we need to match them correctly
+                        // The frontend should send new links in a specific way or we just take the last ones
+                        $brands[] = [
+                            'logo' => $name,
+                            'link' => $request->input('new_brand_links')[$key] ?? ''
+                        ];
+                    }
+                }
+            }
+            $ecom_settings['brands'] = $brands;
+
+            // Handle promo banners
+            $promo_banners = !empty($ecom_settings['promo_banners']) ? $ecom_settings['promo_banners'] : [];
+            for ($i = 1; $i <= 2; $i++) {
+                $file_input = "promo_banner_$i";
+                $link_input = "promo_banner_link_$i";
+
+                if ($request->hasFile($file_input)) {
+                    $file = $request->file($file_input);
+                    $name = time() . '_' . rand(1000, 9999) . '_promo_' . $i . '_' . $file->getClientOriginalName();
+                    $file->move($upload_dir, $name);
+                    $promo_banners[$i]['image'] = $name;
+                }
+
+                if ($request->has($link_input)) {
+                    $promo_banners[$i]['link'] = $request->input($link_input);
+                }
+            }
+            $ecom_settings['promo_banners'] = $promo_banners;
+
+            // Handle trending products settings
+            $ecom_settings['trending_mode'] = $request->input('trending_mode', 'auto');
+            $ecom_settings['trending_products'] = $request->input('trending_products', []);
+            $ecom_settings['trending_limit'] = $request->input('trending_limit', 8);
+
             $business->ecom_settings = $ecom_settings;
             $business->save();
 

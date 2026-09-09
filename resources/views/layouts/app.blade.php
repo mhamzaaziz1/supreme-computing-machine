@@ -150,7 +150,8 @@
 </style>
 <style>
     .small-view-side-active {
-        display: grid !important;
+        /* The sidebar is a flex column; forcing grid here broke its layout. */
+        display: flex !important;
         z-index: 1000;
         position: absolute;
     }

@@ -14,6 +14,17 @@
  */
 import daisyui from 'daisyui';
 
+/** Resolves a `R G B` custom property from tokens.css, opacity-aware. */
+const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
+const ramp = (name) =>
+    Object.fromEntries(
+        [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((step) => [
+            step,
+            token(`${name}-${step}`),
+        ]),
+    );
+
 export default {
     prefix: 'tw-',
     darkMode: 'class',
@@ -82,6 +93,37 @@ export default {
                         secondary: '#94a3b8',
                         muted: '#64748b',
                     },
+                },
+
+                // Shared with the Inertia surface via resources/css/tokens.css.
+                // New work should use these rather than the literal ramps above,
+                // which stay only so the ~700 unmigrated Blade views keep working.
+                brand: ramp('brand'),
+                accent: ramp('accent'),
+                success: token('success'),
+                warning: token('warning'),
+                danger: token('danger'),
+                info: token('info'),
+                surface: {
+                    page: token('surface-page'),
+                    raised: token('surface-raised'),
+                    sunken: token('surface-sunken'),
+                },
+                edge: {
+                    subtle: token('border-subtle'),
+                    strong: token('border-strong'),
+                },
+                content: {
+                    primary: token('text-primary'),
+                    secondary: token('text-secondary'),
+                    muted: token('text-muted'),
+                },
+                nav: {
+                    bg: token('nav-bg'),
+                    fg: token('nav-fg'),
+                    'fg-active': token('nav-fg-active'),
+                    'active-bg': token('nav-active-bg'),
+                    border: token('nav-border'),
                 },
             },
             borderRadius: {

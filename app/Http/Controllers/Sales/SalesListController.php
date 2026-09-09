@@ -104,7 +104,7 @@ class SalesListController extends Controller
             ],
             'perPageOptions' => self::PER_PAGE,
             'links' => [
-                'addSale' => action([SellController::class, 'create']),
+                'addSale' => route('sales.create'),
                 'pos' => action([SellPosController::class, 'create']),
                 'show' => url('sells'),
             ],

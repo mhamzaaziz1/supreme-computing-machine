@@ -188,7 +188,9 @@ class Navigation
     {
         return self::group(__('sale.sale'), 'sell', [
             self::item(__('lang_v1.sales_order'), ['App\Http\Controllers\SalesOrderController', 'index'], can: ['so.view_own', 'so.view_all', 'so.create'], when: fn () => ! empty(self::posSettings()['enable_sales_order'])),
-            self::item(__('lang_v1.all_sales'), ['App\Http\Controllers\SellController', 'index'], can: ['sell.view', 'sell.create', 'direct_sell.access', 'direct_sell.view', 'view_own_sell_only', 'view_commission_agent_sell', 'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping']),
+            // Points at the rebuilt Inertia list; the legacy DataTables screen
+            // is still served at /sells for deep links and the reports' feed.
+            self::item(__('lang_v1.all_sales'), route: route('sales.index'), can: ['sell.view', 'sell.create', 'direct_sell.access', 'direct_sell.view', 'view_own_sell_only', 'view_commission_agent_sell', 'access_shipping', 'access_own_shipping', 'access_commission_agent_shipping'], spa: true),
             self::item(__('sale.add_sale'), ['App\Http\Controllers\SellController', 'create'], can: 'direct_sell.access', module: 'add_sale'),
             self::item(__('sale.list_pos'), ['App\Http\Controllers\SellPosController', 'index'], can: 'sell.view', module: 'pos_sale', when: fn () => self::isAdmin() || self::userCan('sell.create')),
             self::item(__('sale.pos_sale'), ['App\Http\Controllers\SellPosController', 'create'], can: 'sell.create', module: 'pos_sale'),

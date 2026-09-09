@@ -48,6 +48,7 @@ use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Restaurant;
+use App\Http\Controllers\Sales;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesCommissionAgentController;
 use App\Http\Controllers\SalesOrderController;
@@ -141,6 +142,10 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     // The redesigned operational dashboard (Inertia). The legacy Blade
     // dashboard stays on /home until this fully replaces it.
     Route::get('/today', [TodayController::class, 'index'])->name('today');
+
+    // The redesigned sales list (Inertia). The legacy DataTables screen stays
+    // on /sells, which still serves its ajax feed to the sales reports.
+    Route::get('/sales', [Sales\SalesListController::class, 'index'])->name('sales.index');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/home/get-totals', [HomeController::class, 'getTotals']);

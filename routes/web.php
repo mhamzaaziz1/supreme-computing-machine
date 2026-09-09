@@ -146,6 +146,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     // The redesigned sales list (Inertia). The legacy DataTables screen stays
     // on /sells, which still serves its ajax feed to the sales reports.
     Route::get('/sales', [Sales\SalesListController::class, 'index'])->name('sales.index');
+    Route::get('/sales/{id}', [Sales\SalesListController::class, 'show'])->name('sales.show');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/home/get-totals', [HomeController::class, 'getTotals']);

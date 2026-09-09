@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\SellPosController;
+use App\Http\Controllers\SellReturnController;
 use App\Utils\BusinessUtil;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -52,12 +54,14 @@ class SalesListController extends Controller
             ->paginate($filters['per_page'])
             ->withQueryString();
 
+        $can = $this->abilities($isAdmin);
+
         return Inertia::render('Sales/Index', [
             'filters' => $filters,
             'summary' => $this->summary($businessId, $isAdmin, $filters),
             'locations' => $this->locations($businessId),
             'sells' => [
-                'data' => collect($rows->items())->map($this->present(...))->all(),
+                'data' => collect($rows->items())->map(fn ($row) => $this->present($row, $can))->all(),
                 'from' => $rows->firstItem(),
                 'to' => $rows->lastItem(),
                 'total' => $rows->total(),
@@ -70,6 +74,82 @@ class SalesListController extends Controller
                 'pos' => action([SellPosController::class, 'create']),
                 'show' => url('sells'),
             ],
+        ]);
+    }
+
+    /**
+     * The invoice behind one row, as JSON for the detail drawer.
+     *
+     * The legacy "View" action loaded a Blade fragment into a Bootstrap
+     * modal. The Inertia shell ships neither jQuery nor Bootstrap, so this
+     * returns data and the drawer renders it.
+     */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $isAdmin = $this->businessUtil->is_admin(auth()->user());
+
+        if (! $this->abilities($isAdmin)['view']) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $businessId = $request->session()->get('user.business_id');
+
+        // Re-run the scoped list query for this one id, so a user cannot read
+        // an invoice from a location or seller they are not allowed to see.
+        $sell = $this->query($businessId, $isAdmin, $this->filters(new Request))
+            ->where('t.id', $id)
+            ->first();
+
+        if (! $sell) {
+            abort(404);
+        }
+
+        $lines = DB::table('transaction_sell_lines AS l')
+            ->leftJoin('products AS p', 'p.id', '=', 'l.product_id')
+            ->leftJoin('variations AS v', 'v.id', '=', 'l.variation_id')
+            ->leftJoin('units AS un', 'un.id', '=', 'l.sub_unit_id')
+            ->where('l.transaction_id', $id)
+            ->whereNull('l.parent_sell_line_id')
+            ->select(
+                'l.id',
+                'p.name AS product',
+                'v.name AS variation',
+                'v.sub_sku AS sku',
+                'un.short_name AS unit',
+                'l.quantity',
+                'l.unit_price_inc_tax AS unit_price',
+                DB::raw('(l.quantity * l.unit_price_inc_tax) AS line_total'),
+            )
+            ->get()
+            ->map(fn ($l) => [
+                'id' => (int) $l->id,
+                'product' => trim($l->product.(($l->variation && $l->variation !== 'DUMMY') ? ' ('.$l->variation.')' : '')),
+                'sku' => $l->sku,
+                'unit' => $l->unit,
+                'quantity' => (float) $l->quantity,
+                'unit_price' => (float) $l->unit_price,
+                'line_total' => (float) $l->line_total,
+            ])
+            ->all();
+
+        $payments = DB::table('transaction_payments')
+            ->where('transaction_id', $id)
+            ->where('is_return', 0)
+            ->orderBy('paid_on')
+            ->get(['id', 'amount', 'method', 'paid_on', 'payment_ref_no'])
+            ->map(fn ($p) => [
+                'id' => (int) $p->id,
+                'amount' => (float) $p->amount,
+                'method' => $p->method,
+                'paid_on' => $p->paid_on,
+                'ref' => $p->payment_ref_no,
+            ])
+            ->all();
+
+        return response()->json([
+            'sell' => $this->present($sell, $this->abilities($isAdmin)),
+            'lines' => $lines,
+            'payments' => $payments,
         ]);
     }
 
@@ -131,6 +211,8 @@ class SalesListController extends Controller
                 't.payment_status',
                 't.final_total',
                 't.is_direct_sale',
+                't.shipping_status',
+                't.document',
                 'c.name AS customer',
                 'c.contact_id AS customer_code',
                 'bl.name AS location',
@@ -271,12 +353,63 @@ class SalesListController extends Controller
     }
 
     /**
+     * Which actions this user may take at all. Evaluated once per request
+     * rather than per row, since only edit/delete vary by row.
+     *
+     * @return array<string, bool>
+     */
+    private function abilities(bool $isAdmin): array
+    {
+        $user = auth()->user();
+
+        return [
+            'view' => $isAdmin || $user->hasAnyPermission(['sell.view', 'direct_sell.view', 'view_own_sell_only']),
+            'edit_pos' => $isAdmin || $user->can('sell.update'),
+            'edit_direct' => $isAdmin || $user->can('direct_sell.update'),
+            'delete_pos' => $isAdmin || $user->can('sell.delete'),
+            'delete_direct' => $isAdmin || $user->can('direct_sell.delete'),
+            'print' => $isAdmin || $user->can('print_invoice'),
+            'pdf' => config('constants.enable_download_pdf') && ($isAdmin || $user->can('print_invoice')),
+            'sell_return' => $isAdmin || $user->hasAnyPermission(['sell.create', 'direct_sell.access']),
+            'document' => $isAdmin || $user->hasAnyPermission(['sell.view', 'direct_sell.access']),
+            'pos_payment' => $isAdmin || $user->can('edit_pos_payment'),
+        ];
+    }
+
+    /**
+     * @param  array<string, bool>  $can
      * @return array<string, mixed>
      */
-    private function present(object $row): array
+    private function present(object $row, array $can): array
     {
         $total = (float) $row->final_total;
         $paid = (float) $row->paid;
+        $isPos = (int) $row->is_direct_sale === 0;
+
+        // A POS sale is edited and deleted through the POS screen and under
+        // the sell.* permissions; a direct sale through the sell form under
+        // direct_sell.*. The legacy list drew the same distinction.
+        $actions = [
+            'edit' => ($isPos ? $can['edit_pos'] : $can['edit_direct'])
+                ? ($isPos
+                    ? action([SellPosController::class, 'edit'], [$row->id])
+                    : action([SellController::class, 'edit'], [$row->id]))
+                : null,
+            'delete' => ($isPos ? $can['delete_pos'] : $can['delete_direct'])
+                ? action([SellPosController::class, 'destroy'], [$row->id])
+                : null,
+            'show' => $can['view'] ? route('sales.show', [$row->id]) : null,
+            'print' => $can['print'] ? route('sell.printInvoice', [$row->id]) : null,
+            'pdf' => $can['pdf'] ? route('sell.downloadPdf', [$row->id]) : null,
+            'packingPdf' => $can['pdf'] && ! empty($row->shipping_status)
+                ? route('packing.downloadPdf', [$row->id])
+                : null,
+            'sellReturn' => $can['sell_return'] ? action([SellReturnController::class, 'add'], [$row->id]) : null,
+            'posPayment' => $isPos && $can['pos_payment'] ? route('edit-pos-payment', [$row->id]) : null,
+            'document' => $can['document'] && ! empty($row->document)
+                ? url('uploads/documents/'.$row->document)
+                : null,
+        ];
 
         return [
             'id' => (int) $row->id,
@@ -291,6 +424,7 @@ class SalesListController extends Controller
             'customer_code' => $row->customer_code,
             'location' => $row->location,
             'created_by' => $row->created_by ?: null,
+            'actions' => array_filter($actions),
         ];
     }
 }

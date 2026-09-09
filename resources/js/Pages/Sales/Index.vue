@@ -16,6 +16,8 @@ import { Head, router } from '@inertiajs/vue3';
 import AppShell from '../../Layouts/AppShell.vue';
 import Icon from '../../components/Icon.vue';
 import Money from '../../components/Money.vue';
+import RowActions from '../../components/Sales/RowActions.vue';
+import SaleDrawer from '../../components/Sales/SaleDrawer.vue';
 
 const props = defineProps({
     filters: { type: Object, required: true },
@@ -110,6 +112,86 @@ const shortDate = (value) =>
  * A compact window of pages around the current one: enough to jump a few
  * steps without rendering hundreds of buttons on a large result set.
  */
+// -----------------------------------------------------------------
+// Row actions
+// -----------------------------------------------------------------
+
+const viewing = ref(null);
+
+/**
+ * The legacy print action fetches {success, receipt:{html_content}} and hands
+ * the markup to the browser's print dialog. Same contract here, minus the
+ * jQuery: the receipt is written into an off-screen iframe, printed, and the
+ * iframe removed once the dialog closes.
+ */
+const print = async (url) => {
+    try {
+        const res = await fetch(url, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+        const payload = await res.json();
+        const html = payload?.receipt?.html_content;
+
+        if (!html) throw new Error('This invoice has no printable layout.');
+
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(frame);
+
+        const doc = frame.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        // Give the receipt's own stylesheet a chance to apply before printing.
+        frame.onload = () => {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+            setTimeout(() => frame.remove(), 1000);
+        };
+    } catch (e) {
+        alert(e.message ?? 'Could not print this invoice.');
+    }
+};
+
+/**
+ * Deleted with a plain request rather than router.delete: the legacy endpoint
+ * answers with JSON, and Inertia rejects any response that is not an Inertia
+ * one. The list is refetched afterwards so totals move with the table.
+ */
+const destroy = async (sell) => {
+    if (!window.confirm(`Delete invoice ${sell.invoice_no}? This cannot be undone.`)) return;
+
+    busy.value = true;
+
+    try {
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        const res = await fetch(sell.actions.delete, {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token ?? '',
+            },
+            credentials: 'same-origin',
+        });
+
+        const payload = await res.json().catch(() => ({}));
+
+        if (!res.ok || payload.success === false || payload.success === 0) {
+            throw new Error(payload.msg ?? `Could not delete invoice ${sell.invoice_no}.`);
+        }
+
+        if (viewing.value?.id === sell.id) viewing.value = null;
+        reload();
+    } catch (e) {
+        alert(e.message ?? 'Could not delete this invoice.');
+    } finally {
+        busy.value = false;
+    }
+};
+
 const pages = computed(() => {
     const { current_page: current, last_page: last } = props.sells;
     const span = 2;
@@ -277,6 +359,9 @@ const pages = computed(() => {
                                 <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-content-muted">Status</th>
                                 <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-content-muted">Total</th>
                                 <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-content-muted">Due</th>
+                                <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-content-muted">
+                                    <span class="sr-only">Actions</span>
+                                </th>
                             </tr>
                         </thead>
 
@@ -329,10 +414,19 @@ const pages = computed(() => {
                                         <Money :value="sell.due" />
                                     </span>
                                 </td>
+                                <td class="whitespace-nowrap px-4 py-2.5">
+                                    <RowActions
+                                        :actions="sell.actions"
+                                        :invoice-no="sell.invoice_no"
+                                        @view="viewing = sell"
+                                        @print="print"
+                                        @delete="destroy(sell)"
+                                    />
+                                </td>
                             </tr>
 
                             <tr v-if="!sells.data.length">
-                                <td colspan="7" class="px-4 py-16 text-center">
+                                <td colspan="8" class="px-4 py-16 text-center">
                                     <div class="text-sm font-medium text-content-primary">No sales found</div>
                                     <p class="mx-auto mt-1 max-w-sm text-[13px] text-content-muted">
                                         <template v-if="hasFilters">
@@ -412,5 +506,7 @@ const pages = computed(() => {
                 </div>
             </div>
         </div>
+
+        <SaleDrawer :sell="viewing" @close="viewing = null" @print="print" />
     </AppShell>
 </template>

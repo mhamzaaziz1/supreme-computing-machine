@@ -1,13 +1,13 @@
 {
-  "_Money-1i32ZfJF.js": {
-    "file": "assets/Money-1i32ZfJF.js",
+  "_Money-DcTj4Upa.js": {
+    "file": "assets/Money-DcTj4Upa.js",
     "name": "Money",
     "imports": [
       "resources/js/app.js"
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-tHEhPJw1.css",
+    "file": "assets/app-C7HKdmns.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -16,7 +16,7 @@
     ]
   },
   "resources/js/Pages/Pos/Index.vue": {
-    "file": "assets/Index-CLkpUsYu.js",
+    "file": "assets/Index-BrGRIPZR.js",
     "name": "Index",
     "src": "resources/js/Pages/Pos/Index.vue",
     "isDynamicEntry": true,
@@ -28,27 +28,27 @@
     ]
   },
   "resources/js/Pages/Sales/Index.vue": {
-    "file": "assets/Index-B8RRN1ki.js",
+    "file": "assets/Index-CCsYQY2T.js",
     "name": "Index",
     "src": "resources/js/Pages/Sales/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-1i32ZfJF.js"
+      "_Money-DcTj4Upa.js"
     ]
   },
   "resources/js/Pages/Today/Index.vue": {
-    "file": "assets/Index-CCC7reh_.js",
+    "file": "assets/Index-KQ1UKZpf.js",
     "name": "Index",
     "src": "resources/js/Pages/Today/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-1i32ZfJF.js"
+      "_Money-DcTj4Upa.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Bkxcd2iQ.js",
+    "file": "assets/app-v9BpryzP.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

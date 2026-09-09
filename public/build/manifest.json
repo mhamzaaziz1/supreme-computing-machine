@@ -1,13 +1,20 @@
 {
-  "_Money-Cg8cnun6.js": {
-    "file": "assets/Money-Cg8cnun6.js",
+  "_Money-DSb4FlUG.js": {
+    "file": "assets/Money-DSb4FlUG.js",
     "name": "Money",
     "imports": [
       "resources/js/app.js"
     ]
   },
+  "_Popover-D9E5NZqB.js": {
+    "file": "assets/Popover-D9E5NZqB.js",
+    "name": "Popover",
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
   "resources/css/app.css": {
-    "file": "assets/app-Ckk-wKbM.css",
+    "file": "assets/app-dNQpsuME.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -16,7 +23,7 @@
     ]
   },
   "resources/js/Pages/Pos/Index.vue": {
-    "file": "assets/Index-DszYj3UQ.js",
+    "file": "assets/Index-aUIZKg0b.js",
     "name": "Index",
     "src": "resources/js/Pages/Pos/Index.vue",
     "isDynamicEntry": true,
@@ -28,37 +35,39 @@
     ]
   },
   "resources/js/Pages/Sales/Create.vue": {
-    "file": "assets/Create-CA5CGWd9.js",
+    "file": "assets/Create-Db1tnBXz.js",
     "name": "Create",
     "src": "resources/js/Pages/Sales/Create.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-Cg8cnun6.js"
+      "_Money-DSb4FlUG.js",
+      "_Popover-D9E5NZqB.js"
     ]
   },
   "resources/js/Pages/Sales/Index.vue": {
-    "file": "assets/Index-BqmWV5VA.js",
+    "file": "assets/Index-BFfaKjHM.js",
     "name": "Index",
     "src": "resources/js/Pages/Sales/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-Cg8cnun6.js"
+      "_Money-DSb4FlUG.js",
+      "_Popover-D9E5NZqB.js"
     ]
   },
   "resources/js/Pages/Today/Index.vue": {
-    "file": "assets/Index-Cv2PqQwj.js",
+    "file": "assets/Index-CqI8hcB5.js",
     "name": "Index",
     "src": "resources/js/Pages/Today/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Money-Cg8cnun6.js"
+      "_Money-DSb4FlUG.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DAx8PjbF.js",
+    "file": "assets/app-B-bdcFYV.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

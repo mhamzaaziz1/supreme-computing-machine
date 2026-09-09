@@ -17,6 +17,7 @@ import { Head } from '@inertiajs/vue3';
 import AppShell from '../../Layouts/AppShell.vue';
 import Icon from '../../components/Icon.vue';
 import Money from '../../components/Money.vue';
+import Popover from '../../components/Popover.vue';
 
 const props = defineProps({
     locations: { type: Array, default: () => [] },
@@ -236,6 +237,14 @@ const finalTotal = computed(
 );
 
 const balanceDue = computed(() => finalTotal.value - (Number(payAmount.value) || 0));
+
+/** How many adjustments are actually in play, for the popover's badge. */
+const adjustmentCount = computed(
+    () =>
+        [Number(discountAmount.value) > 0, Boolean(taxRateId.value), Number(shippingCharges.value) > 0].filter(
+            Boolean,
+        ).length,
+);
 
 /** Paying in full is the common case, so make it one click. */
 const payFull = () => (payAmount.value = Number(finalTotal.value.toFixed(2)));
@@ -533,7 +542,86 @@ const submit = (saveAs) => {
                 <!-- Right: money -->
                 <aside class="space-y-4">
                     <section class="rounded-lg border border-edge-subtle bg-surface-raised p-4">
-                        <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-content-muted">Totals</h2>
+                        <div class="mb-3 flex items-center justify-between">
+                            <h2 class="text-xs font-semibold uppercase tracking-wide text-content-muted">Totals</h2>
+
+                            <!--
+                                Discount, tax and shipping are set on a minority
+                                of invoices but were taking three permanent rows
+                                between Subtotal and Total, burying the two
+                                numbers anyone actually reads. Behind a control
+                                that reports when they are in play.
+                            -->
+                            <Popover :width="280">
+                                <template #trigger="{ open, toggle }">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium"
+                                        :class="
+                                            adjustmentCount || open
+                                                ? 'border-accent-500 bg-accent-500/10 text-content-primary'
+                                                : 'border-edge-subtle text-content-secondary hover:bg-surface-sunken hover:text-content-primary'
+                                        "
+                                        @click="toggle"
+                                    >
+                                        <Icon name="settings" :size="13" />
+                                        Adjustments
+                                        <span
+                                            v-if="adjustmentCount"
+                                            class="rounded bg-accent-500 px-1 text-[11px] font-semibold text-brand-950"
+                                        >
+                                            {{ adjustmentCount }}
+                                        </span>
+                                    </button>
+                                </template>
+
+                                <div class="space-y-3 p-3">
+                                    <div>
+                                        <span class="mb-1 block text-xs font-medium text-content-muted">Discount</span>
+                                        <div class="flex items-center gap-1">
+                                            <select
+                                                v-model="discountType"
+                                                aria-label="Discount type"
+                                                class="rounded border border-edge-subtle bg-surface-page px-1.5 py-1.5 text-xs text-content-secondary focus:outline-none"
+                                            >
+                                                <option value="fixed">Fixed</option>
+                                                <option value="percentage">%</option>
+                                            </select>
+                                            <input
+                                                v-model.number="discountAmount"
+                                                type="number"
+                                                min="0"
+                                                step="any"
+                                                aria-label="Discount amount"
+                                                class="w-full rounded border border-edge-subtle bg-surface-page px-2 py-1.5 text-right text-sm text-content-primary focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <label v-if="taxRates.length" class="block">
+                                        <span class="mb-1 block text-xs font-medium text-content-muted">Order tax</span>
+                                        <select
+                                            v-model="taxRateId"
+                                            class="w-full rounded border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-secondary focus:outline-none"
+                                        >
+                                            <option value="">None</option>
+                                            <option v-for="t in taxRates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                        </select>
+                                    </label>
+
+                                    <label class="block">
+                                        <span class="mb-1 block text-xs font-medium text-content-muted">Shipping</span>
+                                        <input
+                                            v-model.number="shippingCharges"
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            class="w-full rounded border border-edge-subtle bg-surface-page px-2 py-1.5 text-right text-sm text-content-primary focus:outline-none"
+                                        />
+                                    </label>
+                                </div>
+                            </Popover>
+                        </div>
 
                         <dl class="space-y-2 text-sm">
                             <div class="flex items-center justify-between">
@@ -541,54 +629,25 @@ const submit = (saveAs) => {
                                 <dd class="text-content-primary"><Money :value="subtotal" /></dd>
                             </div>
 
-                            <div class="flex items-center justify-between gap-2">
-                                <dt class="text-content-muted">Discount</dt>
-                                <dd class="flex items-center gap-1">
-                                    <select
-                                        v-model="discountType"
-                                        aria-label="Discount type"
-                                        class="rounded border border-edge-subtle bg-surface-page px-1.5 py-1 text-xs text-content-secondary focus:outline-none"
-                                    >
-                                        <option value="fixed">Fixed</option>
-                                        <option value="percentage">%</option>
-                                    </select>
-                                    <input
-                                        v-model.number="discountAmount"
-                                        type="number"
-                                        min="0"
-                                        step="any"
-                                        aria-label="Discount amount"
-                                        class="w-24 rounded border border-edge-subtle bg-surface-page px-2 py-1 text-right text-sm text-content-primary focus:outline-none"
-                                    />
-                                </dd>
+                            <!-- Shown only once set, so they read as exceptions. -->
+                            <div v-if="discountValue" class="flex items-center justify-between">
+                                <dt class="text-content-muted">
+                                    Discount
+                                    <span v-if="discountType === 'percentage'" class="text-xs">
+                                        ({{ discountAmount }}%)
+                                    </span>
+                                </dt>
+                                <dd class="text-content-secondary">−<Money :value="discountValue" /></dd>
                             </div>
 
-                            <div v-if="taxRates.length" class="flex items-center justify-between gap-2">
+                            <div v-if="taxValue" class="flex items-center justify-between">
                                 <dt class="text-content-muted">Order tax</dt>
-                                <dd>
-                                    <select
-                                        v-model="taxRateId"
-                                        aria-label="Order tax"
-                                        class="rounded border border-edge-subtle bg-surface-page px-2 py-1 text-sm text-content-secondary focus:outline-none"
-                                    >
-                                        <option value="">None</option>
-                                        <option v-for="t in taxRates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                    </select>
-                                </dd>
+                                <dd class="text-content-secondary"><Money :value="taxValue" /></dd>
                             </div>
 
-                            <div class="flex items-center justify-between gap-2">
+                            <div v-if="Number(shippingCharges)" class="flex items-center justify-between">
                                 <dt class="text-content-muted">Shipping</dt>
-                                <dd>
-                                    <input
-                                        v-model.number="shippingCharges"
-                                        type="number"
-                                        min="0"
-                                        step="any"
-                                        aria-label="Shipping charges"
-                                        class="w-24 rounded border border-edge-subtle bg-surface-page px-2 py-1 text-right text-sm text-content-primary focus:outline-none"
-                                    />
-                                </dd>
+                                <dd class="text-content-secondary"><Money :value="shippingCharges" /></dd>
                             </div>
 
                             <div class="flex items-center justify-between border-t border-edge-subtle pt-2">

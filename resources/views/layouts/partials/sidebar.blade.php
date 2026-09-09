@@ -54,7 +54,24 @@
         </span>
     </a>
 
+    {{--
+        The restored menu is 21 groups and ~95 links, which is a lot to hunt
+        through when you know the name of what you want. Typing here filters
+        every group and link at once and opens the groups that match, so a
+        destination three levels down is two keystrokes away instead of a
+        scroll and a guess about which group it was filed under.
+    --}}
+    <div class="sidebar-filter tw-shrink-0 tw-px-3 tw-pb-2 tw-pt-1">
+        <input type="search" id="sidebar-filter-input" autocomplete="off"
+            placeholder="{{ __('lang_v1.search_menu') }}" aria-label="{{ __('lang_v1.search_menu') }}"
+            class="sidebar-label tw-w-full tw-rounded-md tw-border tw-border-nav-border tw-bg-black/20 tw-px-2.5 tw-py-1.5 tw-text-[13px] tw-text-nav-fg placeholder:tw-text-nav-fg/50 focus:tw-border-accent-500 focus:tw-outline-none">
+    </div>
+
     <div class="sidebar-scroll tw-flex-1 tw-overflow-y-auto tw-overflow-x-hidden tw-py-2">
+        <p class="sidebar-no-match tw-hidden tw-px-4 tw-py-6 tw-text-center tw-text-[13px] tw-text-nav-fg/60">
+            {{ __('lang_v1.no_menu_match') }}
+        </p>
+
         <ul class="tw-px-2 tw-space-y-0.5">
             @foreach ($nav as $i => $group)
                 <li>
@@ -134,6 +151,8 @@
        sidebar and left no way back to it without knowing the shortcut. */
     .side-bar.is-rail { width: 68px; }
     .side-bar.is-rail .sidebar-label { display: none; }
+    /* Nothing to type against when only icons are showing. */
+    .side-bar.is-rail .sidebar-filter { display: none; }
     .side-bar.is-rail .sidebar-group { display: none !important; }
     .side-bar.is-rail a,
     .side-bar.is-rail .sidebar-group-toggle { justify-content: center; }
@@ -179,5 +198,72 @@
         } catch (err) {
             // Blocked storage: full-width sidebar is a fine default.
         }
+
+        // ---- Menu filter -------------------------------------------------
+        var filter = sidebar.querySelector('#sidebar-filter-input');
+        if (!filter) return;
+
+        var topItems = sidebar.querySelectorAll('.sidebar-scroll > ul > li');
+        var noMatch = sidebar.querySelector('.sidebar-no-match');
+
+        var applyFilter = function () {
+            var term = filter.value.trim().toLowerCase();
+            var anyVisible = false;
+
+            topItems.forEach(function (li) {
+                var panel = li.querySelector('.sidebar-group');
+                var toggle = li.querySelector('.sidebar-group-toggle');
+
+                if (!term) {
+                    // Back to the accordion: everything listed, groups closed.
+                    li.classList.remove('tw-hidden');
+                    if (panel) {
+                        panel.classList.add('tw-hidden');
+                        panel.querySelectorAll('li').forEach(function (child) {
+                            child.classList.remove('tw-hidden');
+                        });
+                    }
+                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                    anyVisible = true;
+                    return;
+                }
+
+                var groupLabel = (li.querySelector('.sidebar-label')?.textContent || '').toLowerCase();
+                var groupHit = groupLabel.indexOf(term) !== -1;
+                var childHit = false;
+
+                if (panel) {
+                    panel.querySelectorAll('li').forEach(function (child) {
+                        // A matching group shows all of its links; otherwise
+                        // only the links that match themselves.
+                        var hit = groupHit || (child.textContent || '').toLowerCase().indexOf(term) !== -1;
+                        child.classList.toggle('tw-hidden', !hit);
+                        if (hit) childHit = true;
+                    });
+                }
+
+                var visible = groupHit || childHit;
+                li.classList.toggle('tw-hidden', !visible);
+
+                // Open what matched, so the hits are readable without a click.
+                if (panel) {
+                    panel.classList.toggle('tw-hidden', !visible);
+                    if (toggle) toggle.setAttribute('aria-expanded', visible ? 'true' : 'false');
+                }
+
+                if (visible) anyVisible = true;
+            });
+
+            if (noMatch) noMatch.classList.toggle('tw-hidden', anyVisible);
+        };
+
+        filter.addEventListener('input', applyFilter);
+        filter.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                filter.value = '';
+                applyFilter();
+                filter.blur();
+            }
+        });
     })();
 </script>

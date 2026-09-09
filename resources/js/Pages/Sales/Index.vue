@@ -16,6 +16,7 @@ import { Head, router } from '@inertiajs/vue3';
 import AppShell from '../../Layouts/AppShell.vue';
 import Icon from '../../components/Icon.vue';
 import Money from '../../components/Money.vue';
+import Popover from '../../components/Popover.vue';
 import RowActions from '../../components/Sales/RowActions.vue';
 import SaleDrawer from '../../components/Sales/SaleDrawer.vue';
 
@@ -80,6 +81,21 @@ const reset = () => {
     };
     refine();
 };
+
+/**
+ * Only the filters hidden inside the popover are counted — search has its own
+ * visible box, so badging it would just double-report what is on screen.
+ */
+const activeFilterCount = computed(
+    () =>
+        [
+            form.value.date_from,
+            form.value.date_to,
+            form.value.status,
+            form.value.payment_status,
+            form.value.location_id,
+        ].filter(Boolean).length,
+);
 
 const hasFilters = computed(() =>
     Boolean(
@@ -289,58 +305,109 @@ const pages = computed(() => {
                     />
                 </div>
 
-                <input
-                    v-model="form.date_from"
-                    type="date"
-                    aria-label="From date"
-                    class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
-                    @change="refine"
-                />
-                <input
-                    v-model="form.date_to"
-                    type="date"
-                    aria-label="To date"
-                    class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
-                    @change="refine"
-                />
+                <!--
+                    Everything but search lives behind one control. Six always-on
+                    inputs cost a row of chrome to answer a question most visits
+                    never ask, and search alone answers "find me this invoice".
+                    The count keeps hidden filters from being forgotten.
+                -->
+                <Popover :width="300">
+                    <template #trigger="{ open, toggle }">
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+                            :class="
+                                activeFilterCount || open
+                                    ? 'border-accent-500 bg-accent-500/10 text-content-primary'
+                                    : 'border-edge-subtle text-content-secondary hover:bg-surface-sunken hover:text-content-primary'
+                            "
+                            @click="toggle"
+                        >
+                            <Icon name="settings" :size="15" />
+                            Filters
+                            <span
+                                v-if="activeFilterCount"
+                                class="rounded bg-accent-500 px-1.5 text-xs font-semibold text-brand-950"
+                            >
+                                {{ activeFilterCount }}
+                            </span>
+                        </button>
+                    </template>
 
-                <select
-                    v-model="form.payment_status"
-                    aria-label="Payment status"
-                    class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
-                    @change="refine"
-                >
-                    <option :value="null">All payments</option>
-                    <option value="paid">Paid</option>
-                    <option value="partial">Partial</option>
-                    <option value="due">Due</option>
-                    <option value="overdue">Overdue</option>
-                </select>
+                    <div class="p-3">
+                        <div class="mb-3 grid grid-cols-2 gap-2">
+                            <label class="block">
+                                <span class="mb-1 block text-xs font-medium text-content-muted">From</span>
+                                <input
+                                    v-model="form.date_from"
+                                    type="date"
+                                    class="w-full rounded-md border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                    @change="refine"
+                                />
+                            </label>
+                            <label class="block">
+                                <span class="mb-1 block text-xs font-medium text-content-muted">To</span>
+                                <input
+                                    v-model="form.date_to"
+                                    type="date"
+                                    class="w-full rounded-md border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                    @change="refine"
+                                />
+                            </label>
+                        </div>
 
-                <!-- Pointless where the screen already pins the status. -->
-                <select
-                    v-if="view === 'all'"
-                    v-model="form.status"
-                    aria-label="Status"
-                    class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
-                    @change="refine"
-                >
-                    <option :value="null">All statuses</option>
-                    <option value="final">Final</option>
-                    <option value="draft">Draft</option>
-                    <option value="quotation">Quotation</option>
-                </select>
+                        <label class="mb-3 block">
+                            <span class="mb-1 block text-xs font-medium text-content-muted">Payment</span>
+                            <select
+                                v-model="form.payment_status"
+                                class="w-full rounded-md border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                @change="refine"
+                            >
+                                <option :value="null">All payments</option>
+                                <option value="paid">Paid</option>
+                                <option value="partial">Partial</option>
+                                <option value="due">Due</option>
+                                <option value="overdue">Overdue</option>
+                            </select>
+                        </label>
 
-                <select
-                    v-if="locations.length > 1"
-                    v-model="form.location_id"
-                    aria-label="Location"
-                    class="rounded-md border border-edge-subtle bg-surface-raised px-3 py-2 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
-                    @change="refine"
-                >
-                    <option :value="null">All locations</option>
-                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
-                </select>
+                        <!-- Pointless where the screen already pins the status. -->
+                        <label v-if="view === 'all'" class="mb-3 block">
+                            <span class="mb-1 block text-xs font-medium text-content-muted">Status</span>
+                            <select
+                                v-model="form.status"
+                                class="w-full rounded-md border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                @change="refine"
+                            >
+                                <option :value="null">All statuses</option>
+                                <option value="final">Final</option>
+                                <option value="draft">Draft</option>
+                                <option value="quotation">Quotation</option>
+                            </select>
+                        </label>
+
+                        <label v-if="locations.length > 1" class="mb-3 block">
+                            <span class="mb-1 block text-xs font-medium text-content-muted">Location</span>
+                            <select
+                                v-model="form.location_id"
+                                class="w-full rounded-md border border-edge-subtle bg-surface-page px-2 py-1.5 text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                @change="refine"
+                            >
+                                <option :value="null">All locations</option>
+                                <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                            </select>
+                        </label>
+
+                        <button
+                            v-if="activeFilterCount"
+                            type="button"
+                            class="w-full rounded-md border border-edge-subtle px-3 py-1.5 text-sm font-medium text-content-secondary hover:bg-surface-sunken"
+                            @click="reset"
+                        >
+                            Clear filters
+                        </button>
+                    </div>
+                </Popover>
 
                 <button
                     v-if="hasFilters"

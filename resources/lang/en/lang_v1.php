@@ -229,6 +229,8 @@ return [
     'route_coverage_report' => 'Route Coverage Report',
     'route_followup_report' => 'Route Followup Report',
     'route_followups' => 'Route Followups',
+    'search_menu' => 'Search menu…',
+    'no_menu_match' => 'Nothing in the menu matches that.',
     'route_coverage_statistics' => 'Route Coverage Statistics',
     'route_wise_statistics' => 'Route-wise Statistics',
     'total_assigned' => 'Total Assigned',

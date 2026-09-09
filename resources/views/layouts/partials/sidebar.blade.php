@@ -27,7 +27,6 @@
     @endphp
 
     <style>
-    <style>
         /* Custom Scrollbar */
         .sidebar-menu-container::-webkit-scrollbar { width: 4px; }
         .sidebar-menu-container::-webkit-scrollbar-track { background: transparent; }

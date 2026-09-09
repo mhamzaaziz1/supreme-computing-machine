@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Ultimate POS is a POS application by [Ultimate Fosters](http://ultimatefosters.com), a brand of [The Web Fosters](http://thewebfosters.com).",
   "main": "index.js",
+  "type": "module",
   "directories": {
     "doc": "docs",
     "test": "tests"

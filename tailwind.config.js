@@ -12,6 +12,8 @@
  *
  * @type {import('tailwindcss').Config}
  */
+import daisyui from 'daisyui';
+
 export default {
     prefix: 'tw-',
     darkMode: 'class',
@@ -92,7 +94,7 @@ export default {
             },
         },
     },
-    plugins: [require('daisyui')],
+    plugins: [daisyui],
     daisyui: {
         prefix: 'dw-',
         themes: ['light'],

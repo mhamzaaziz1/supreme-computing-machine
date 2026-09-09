@@ -1,5 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import './tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        @apply bg-surface-page text-content-primary font-sans antialiased;
+    }
+
+    /* Money and quantities line up in columns only with tabular figures. */
+    .numeric {
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: 'tnum';
+    }
+
+    /* Visible focus everywhere; this app is used with a keyboard all day. */
+    :focus-visible {
+        @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-page;
+    }
+}
+
+@layer components {
+    .scrollbar-slim {
+        scrollbar-width: thin;
+    }
+
+    .scrollbar-slim::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .scrollbar-slim::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-neutral-400/40;
+    }
+
+    .scrollbar-slim::-webkit-scrollbar-track {
+        background: transparent;
+    }
+}

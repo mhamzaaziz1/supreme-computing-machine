@@ -44,6 +44,14 @@ Route::post('collect', [Ops\CollectController::class, 'store'])->name('collect.s
 Route::get('cheques', [Ops\ChequeController::class, 'index'])->name('cheques.index');
 Route::post('cheques/{id}/status', [Ops\ChequeController::class, 'updateStatus'])->whereNumber('id')->name('cheques.status');
 
+// Trade schemes
+Route::get('schemes', [Ops\SchemeController::class, 'index'])->name('schemes.index');
+Route::post('schemes', [Ops\SchemeController::class, 'store'])->name('schemes.store');
+Route::post('schemes/evaluate', [Ops\SchemeController::class, 'evaluate'])->name('schemes.evaluate');
+Route::put('schemes/{id}', [Ops\SchemeController::class, 'update'])->whereNumber('id')->name('schemes.update');
+Route::post('schemes/{id}/toggle', [Ops\SchemeController::class, 'toggle'])->whereNumber('id')->name('schemes.toggle');
+Route::delete('schemes/{id}', [Ops\SchemeController::class, 'destroy'])->whereNumber('id')->name('schemes.destroy');
+
 // Vans: load out in the morning, settle back at night
 Route::get('vans', [Ops\VanController::class, 'index'])->name('vans.index');
 Route::get('vans/{id}/load', [Ops\VanController::class, 'loadForm'])->whereNumber('id')->name('vans.loadForm');

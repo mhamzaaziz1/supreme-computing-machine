@@ -63,9 +63,7 @@ class OutletController extends OpsController
             'rhythm' => $pattern['rhythm'],
             'stopped' => $pattern['stopped'],
             'basket' => $pattern['basket'],
-            'schemes' => app()->bound(\App\Services\Ops\SchemeEngine::class)
-                ? app(\App\Services\Ops\SchemeEngine::class)->progressFor($businessId, $id)
-                : [],
+            'schemes' => app(\App\Services\Ops\SchemeEngine::class)->progressFor($businessId, $id, $today),
             'followups' => $this->followups($businessId, $id, $today),
             'vehicles' => $this->vehicles($businessId, $id),
             'timeline' => $this->timeline($businessId, $id),

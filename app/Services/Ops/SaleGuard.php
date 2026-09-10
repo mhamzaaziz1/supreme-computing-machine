@@ -89,14 +89,25 @@ class SaleGuard
     }
 
     /**
-     * Mark an override as used once the sale it covered exists.
+     * After the sale exists: mark any override as used, and record which
+     * trade schemes the invoice benefited from.
      *
      * @param  array{blocked: ?array, approval: ?object}  $inspection
+     * @param  array<string, mixed>  $input
      */
-    public function settle(array $inspection, object $transaction): void
+    public function settle(array $inspection, object $transaction, array $input = []): void
     {
         if (! empty($inspection['approval'])) {
             $this->approvals->consume((int) $inspection['approval']->id, 'sell:'.$transaction->id);
+        }
+
+        if (($transaction->type ?? null) === 'sell' && ($transaction->status ?? null) === 'final') {
+            try {
+                app(SchemeEngine::class)->recordFor((int) $transaction->business_id, $transaction, $input);
+            } catch (\Throwable $e) {
+                // Reporting only: never lose a saved sale over it.
+                \Log::warning('Scheme recording failed for sell '.$transaction->id.': '.$e->getMessage());
+            }
         }
     }
 

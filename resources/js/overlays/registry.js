@@ -11,9 +11,11 @@ registerOverlay('cheques', 'drawer', () => import('../components/overlays/Cheque
 registerOverlay('vans', 'drawer', () => import('../components/overlays/VansDrawer.vue'));
 registerOverlay('serviceDue', 'drawer', () => import('../components/overlays/ServiceDueDrawer.vue'));
 registerOverlay('vehicle', 'drawer', () => import('../components/overlays/VehicleDrawer.vue'), 'id');
+registerOverlay('schemes', 'drawer', () => import('../components/overlays/SchemesDrawer.vue'));
 
 registerOverlay('creditHold', 'modal', () => import('../components/overlays/CreditHoldModal.vue'));
 registerOverlay('collect', 'modal', () => import('../components/overlays/CollectModal.vue'));
 registerOverlay('checkIn', 'modal', () => import('../components/overlays/CheckInModal.vue'));
 registerOverlay('loadVan', 'modal', () => import('../components/overlays/LoadVanModal.vue'));
 registerOverlay('settleVan', 'modal', () => import('../components/overlays/SettleVanModal.vue'));
+registerOverlay('schemeEdit', 'modal', () => import('../components/overlays/SchemeEditModal.vue'));

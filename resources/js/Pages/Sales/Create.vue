@@ -266,7 +266,77 @@ onMounted(async () => {
 // Totals
 // -----------------------------------------------------------------
 
-const lineTotal = (l) => (Number(l.quantity) || 0) * (Number(l.unit_price_inc_tax) || 0);
+// -----------------------------------------------------------------
+// Trade schemes: evaluated on the server, applied to the lines here
+// -----------------------------------------------------------------
+
+const schemes = ref({ applied: [], hints: [], targets: [] });
+let schemeTimer;
+
+const evaluateSchemes = () => {
+    clearTimeout(schemeTimer);
+    schemeTimer = setTimeout(async () => {
+        try {
+            schemes.value = await api('schemes/evaluate', {
+                method: 'POST',
+                body: {
+                    contact_id: contactId.value && contactId.value !== props.walkInCustomerId ? contactId.value : null,
+                    lines: lines.value.map((l) => ({
+                        variation_id: l.variation_id,
+                        quantity: Number(l.quantity) || 0,
+                        unit_price_inc_tax: Number(l.unit_price_inc_tax) || 0,
+                    })),
+                },
+            });
+        } catch {
+            // Schemes are a bonus; the sale works without them.
+        }
+    }, 350);
+};
+
+watch(() => [contactId.value, lines.value.map((l) => `${l.variation_id}:${l.quantity}:${l.unit_price_inc_tax}`).join('|')], evaluateSchemes, {
+    immediate: true,
+});
+
+/** Free units and the combined % off a line gets from the schemes applied. */
+const effectsFor = (variationId) => {
+    let free = 0;
+    let keep = 1;
+    const names = [];
+    for (const a of schemes.value.applied) {
+        for (const e of a.effects) {
+            if (e.variation_id !== variationId) continue;
+            if (e.kind === 'free') free += e.quantity;
+            if (e.kind === 'discount') keep *= 1 - e.percent / 100;
+            if (!names.includes(a.summary)) names.push(a.summary);
+        }
+    }
+    return { free, off: 1 - keep, names };
+};
+
+// A "get a different item free" scheme needs that item on the invoice.
+watch(
+    () => schemes.value.applied,
+    async (applied) => {
+        for (const a of applied) {
+            for (const e of a.effects) {
+                if (e.kind === 'free' && !lines.value.some((l) => l.variation_id === e.variation_id)) {
+                    await addProduct({ variation_id: e.variation_id, name: '' }, 0);
+                }
+            }
+        }
+    },
+);
+
+const schemeSavings = computed(() =>
+    lines.value.reduce((sum, l) => {
+        const e = effectsFor(l.variation_id);
+        const incl = Number(l.unit_price_inc_tax) || 0;
+        return sum + (Number(l.quantity) || 0) * incl * e.off + e.free * incl;
+    }, 0),
+);
+
+const lineTotal = (l) => (Number(l.quantity) || 0) * (Number(l.unit_price_inc_tax) || 0) * (1 - effectsFor(l.variation_id).off);
 
 const subtotal = computed(() => lines.value.reduce((sum, l) => sum + lineTotal(l), 0));
 
@@ -434,12 +504,28 @@ const submit = async (saveAs) => {
     if (checkinToken.value) add('checkin_token', checkinToken.value);
 
     lines.value.forEach((l, i) => {
+        // Free units ride as extra quantity; the paid value is spread over
+        // all units as a percentage line discount, which is how the store
+        // endpoint prices a discounted line (unit_price is before discount,
+        // unit_price_inc_tax and item_tax after it).
+        const e = effectsFor(l.variation_id);
+        const paid = Number(l.quantity) || 0;
+        const posted = paid + e.free;
+        const incl = Number(l.unit_price_inc_tax) || 0;
+        const perUnitInc = posted > 0 ? (paid * incl * (1 - e.off)) / posted : incl;
+        const pct = incl > 0 ? (1 - perUnitInc / incl) * 100 : 0;
+        const perUnitExcl = (Number(l.unit_price) || 0) * (1 - pct / 100);
+
+        // A free-item line whose scheme no longer applies is left at zero.
+        if (posted <= 0) return;
+
         add(`products[${i}][product_id]`, l.product_id);
         add(`products[${i}][variation_id]`, l.variation_id);
-        add(`products[${i}][quantity]`, l.quantity);
+        add(`products[${i}][quantity]`, posted);
+        add(`products[${i}][scheme_free_qty]`, e.free);
         add(`products[${i}][unit_price]`, l.unit_price);
-        add(`products[${i}][unit_price_inc_tax]`, l.unit_price_inc_tax);
-        add(`products[${i}][item_tax]`, l.item_tax);
+        add(`products[${i}][unit_price_inc_tax]`, perUnitInc.toFixed(4));
+        add(`products[${i}][item_tax]`, pct > 0.0001 ? Math.max(0, perUnitInc - perUnitExcl).toFixed(4) : l.item_tax);
         // Always sent, even when empty: the backend reads the key
         // unconditionally, and Laravel's ConvertEmptyStringsToNull turns the
         // blank into the null the tax_rates foreign key needs. Omitting it
@@ -450,8 +536,8 @@ const submit = async (saveAs) => {
         add(`products[${i}][product_type]`, l.product_type);
         add(`products[${i}][product_unit_id]`, l.unit_id);
         add(`products[${i}][base_unit_multiplier]`, 1);
-        add(`products[${i}][line_discount_type]`, 'fixed');
-        add(`products[${i}][line_discount_amount]`, 0);
+        add(`products[${i}][line_discount_type]`, pct > 0.0001 ? 'percentage' : 'fixed');
+        add(`products[${i}][line_discount_amount]`, pct > 0.0001 ? pct.toFixed(4) : 0);
         add(`products[${i}][sell_line_note]`, '');
     });
 
@@ -678,10 +764,18 @@ const submit = async (saveAs) => {
                                                 <span v-if="Number(l.enable_stock)">· {{ l.qty_available }} {{ l.unit }} in stock</span>
                                             </div>
                                             <div
-                                                v-if="Number(l.enable_stock) && l.quantity > l.qty_available"
+                                                v-if="Number(l.enable_stock) && l.quantity + effectsFor(l.variation_id).free > l.qty_available"
                                                 class="mt-0.5 text-xs text-danger"
                                             >
                                                 More than the stock on hand
+                                            </div>
+                                            <div v-if="effectsFor(l.variation_id).names.length" class="mt-1 flex flex-wrap gap-1">
+                                                <span v-if="effectsFor(l.variation_id).free" class="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                                                    +{{ effectsFor(l.variation_id).free }} free
+                                                </span>
+                                                <span v-for="n in effectsFor(l.variation_id).names" :key="n" class="rounded-full bg-brand-600/10 px-2 py-0.5 text-[11px] text-brand-700 dark:text-brand-300">
+                                                    {{ n }}
+                                                </span>
                                             </div>
                                         </td>
                                         <td class="px-3 py-2">
@@ -842,11 +936,44 @@ const submit = async (saveAs) => {
                                 <dd class="text-content-secondary"><Money :value="shippingCharges" /></dd>
                             </div>
 
+                            <div v-if="schemeSavings > 0.004" class="flex items-center justify-between">
+                                <dt class="text-content-muted">Scheme savings</dt>
+                                <dd class="text-success">−<Money :value="schemeSavings" /></dd>
+                            </div>
+
                             <div class="flex items-center justify-between border-t border-edge-subtle pt-2">
                                 <dt class="font-medium text-content-secondary">Total</dt>
                                 <dd class="text-lg font-semibold text-content-primary"><Money :value="finalTotal" /></dd>
                             </div>
                         </dl>
+                    </section>
+
+                    <section
+                        v-if="schemes.applied.length || schemes.hints.length || schemes.targets.length"
+                        class="rounded-lg border border-edge-subtle bg-surface-raised p-4"
+                    >
+                        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-content-muted">Schemes</h2>
+                        <ul class="space-y-1.5 text-[13px]">
+                            <li v-for="a in schemes.applied" :key="`a${a.scheme_id}`" class="flex justify-between gap-2">
+                                <span class="text-content-primary">{{ a.name }} <span class="text-xs text-content-muted">· {{ a.summary }}</span></span>
+                                <Money v-if="a.benefit" :value="a.benefit" compact class="shrink-0 text-success" />
+                            </li>
+                            <li v-for="h in schemes.hints" :key="`h${h.scheme_id}`" class="text-xs font-medium text-accent-700 dark:text-accent-300">
+                                {{ h.name }}: {{ h.message }}
+                            </li>
+                        </ul>
+                        <div v-for="t in schemes.targets" :key="`t${t.id}`" class="mt-3">
+                            <div class="flex justify-between text-xs text-content-muted">
+                                <span>{{ t.name }}<template v-if="t.next_tier"> → {{ t.next_tier }}</template></span>
+                                <span>{{ t.ends_label }}</span>
+                            </div>
+                            <div class="my-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                                <div class="h-full bg-brand-600" :style="{ width: `${t.percent}%` }"></div>
+                            </div>
+                            <p class="text-xs text-content-secondary numeric">
+                                {{ t.achieved }} of {{ t.target }} {{ t.unit }}<template v-if="t.remaining > 0"> · {{ t.remaining }} to go</template>
+                            </p>
+                        </div>
                     </section>
 
                     <section class="rounded-lg border border-edge-subtle bg-surface-raised p-4">

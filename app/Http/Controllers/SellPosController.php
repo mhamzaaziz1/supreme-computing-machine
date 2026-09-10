@@ -497,7 +497,7 @@ class SellPosController extends Controller
                 $transaction = $result['transaction'];
                 $whatsapp_link = $result['whatsapp_link'];
 
-                $sale_guard->settle($guard, $transaction);
+                $sale_guard->settle($guard, $transaction, $input);
 
                 SellCreatedOrModified::dispatch($transaction);
 

@@ -158,7 +158,7 @@ class Navigation
     private static function products(): array
     {
         return self::group(__('sale.products'), 'stock', [
-            self::item(__('lang_v1.list_products'), ['App\Http\Controllers\ProductController', 'index'], can: 'product.view'),
+            self::item(__('lang_v1.list_products'), route: route('catalog.index'), can: 'product.view', spa: true),
             self::item(__('product.add_product'), ['App\Http\Controllers\ProductController', 'create'], can: 'product.create'),
             self::item(__('lang_v1.update_product_price'), ['App\Http\Controllers\SellingPriceGroupController', 'updateProductPrice'], can: 'product.create'),
             self::item(__('barcode.print_labels'), ['App\Http\Controllers\LabelsController', 'show'], can: 'product.view'),

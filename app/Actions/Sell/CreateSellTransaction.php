@@ -100,6 +100,22 @@ class CreateSellTransaction
                 }
             }
 
+            //Allocate the sold quantity against purchase lines and record the
+            //mapping (transaction_sell_lines_purchase_lines), as the store did
+            //before it was split into this action. Without it, COGS, profit
+            //reports and lot/FIFO stock ignore every sale made through here.
+            $business_details = $this->businessUtil->getDetails($business_id);
+            $pos_settings = empty($business_details->pos_settings)
+                ? $this->businessUtil->defaultPosSettings()
+                : json_decode($business_details->pos_settings, true);
+
+            $this->transactionUtil->mapPurchaseSell([
+                'id' => $business_id,
+                'accounting_method' => $business_details->accounting_method,
+                'location_id' => $input['location_id'],
+                'pos_settings' => $pos_settings,
+            ], $transaction->sell_lines, 'purchase');
+
             $is_direct_sale = !empty($input['is_direct_sale']) ? true : false;
 
             //Add payments to Cash Register

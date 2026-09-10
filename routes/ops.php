@@ -37,3 +37,11 @@ Route::get('outlets/{id}/collect', [Ops\CollectController::class, 'openItems'])-
 Route::post('collect', [Ops\CollectController::class, 'store'])->name('collect.store');
 Route::get('cheques', [Ops\ChequeController::class, 'index'])->name('cheques.index');
 Route::post('cheques/{id}/status', [Ops\ChequeController::class, 'updateStatus'])->whereNumber('id')->name('cheques.status');
+
+// Vans: load out in the morning, settle back at night
+Route::get('vans', [Ops\VanController::class, 'index'])->name('vans.index');
+Route::get('vans/{id}/load', [Ops\VanController::class, 'loadForm'])->whereNumber('id')->name('vans.loadForm');
+Route::post('vans/{id}/load', [Ops\VanController::class, 'load'])->whereNumber('id')->name('vans.load');
+Route::get('vans/{id}/settle', [Ops\VanController::class, 'settleForm'])->whereNumber('id')->name('vans.settleForm');
+Route::post('vans/{id}/settle', [Ops\VanController::class, 'settle'])->whereNumber('id')->name('vans.settle');
+Route::get('vans/settlements/{id}/slip', [Ops\VanController::class, 'slip'])->whereNumber('id')->name('vans.slip');

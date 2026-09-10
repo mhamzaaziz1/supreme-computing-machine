@@ -13,6 +13,16 @@ class ApprovalEffects
 {
     public function apply(object $approval): void
     {
+        if ($approval->status === 'rejected') {
+            match ($approval->type) {
+                'van_variance' => app(VanStock::class)->rejectVariance($approval),
+                'field_return' => app(FieldReturns::class)->rejected($approval),
+                default => null,
+            };
+
+            return;
+        }
+
         if ($approval->status !== 'approved') {
             return;
         }

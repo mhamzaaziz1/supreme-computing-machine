@@ -13,6 +13,8 @@
 import { ref, watch } from 'vue';
 import Icon from '../Icon.vue';
 import Money from '../Money.vue';
+import { api } from '../../overlays/api';
+import { toast } from '../../overlays/toast';
 
 const props = defineProps({
     /** The row to show, or null when closed. */
@@ -54,6 +56,31 @@ watch(
 );
 
 const qty = (n) => Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+/**
+ * Pack size in litres: what one selling unit holds (4 for a 4 L can, 208
+ * for a drum, 12 for a carton of 12 × 1 L). Principal targets and margin
+ * per litre are computed from it.
+ */
+const pack = ref('');
+const savingPack = ref(false);
+watch(detail, (d) => (pack.value = d?.product.pack_litres ?? ''));
+
+const savePack = async () => {
+    savingPack.value = true;
+    try {
+        const r = await api(`products/${detail.value.product.id}/pack`, {
+            method: 'PATCH',
+            body: { pack_litres: pack.value === '' ? null : Number(pack.value) },
+        });
+        detail.value.product.pack_litres = pack.value === '' ? null : Number(pack.value);
+        toast(r.message);
+    } catch (e) {
+        toast(e.message, { tone: 'danger' });
+    } finally {
+        savingPack.value = false;
+    }
+};
 </script>
 
 <template>
@@ -231,6 +258,35 @@ const qty = (n) => Number(n ?? 0).toLocaleString(undefined, { maximumFractionDig
                                     <dt class="text-content-muted">{{ row.label }}</dt>
                                     <dd class="text-right text-content-primary">{{ row.value || '—' }}</dd>
                                 </div>
+                                <form
+                                    class="flex items-center justify-between gap-3 px-3 py-2"
+                                    @submit.prevent="savePack"
+                                >
+                                    <label for="pack-litres" class="text-content-muted">Pack size</label>
+                                    <span v-if="!detail.product.can_edit_pack" class="text-right text-content-primary">
+                                        {{ detail.product.pack_litres ? `${detail.product.pack_litres} L` : '—' }}
+                                    </span>
+                                    <span v-else class="flex items-center gap-1.5">
+                                        <input
+                                            id="pack-litres"
+                                            v-model="pack"
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            placeholder="litres"
+                                            class="w-24 rounded border border-edge-subtle bg-surface-page px-2 py-1 text-right text-sm text-content-primary focus:border-accent-500 focus:outline-none"
+                                        />
+                                        <span class="text-content-muted">L</span>
+                                        <button
+                                            v-if="String(pack) !== String(detail.product.pack_litres ?? '')"
+                                            type="submit"
+                                            :disabled="savingPack"
+                                            class="rounded bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                                        >
+                                            Save
+                                        </button>
+                                    </span>
+                                </form>
                             </dl>
 
                             <p v-if="detail.product.description" class="mt-3 text-[13px] text-content-secondary">

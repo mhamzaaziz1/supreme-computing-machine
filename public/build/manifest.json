@@ -1,6 +1,6 @@
 {
-  "_AppShell-DEpXeAJa.js": {
-    "file": "assets/AppShell-DEpXeAJa.js",
+  "_AppShell-DEWGoZDf.js": {
+    "file": "assets/AppShell-DEWGoZDf.js",
     "name": "AppShell",
     "imports": [
       "resources/js/app.js"
@@ -13,41 +13,75 @@
       "resources/js/components/overlays/VehicleDrawer.vue",
       "resources/js/components/overlays/SchemesDrawer.vue",
       "resources/js/components/overlays/InvoiceDrawer.vue",
+      "resources/js/components/overlays/RoutePlanDrawer.vue",
+      "resources/js/components/overlays/RouteEconomicsDrawer.vue",
       "resources/js/components/overlays/CreditHoldModal.vue",
       "resources/js/components/overlays/CollectModal.vue",
       "resources/js/components/overlays/CheckInModal.vue",
       "resources/js/components/overlays/LoadVanModal.vue",
       "resources/js/components/overlays/SettleVanModal.vue",
       "resources/js/components/overlays/SchemeEditModal.vue",
-      "resources/js/components/overlays/VisitModal.vue"
+      "resources/js/components/overlays/VisitModal.vue",
+      "resources/js/components/overlays/PrincipalModal.vue"
     ]
   },
-  "_Drawer-B_tocR9i.js": {
-    "file": "assets/Drawer-B_tocR9i.js",
+  "_Drawer-BlrUXr4f.js": {
+    "file": "assets/Drawer-BlrUXr4f.js",
     "name": "Drawer",
     "imports": [
-      "_AppShell-DEpXeAJa.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
-  "_Modal-DWsyOpyD.js": {
-    "file": "assets/Modal-DWsyOpyD.js",
+  "_Modal-DF0NuT82.js": {
+    "file": "assets/Modal-DF0NuT82.js",
     "name": "Modal",
     "imports": [
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js"
+      "_AppShell-DEWGoZDf.js"
     ]
   },
-  "_SaleDrawer-YTSOHCuQ.js": {
-    "file": "assets/SaleDrawer-YTSOHCuQ.js",
+  "_RouteMap-B7LGqbUG.js": {
+    "file": "assets/RouteMap-B7LGqbUG.js",
+    "name": "RouteMap",
+    "imports": [
+      "resources/js/app.js"
+    ],
+    "css": [
+      "assets/RouteMap-CG6DamIu.css"
+    ],
+    "assets": [
+      "assets/layers-BWBAp2CZ.png",
+      "assets/layers-2x-Bpkbi35X.png",
+      "assets/marker-icon-hN30_KVU.png"
+    ]
+  },
+  "_RouteMap-CG6DamIu.css": {
+    "file": "assets/RouteMap-CG6DamIu.css",
+    "src": "_RouteMap-CG6DamIu.css"
+  },
+  "_SaleDrawer-Bd2DW4IL.js": {
+    "file": "assets/SaleDrawer-Bd2DW4IL.js",
     "name": "SaleDrawer",
     "imports": [
-      "_AppShell-DEpXeAJa.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
+  "node_modules/leaflet/dist/images/layers-2x.png": {
+    "file": "assets/layers-2x-Bpkbi35X.png",
+    "src": "node_modules/leaflet/dist/images/layers-2x.png"
+  },
+  "node_modules/leaflet/dist/images/layers.png": {
+    "file": "assets/layers-BWBAp2CZ.png",
+    "src": "node_modules/leaflet/dist/images/layers.png"
+  },
+  "node_modules/leaflet/dist/images/marker-icon.png": {
+    "file": "assets/marker-icon-hN30_KVU.png",
+    "src": "node_modules/leaflet/dist/images/marker-icon.png"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-NdJkjXhU.css",
+    "file": "assets/app-Chtgaq7A.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -56,7 +90,7 @@
     ]
   },
   "resources/js/Pages/Pos/Index.vue": {
-    "file": "assets/Index-B4emI8hr.js",
+    "file": "assets/Index-BS3W9H9H.js",
     "name": "Index",
     "src": "resources/js/Pages/Pos/Index.vue",
     "isDynamicEntry": true,
@@ -68,48 +102,49 @@
     ]
   },
   "resources/js/Pages/Products/Index.vue": {
-    "file": "assets/Index-hOBQ4MFY.js",
+    "file": "assets/Index-BXSc0DvI.js",
     "name": "Index",
     "src": "resources/js/Pages/Products/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js"
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/Pages/Sales/Create.vue": {
-    "file": "assets/Create-tRDZF-Zg.js",
+    "file": "assets/Create-BHy4BA0t.js",
     "name": "Create",
     "src": "resources/js/Pages/Sales/Create.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js"
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/Pages/Sales/Index.vue": {
-    "file": "assets/Index-Bra1bkW6.js",
+    "file": "assets/Index-CGCNx46G.js",
     "name": "Index",
     "src": "resources/js/Pages/Sales/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js",
-      "_SaleDrawer-YTSOHCuQ.js"
+      "_AppShell-DEWGoZDf.js",
+      "_SaleDrawer-Bd2DW4IL.js"
     ]
   },
   "resources/js/Pages/Today/Index.vue": {
-    "file": "assets/Index-Bdtzz2sd.js",
+    "file": "assets/Index-B7-Yz8Xq.js",
     "name": "Index",
     "src": "resources/js/Pages/Today/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js"
+      "_AppShell-DEWGoZDf.js",
+      "_RouteMap-B7LGqbUG.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D5j09GOZ.js",
+    "file": "assets/app-D__S6QtQ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -122,157 +157,191 @@
     ]
   },
   "resources/js/components/overlays/CheckInModal.vue": {
-    "file": "assets/CheckInModal-q50iw3yT.js",
+    "file": "assets/CheckInModal-Cxb7qWuK.js",
     "name": "CheckInModal",
     "src": "resources/js/components/overlays/CheckInModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/ChequesDrawer.vue": {
-    "file": "assets/ChequesDrawer-DUdhdILD.js",
+    "file": "assets/ChequesDrawer-Coiem10m.js",
     "name": "ChequesDrawer",
     "src": "resources/js/components/overlays/ChequesDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/CollectModal.vue": {
-    "file": "assets/CollectModal-DBZTCfVM.js",
+    "file": "assets/CollectModal-UQE4Auwp.js",
     "name": "CollectModal",
     "src": "resources/js/components/overlays/CollectModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/CreditHoldModal.vue": {
-    "file": "assets/CreditHoldModal-v7d4J4ks.js",
+    "file": "assets/CreditHoldModal-gj1stYiG.js",
     "name": "CreditHoldModal",
     "src": "resources/js/components/overlays/CreditHoldModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/InvoiceDrawer.vue": {
-    "file": "assets/InvoiceDrawer-BdycU-dV.js",
+    "file": "assets/InvoiceDrawer-D9RfGpfu.js",
     "name": "InvoiceDrawer",
     "src": "resources/js/components/overlays/InvoiceDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_SaleDrawer-YTSOHCuQ.js",
+      "_SaleDrawer-Bd2DW4IL.js",
       "resources/js/app.js",
-      "_AppShell-DEpXeAJa.js"
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/LoadVanModal.vue": {
-    "file": "assets/LoadVanModal-Cx_--jDo.js",
+    "file": "assets/LoadVanModal-DMe0z-DD.js",
     "name": "LoadVanModal",
     "src": "resources/js/components/overlays/LoadVanModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/OutletDrawer.vue": {
-    "file": "assets/OutletDrawer-BKBoTYH2.js",
+    "file": "assets/OutletDrawer-DA_hBUz3.js",
     "name": "OutletDrawer",
     "src": "resources/js/components/overlays/OutletDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js"
+    ]
+  },
+  "resources/js/components/overlays/PrincipalModal.vue": {
+    "file": "assets/PrincipalModal-QMNx4bGW.js",
+    "name": "PrincipalModal",
+    "src": "resources/js/components/overlays/PrincipalModal.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
+    ]
+  },
+  "resources/js/components/overlays/RouteEconomicsDrawer.vue": {
+    "file": "assets/RouteEconomicsDrawer-BTnUnPbZ.js",
+    "name": "RouteEconomicsDrawer",
+    "src": "resources/js/components/overlays/RouteEconomicsDrawer.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/components/overlays/RoutePlanDrawer.vue": {
+    "file": "assets/RoutePlanDrawer-CKK_BxAR.js",
+    "name": "RoutePlanDrawer",
+    "src": "resources/js/components/overlays/RoutePlanDrawer.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
+      "_RouteMap-B7LGqbUG.js"
     ]
   },
   "resources/js/components/overlays/SchemeEditModal.vue": {
-    "file": "assets/SchemeEditModal-BcElIq34.js",
+    "file": "assets/SchemeEditModal-CpZVtQ-d.js",
     "name": "SchemeEditModal",
     "src": "resources/js/components/overlays/SchemeEditModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/SchemesDrawer.vue": {
-    "file": "assets/SchemesDrawer-CuU7fPJ_.js",
+    "file": "assets/SchemesDrawer-Dh99BV76.js",
     "name": "SchemesDrawer",
     "src": "resources/js/components/overlays/SchemesDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js",
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/components/overlays/ServiceDueDrawer.vue": {
-    "file": "assets/ServiceDueDrawer-CCKuZdBj.js",
+    "file": "assets/ServiceDueDrawer-DjNJk7sz.js",
     "name": "ServiceDueDrawer",
     "src": "resources/js/components/overlays/ServiceDueDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js",
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/components/overlays/SettleVanModal.vue": {
-    "file": "assets/SettleVanModal-CBRQMzh_.js",
+    "file": "assets/SettleVanModal-C15bGHIF.js",
     "name": "SettleVanModal",
     "src": "resources/js/components/overlays/SettleVanModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   },
   "resources/js/components/overlays/VansDrawer.vue": {
-    "file": "assets/VansDrawer-CBUcNh4f.js",
+    "file": "assets/VansDrawer-CPkGZe6w.js",
     "name": "VansDrawer",
     "src": "resources/js/components/overlays/VansDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js",
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/components/overlays/VehicleDrawer.vue": {
-    "file": "assets/VehicleDrawer-DZr24xoO.js",
+    "file": "assets/VehicleDrawer-BWGXx4k9.js",
     "name": "VehicleDrawer",
     "src": "resources/js/components/overlays/VehicleDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_Drawer-B_tocR9i.js",
-      "_AppShell-DEpXeAJa.js",
+      "_Drawer-BlrUXr4f.js",
+      "_AppShell-DEWGoZDf.js",
       "resources/js/app.js"
     ]
   },
   "resources/js/components/overlays/VisitModal.vue": {
-    "file": "assets/VisitModal-DVtaQ_XC.js",
+    "file": "assets/VisitModal-CqwtNlsA.js",
     "name": "VisitModal",
     "src": "resources/js/components/overlays/VisitModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-DWsyOpyD.js",
-      "_AppShell-DEpXeAJa.js"
+      "_Modal-DF0NuT82.js",
+      "_AppShell-DEWGoZDf.js"
     ]
   }
 }

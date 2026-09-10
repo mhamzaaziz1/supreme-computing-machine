@@ -13,6 +13,8 @@ registerOverlay('serviceDue', 'drawer', () => import('../components/overlays/Ser
 registerOverlay('vehicle', 'drawer', () => import('../components/overlays/VehicleDrawer.vue'), 'id');
 registerOverlay('schemes', 'drawer', () => import('../components/overlays/SchemesDrawer.vue'));
 registerOverlay('invoice', 'drawer', () => import('../components/overlays/InvoiceDrawer.vue'), 'id');
+registerOverlay('route', 'drawer', () => import('../components/overlays/RoutePlanDrawer.vue'), 'id');
+registerOverlay('routeEconomics', 'drawer', () => import('../components/overlays/RouteEconomicsDrawer.vue'));
 
 registerOverlay('creditHold', 'modal', () => import('../components/overlays/CreditHoldModal.vue'));
 registerOverlay('collect', 'modal', () => import('../components/overlays/CollectModal.vue'));
@@ -21,3 +23,4 @@ registerOverlay('loadVan', 'modal', () => import('../components/overlays/LoadVan
 registerOverlay('settleVan', 'modal', () => import('../components/overlays/SettleVanModal.vue'));
 registerOverlay('schemeEdit', 'modal', () => import('../components/overlays/SchemeEditModal.vue'));
 registerOverlay('visit', 'modal', () => import('../components/overlays/VisitModal.vue'));
+registerOverlay('principal', 'modal', () => import('../components/overlays/PrincipalModal.vue'));

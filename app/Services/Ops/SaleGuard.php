@@ -65,6 +65,26 @@ class SaleGuard
             return $result;
         }
 
+        // A route can set a minimum order for its field sellers.
+        if ($this->checkIn->isFieldUser($businessId, $userId)) {
+            $route = DB::table('contacts AS c')
+                ->join('route_zone_restrictions AS z', 'z.customer_route_id', '=', 'c.customer_route_id')
+                ->join('customer_routes AS r', 'r.id', '=', 'c.customer_route_id')
+                ->where('c.id', $contactId)
+                ->first(['z.minimum_order_value', 'r.name']);
+            $total = $this->transactionUtil->num_uf($input['final_total'] ?? 0);
+
+            if ($route && $route->minimum_order_value !== null && $total + 0.004 < (float) $route->minimum_order_value) {
+                $result['blocked'] = [
+                    'success' => 0,
+                    'msg' => sprintf('Orders on %s must be at least %s.', $route->name,
+                        $this->transactionUtil->num_f((float) $route->minimum_order_value, true)),
+                ];
+
+                return $result;
+            }
+        }
+
         if (! empty($input['credit_override_token'])) {
             $approval = $this->approvals->redeemable($input['credit_override_token'], $businessId, $contactId, 'credit_override');
             if ($approval && (float) $approval->amount + 0.01 >= $orderDue) {

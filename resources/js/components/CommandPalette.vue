@@ -59,6 +59,8 @@ const actions = [
     { label: 'Cheques in hand', keywords: 'cheque cheques pdc deposit bounce post dated', icon: 'cheque', run: () => openOverlay('cheques') },
     { label: 'Oil changes due', keywords: 'oil change due reminder service vehicle bay', icon: 'oil', run: () => openOverlay('serviceDue') },
     { label: 'Trade schemes', keywords: 'scheme schemes promotion discount slab free rebate target', icon: 'target', run: () => openOverlay('schemes') },
+    { label: 'Cost to serve by route', keywords: 'route margin profit cost serve van economics', icon: 'insight', run: () => openOverlay('routeEconomics') },
+    { label: 'Principal sales file & targets', keywords: 'principal secondary sales export csv target litres', icon: 'download', run: () => openOverlay('principal') },
 ];
 
 /** Flatten the nav tree into one searchable list, keeping the group name. */

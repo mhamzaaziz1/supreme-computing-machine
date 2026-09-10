@@ -61,6 +61,20 @@ Route::put('schemes/{id}', [Ops\SchemeController::class, 'update'])->whereNumber
 Route::post('schemes/{id}/toggle', [Ops\SchemeController::class, 'toggle'])->whereNumber('id')->name('schemes.toggle');
 Route::delete('schemes/{id}', [Ops\SchemeController::class, 'destroy'])->whereNumber('id')->name('schemes.destroy');
 
+// Routes: day plan, rules, live map, cost to serve
+Route::get('routes/map', [Ops\RouteController::class, 'map'])->name('routes.map');
+Route::get('routes/economics', [Ops\RouteEconomicsController::class, 'index'])->name('routes.economics');
+Route::get('routes/{id}/plan', [Ops\RouteController::class, 'plan'])->whereNumber('id')->name('routes.plan');
+Route::put('routes/{id}/sequence', [Ops\RouteController::class, 'sequence'])->whereNumber('id')->name('routes.sequence');
+Route::patch('routes/{id}/rules', [Ops\RouteController::class, 'rules'])->whereNumber('id')->name('routes.rules');
+
+// Principal: monthly secondary-sales file, targets, pack sizes
+Route::get('principal', [Ops\PrincipalController::class, 'index'])->name('principal.index');
+Route::get('principal/export', [Ops\PrincipalController::class, 'export'])->name('principal.export');
+Route::post('principal/targets', [Ops\PrincipalController::class, 'storeTarget'])->name('principal.targets.store');
+Route::delete('principal/targets/{id}', [Ops\PrincipalController::class, 'destroyTarget'])->whereNumber('id')->name('principal.targets.destroy');
+Route::patch('products/{id}/pack', [Ops\PrincipalController::class, 'packSize'])->whereNumber('id')->name('products.pack');
+
 // Vans: load out in the morning, settle back at night
 Route::get('vans', [Ops\VanController::class, 'index'])->name('vans.index');
 Route::get('vans/{id}/load', [Ops\VanController::class, 'loadForm'])->whereNumber('id')->name('vans.loadForm');

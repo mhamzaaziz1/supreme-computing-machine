@@ -72,6 +72,22 @@ class HandleInertiaRequests extends Middleware
                 'precision' => (int) session('business.currency_precision', 2),
             ] : null,
 
+            // Field operations: who may approve, and how many requests wait.
+            'ops' => fn () => $user ? (function () use ($user) {
+                $canApprove = \App\Services\Ops\Approvals::canApprove($user);
+
+                return [
+                    // A seller with an active route assignment checks in at
+                    // outlets; office and counter staff never do.
+                    'fieldUser' => app(\App\Services\Ops\FieldCheckIn::class)
+                        ->isFieldUser((int) session('user.business_id'), (int) $user->id),
+                    'canApprove' => $canApprove,
+                    'pendingApprovals' => $canApprove
+                        ? app(\App\Services\Ops\Approvals::class)->pendingCount((int) session('user.business_id'))
+                        : 0,
+                ];
+            })() : null,
+
             'nav' => fn () => $user ? Navigation::forCurrentUser() : [],
             'settingsNav' => fn () => $user ? Navigation::settingsForCurrentUser() : [],
 

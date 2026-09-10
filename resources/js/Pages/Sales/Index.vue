@@ -19,6 +19,7 @@ import Money from '../../components/Money.vue';
 import Popover from '../../components/Popover.vue';
 import RowActions from '../../components/Sales/RowActions.vue';
 import SaleDrawer from '../../components/Sales/SaleDrawer.vue';
+import { openOverlay } from '../../overlays/store';
 
 const props = defineProps({
     /** all | pos | drafts | quotations — the screens this list serves. */
@@ -459,7 +460,15 @@ const pages = computed(() => {
                                     </a>
                                 </td>
                                 <td class="px-4 py-2.5">
-                                    <div class="text-content-primary">{{ sell.customer ?? '—' }}</div>
+                                    <button
+                                        v-if="sell.contact_id"
+                                        type="button"
+                                        class="text-left text-content-primary hover:text-brand-600 hover:underline"
+                                        @click="openOverlay('outlet', { id: sell.contact_id })"
+                                    >
+                                        {{ sell.customer ?? '—' }}
+                                    </button>
+                                    <div v-else class="text-content-primary">{{ sell.customer ?? '—' }}</div>
                                     <div v-if="sell.customer_code" class="text-xs text-content-muted">
                                         {{ sell.customer_code }}
                                     </div>

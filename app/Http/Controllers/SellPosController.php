@@ -352,20 +352,20 @@ class SellPosController extends Controller
             }
 
 
-            //Check Customer credit limit
-            $is_credit_limit_exeeded = $this->transactionUtil->isCustomerCreditLimitExeeded($input);
+            //Credit control (limit, overdue ceiling, hold flag) and field
+            //check-in. A manager-approved override token is the only way past
+            //a hold; see App\Services\Ops\SaleGuard.
+            $sale_guard = app(\App\Services\Ops\SaleGuard::class);
+            $guard = $sale_guard->inspect($input, (int) $request->session()->get('user.business_id'));
 
-            if ($is_credit_limit_exeeded !== false) {
-                $credit_limit_amount = $this->transactionUtil->num_f($is_credit_limit_exeeded, true);
-                $output = ['success' => 0,
-                    'msg' => __('lang_v1.cutomer_credit_limit_exeeded', ['credit_limit' => $credit_limit_amount]),
-                ];
+            if ($guard['blocked'] !== null) {
+                $output = $guard['blocked'];
                 if (!$is_direct_sale) {
                     return $output;
                 } else {
                     return redirect()
                         ->action([\App\Http\Controllers\SellController::class, 'index'])
-                        ->with('status', $output);
+                        ->with('status', ['success' => 0, 'msg' => $output['msg']]);
                 }
             }
 
@@ -496,6 +496,8 @@ class SellPosController extends Controller
                 $result = $this->createSellTransaction->execute($input, $request);
                 $transaction = $result['transaction'];
                 $whatsapp_link = $result['whatsapp_link'];
+
+                $sale_guard->settle($guard, $transaction);
 
                 SellCreatedOrModified::dispatch($transaction);
 

@@ -12,17 +12,22 @@
  * the search result, so price, unit and tax are whatever the backend says
  * they are for that location.
  */
-import { computed, ref, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Head, usePage } from '@inertiajs/vue3';
 import AppShell from '../../Layouts/AppShell.vue';
 import Icon from '../../components/Icon.vue';
 import Money from '../../components/Money.vue';
 import Popover from '../../components/Popover.vue';
+import { api, currentPosition } from '../../overlays/api';
+import { openOverlay } from '../../overlays/store';
+import { toast } from '../../overlays/toast';
 
 const props = defineProps({
     locations: { type: Array, default: () => [] },
     defaultLocationId: { type: [Number, null], default: null },
     customers: { type: Array, default: () => [] },
+    /** Opened from an overlay: { contact_id, lines: [{variation_id, quantity}], source } */
+    prefill: { type: Object, default: () => ({ contact_id: null, lines: [], source: null }) },
     walkInCustomerId: { type: [Number, null], default: null },
     taxRates: { type: Array, default: () => [] },
     paymentTypes: { type: Array, default: () => [] },
@@ -71,7 +76,7 @@ const toBusinessDate = (isoLocal) => {
 // -----------------------------------------------------------------
 
 const locationId = ref(props.defaultLocationId);
-const contactId = ref(props.walkInCustomerId);
+const contactId = ref(props.prefill?.contact_id ?? props.walkInCustomerId);
 const transactionDate = ref(props.today);
 const status = ref('final');
 
@@ -167,7 +172,7 @@ watch(locationId, () => {
  * the same endpoint the legacy screen used, and it returns the unit, tax and
  * location-specific price the backend will price the line at.
  */
-const addProduct = async (hit) => {
+const addProduct = async (hit, quantity = 1) => {
     error.value = null;
 
     try {
@@ -181,7 +186,7 @@ const addProduct = async (hit) => {
 
         const existing = lines.value.find((l) => l.variation_id === d.variation_id);
         if (existing) {
-            existing.quantity += 1;
+            existing.quantity += quantity;
         } else {
             const excl = Number(d.default_sell_price) || 0;
             const incl = Number(d.sell_price_inc_tax) || excl;
@@ -197,7 +202,7 @@ const addProduct = async (hit) => {
                 product_type: d.product_type ?? 'single',
                 tax_id: d.tax_id ?? '',
                 qty_available: Number(d.qty_available) || 0,
-                quantity: 1,
+                quantity,
                 unit_price: excl,
                 unit_price_inc_tax: incl,
                 // Per-unit tax, which is what the backend expects in item_tax.
@@ -213,6 +218,21 @@ const addProduct = async (hit) => {
 };
 
 const removeLine = (i) => lines.value.splice(i, 1);
+
+/** Lines handed over by an overlay (usual basket, repeat of an invoice). */
+const prefillNote = ref(null);
+onMounted(async () => {
+    const wanted = props.prefill?.lines ?? [];
+    if (!wanted.length || !locationId.value) return;
+
+    for (const w of wanted) {
+        await addProduct({ variation_id: w.variation_id, name: '' }, Number(w.quantity) || 1);
+    }
+    prefillNote.value =
+        props.prefill.source === 'repeat'
+            ? 'Filled from the earlier invoice. Check quantities before saving.'
+            : "Filled with this outlet's usual order. Adjust quantities to what they need today.";
+});
 
 // -----------------------------------------------------------------
 // Totals
@@ -255,8 +275,106 @@ const payFull = () => (payAmount.value = Number(finalTotal.value.toFixed(2)));
 
 const canSave = computed(() => lines.value.length > 0 && locationId.value && contactId.value);
 
-const submit = (saveAs) => {
+/** A manager's credit override, redeemed by the store endpoint. */
+const overrideToken = ref(null);
+
+/**
+ * Run the credit rules before posting. The store endpoint enforces the same
+ * rules, but it answers this screen with a redirect that loses the details;
+ * checking first lets the credit-hold modal show the maths and a way out.
+ */
+const creditCleared = async () => {
+    if (overrideToken.value || balanceDue.value <= 0.004 || contactId.value === props.walkInCustomerId) return true;
+
+    let r;
+    try {
+        r = await api('credit/check', { method: 'POST', body: { contact_id: contactId.value, amount_due: Number(balanceDue.value.toFixed(2)) } });
+    } catch {
+        return true; // Let the server decide rather than block on a failed check.
+    }
+    if (r.ok) return true;
+
+    openOverlay('creditHold', {
+        hold: r.hold,
+        onResolve: (res) => {
+            if (res.action === 'pay') {
+                payAmount.value = Number(Math.min(finalTotal.value, (Number(payAmount.value) || 0) + res.amount).toFixed(2));
+                error.value = null;
+                toast('Payment amount raised. Check the method, then save again.', { tone: 'info' });
+            } else if (res.action === 'reduce') {
+                error.value = res.available > 0
+                    ? `This outlet can take up to ${res.available.toFixed(0)} more on credit. Reduce the order or take a payment.`
+                    : 'This outlet can only buy for cash until its overdue invoices are paid.';
+            } else if (res.action === 'override') {
+                overrideToken.value = res.token;
+                toast(`Override approved by ${res.approver}. Saving the sale.`);
+                submit('final');
+            }
+        },
+    });
+    return false;
+};
+
+/** Proof of presence for a field seller; the store endpoint checks it on enforced routes. */
+const checkinToken = ref(null);
+const page = usePage();
+
+const checkedIn = async () => {
+    if (checkinToken.value || !page.props.ops?.fieldUser || contactId.value === props.walkInCustomerId) return true;
+
+    let position = null;
+    try {
+        position = await currentPosition();
+    } catch {
+        position = null; // The server records "no location" and asks for a reason.
+    }
+
+    let r;
+    try {
+        r = await api('checkin', {
+            method: 'POST',
+            body: { contact_id: contactId.value, action: 'place_order', lat: position?.lat ?? null, lng: position?.lng ?? null, accuracy: position?.accuracy ?? null },
+        });
+    } catch {
+        return true;
+    }
+
+    if (r.allowed) {
+        checkinToken.value = r.token;
+        if (r.pinned) toast('Outlet location saved from this visit.', { tone: 'info' });
+        return true;
+    }
+
+    openOverlay('checkIn', {
+        contactId: contactId.value,
+        contactName: selectedCustomer.value?.name,
+        action: 'place_order',
+        result: r,
+        position,
+        onResolve: (token) => {
+            checkinToken.value = token;
+            submit('final');
+        },
+    });
+    return false;
+};
+
+// A different outlet needs its own check-in.
+watch(contactId, () => {
+    checkinToken.value = null;
+    overrideToken.value = null;
+});
+
+const submit = async (saveAs) => {
     if (!canSave.value || saving.value) return;
+
+    if (saveAs === 'final') {
+        saving.value = true;
+        const cleared = (await checkedIn()) && (await creditCleared());
+        saving.value = false;
+        if (!cleared) return;
+    }
+
     saving.value = true;
 
     const form = document.createElement('form');
@@ -284,6 +402,8 @@ const submit = (saveAs) => {
     add('tax_rate_id', taxRateId.value);
     add('shipping_charges', Number(shippingCharges.value) || 0);
     add('final_total', finalTotal.value.toFixed(2));
+    if (overrideToken.value) add('credit_override_token', overrideToken.value);
+    if (checkinToken.value) add('checkin_token', checkinToken.value);
 
     lines.value.forEach((l, i) => {
         add(`products[${i}][product_id]`, l.product_id);
@@ -342,6 +462,13 @@ const submit = (saveAs) => {
 
             <div v-if="error" class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
                 {{ error }}
+            </div>
+            <div v-if="prefillNote" class="mb-3 flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-4 py-2 text-[13px] text-content-primary">
+                <Icon name="receipt" :size="15" class="shrink-0" />
+                <span class="flex-1">{{ prefillNote }}</span>
+                <button type="button" class="text-content-muted hover:text-content-primary" aria-label="Dismiss" @click="prefillNote = null">
+                    <Icon name="close" :size="14" />
+                </button>
             </div>
 
             <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_340px]">

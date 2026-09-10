@@ -60,10 +60,13 @@ class SaleFormController extends Controller
             $locations = array_values(array_filter($locations, fn ($l) => in_array($l['id'], $permitted)));
         }
 
+        $customers = $this->customers($businessId);
+
         return Inertia::render('Sales/Create', [
             'locations' => $locations,
             'defaultLocationId' => $locations[0]['id'] ?? null,
-            'customers' => $this->customers($businessId),
+            'customers' => $customers,
+            'prefill' => $this->prefill($request, $businessId, $customers),
             // getWalkInCustomer hands back an array, not a model.
             'walkInCustomerId' => is_array($walkIn) ? ($walkIn['id'] ?? null) : $walkIn?->id,
             'taxRates' => $this->taxRates($businessId),
@@ -116,6 +119,48 @@ class SaleFormController extends Controller
                 ];
             })
             ->all();
+    }
+
+    /**
+     * What the form should open with when it is reached from an overlay:
+     * the outlet (?contact_id=), and optionally its usual basket (?basket=1)
+     * or a repeat of one earlier invoice (?repeat={transaction id}) — the
+     * bay's "same as last time" oil change.
+     *
+     * Only variation ids and quantities are sent; the form fetches each row
+     * from the server so prices are today's prices at the chosen location.
+     *
+     * @param  array<int, array<string, mixed>>  $customers
+     * @return array<string, mixed>
+     */
+    private function prefill(Request $request, int $businessId, array $customers): array
+    {
+        $contactId = (int) $request->query('contact_id');
+        if (! $contactId || ! in_array($contactId, array_column($customers, 'id'), true)) {
+            return ['contact_id' => null, 'lines' => [], 'source' => null];
+        }
+
+        $lines = [];
+        $source = null;
+
+        if ($request->query('repeat')) {
+            $lines = DB::table('transaction_sell_lines AS l')
+                ->join('transactions AS t', 't.id', '=', 'l.transaction_id')
+                ->where('t.business_id', $businessId)
+                ->where('t.contact_id', $contactId)
+                ->where('t.id', (int) $request->query('repeat'))
+                ->whereNull('l.parent_sell_line_id')
+                ->get(['l.variation_id', 'l.quantity'])
+                ->map(fn ($l) => ['variation_id' => (int) $l->variation_id, 'quantity' => (float) $l->quantity])
+                ->all();
+            $source = $lines ? 'repeat' : null;
+        } elseif ($request->boolean('basket')) {
+            $pattern = app(\App\Services\Ops\BuyingPattern::class)->forContact($businessId, $contactId);
+            $lines = array_map(fn ($b) => ['variation_id' => $b['variation_id'], 'quantity' => $b['quantity']], $pattern['basket']);
+            $source = $lines ? 'basket' : null;
+        }
+
+        return ['contact_id' => $contactId, 'lines' => $lines, 'source' => $source];
     }
 
     /**

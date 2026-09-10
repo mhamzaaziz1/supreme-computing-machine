@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import Icon from '../Icon.vue';
+import ApprovalsBell from './ApprovalsBell.vue';
 
 defineProps({
     title: { type: String, default: '' },
@@ -54,6 +55,8 @@ const toggleTheme = () => window.themeController?.toggle();
                 {{ isMac ? '⌘' : 'Ctrl' }}K
             </kbd>
         </button>
+
+        <ApprovalsBell v-if="page.props.ops?.canApprove" />
 
         <button
             type="button"

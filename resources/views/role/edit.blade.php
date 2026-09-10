@@ -56,8 +56,17 @@
               <div class="col-md-12">
                 <div class="checkbox">
                   <label>
-                    {!! Form::checkbox('permissions[]', 'view_export_buttons', in_array('view_export_buttons', $role_permissions), 
+                    {!! Form::checkbox('permissions[]', 'view_export_buttons', in_array('view_export_buttons', $role_permissions),
                     [ 'class' => 'input-icheck']); !!} {{ __( 'lang_v1.view_export_buttons' ) }}
+                  </label>
+                </div>
+              </div>
+
+              <div class="col-md-12">
+                <div class="checkbox">
+                  <label>
+                    {!! Form::checkbox('permissions[]', 'ops.approve', in_array('ops.approve', $role_permissions),
+                    [ 'class' => 'input-icheck']); !!} Approve credit overrides, van variances and field returns
                   </label>
                 </div>
               </div>

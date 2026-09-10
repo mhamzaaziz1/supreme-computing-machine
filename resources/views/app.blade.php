@@ -5,6 +5,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
+    {{-- The app is often served from a subdirectory; overlays build /ops URLs from this. --}}
+    <meta name="app-base" content="{{ url('/') }}" />
 
     {{-- Applied before first paint so the shell never flashes light then dark. --}}
     <script>

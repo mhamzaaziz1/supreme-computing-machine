@@ -10,6 +10,7 @@ import { usePage } from '@inertiajs/vue3';
 import Sidebar from '../components/Nav/Sidebar.vue';
 import Topbar from '../components/Nav/Topbar.vue';
 import CommandPalette from '../components/CommandPalette.vue';
+import OverlayHost from '../components/overlays/OverlayHost.vue';
 import Icon from '../components/Icon.vue';
 
 defineProps({
@@ -92,5 +93,6 @@ const toggleSidebar = () => {
         </div>
 
         <CommandPalette ref="palette" />
+        <OverlayHost />
     </div>
 </template>

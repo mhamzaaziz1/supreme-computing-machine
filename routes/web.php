@@ -144,6 +144,9 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     // dashboard stays on /home until this fully replaces it.
     Route::get('/today', [TodayController::class, 'index'])->name('today');
 
+    // JSON behind the overlays (drawers, modals, popovers). See routes/ops.php.
+    Route::prefix('ops')->name('ops.')->group(base_path('routes/ops.php'));
+
     // The redesigned sales list (Inertia). The legacy DataTables screen stays
     // on /sells, which still serves its ajax feed to the sales reports.
     Route::get('/sales', [Sales\SalesListController::class, 'index'])->name('sales.index');

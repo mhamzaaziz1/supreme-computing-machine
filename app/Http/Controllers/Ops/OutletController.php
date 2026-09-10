@@ -89,6 +89,17 @@ class OutletController extends OpsController
     }
 
     /**
+     * Just the buying pattern, for the sale form: the usual order to add in
+     * one click and the SKUs to ask about.
+     */
+    public function pattern(int $id): JsonResponse
+    {
+        $this->outlet($id);
+
+        return response()->json($this->pattern->forContact($this->businessId(), $id));
+    }
+
+    /**
      * Credit controls, edited from the popover on the drawer.
      */
     public function updateCredit(Request $request, int $id): JsonResponse

@@ -1,6 +1,6 @@
 {
-  "_AppShell-CxSBGvRo.js": {
-    "file": "assets/AppShell-CxSBGvRo.js",
+  "_AppShell-CFnPoNa7.js": {
+    "file": "assets/AppShell-CFnPoNa7.js",
     "name": "AppShell",
     "imports": [
       "resources/js/app.js"
@@ -9,6 +9,8 @@
       "resources/js/components/overlays/OutletDrawer.vue",
       "resources/js/components/overlays/ChequesDrawer.vue",
       "resources/js/components/overlays/VansDrawer.vue",
+      "resources/js/components/overlays/ServiceDueDrawer.vue",
+      "resources/js/components/overlays/VehicleDrawer.vue",
       "resources/js/components/overlays/CreditHoldModal.vue",
       "resources/js/components/overlays/CollectModal.vue",
       "resources/js/components/overlays/CheckInModal.vue",
@@ -16,24 +18,24 @@
       "resources/js/components/overlays/SettleVanModal.vue"
     ]
   },
-  "_Drawer-h15b3bJE.js": {
-    "file": "assets/Drawer-h15b3bJE.js",
+  "_Drawer-CWD4AdRR.js": {
+    "file": "assets/Drawer-CWD4AdRR.js",
     "name": "Drawer",
     "imports": [
-      "_AppShell-CxSBGvRo.js",
+      "_AppShell-CFnPoNa7.js",
       "resources/js/app.js"
     ]
   },
-  "_Modal-NsDeRUqP.js": {
-    "file": "assets/Modal-NsDeRUqP.js",
+  "_Modal-CU9VPOZV.js": {
+    "file": "assets/Modal-CU9VPOZV.js",
     "name": "Modal",
     "imports": [
       "resources/js/app.js",
-      "_AppShell-CxSBGvRo.js"
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-CRACakm1.css",
+    "file": "assets/app-BF-Q4Amg.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -42,7 +44,7 @@
     ]
   },
   "resources/js/Pages/Pos/Index.vue": {
-    "file": "assets/Index-C7wQn7Qw.js",
+    "file": "assets/Index-CtYKRjm-.js",
     "name": "Index",
     "src": "resources/js/Pages/Pos/Index.vue",
     "isDynamicEntry": true,
@@ -54,47 +56,47 @@
     ]
   },
   "resources/js/Pages/Products/Index.vue": {
-    "file": "assets/Index-gOhaSWys.js",
+    "file": "assets/Index-BiXc2bBf.js",
     "name": "Index",
     "src": "resources/js/Pages/Products/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-CxSBGvRo.js"
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/Pages/Sales/Create.vue": {
-    "file": "assets/Create-eEuWNbeX.js",
+    "file": "assets/Create-UkStjCne.js",
     "name": "Create",
     "src": "resources/js/Pages/Sales/Create.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-CxSBGvRo.js"
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/Pages/Sales/Index.vue": {
-    "file": "assets/Index-BLJUDAxT.js",
+    "file": "assets/Index-7W_MJggE.js",
     "name": "Index",
     "src": "resources/js/Pages/Sales/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-CxSBGvRo.js"
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/Pages/Today/Index.vue": {
-    "file": "assets/Index-nDikQrYF.js",
+    "file": "assets/Index-RosgBp7v.js",
     "name": "Index",
     "src": "resources/js/Pages/Today/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_AppShell-CxSBGvRo.js"
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CYYAWI0z.js",
+    "file": "assets/app-B5jOmWKf.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -107,90 +109,112 @@
     ]
   },
   "resources/js/components/overlays/CheckInModal.vue": {
-    "file": "assets/CheckInModal-B3ySWcju.js",
+    "file": "assets/CheckInModal-DcOlAUZ0.js",
     "name": "CheckInModal",
     "src": "resources/js/components/overlays/CheckInModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-NsDeRUqP.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Modal-CU9VPOZV.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/ChequesDrawer.vue": {
-    "file": "assets/ChequesDrawer-reiwI7Wa.js",
+    "file": "assets/ChequesDrawer-Cpup7Jgd.js",
     "name": "ChequesDrawer",
     "src": "resources/js/components/overlays/ChequesDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Drawer-h15b3bJE.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Drawer-CWD4AdRR.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/CollectModal.vue": {
-    "file": "assets/CollectModal-DzLW9EEL.js",
+    "file": "assets/CollectModal-BNJizLhu.js",
     "name": "CollectModal",
     "src": "resources/js/components/overlays/CollectModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-NsDeRUqP.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Modal-CU9VPOZV.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/CreditHoldModal.vue": {
-    "file": "assets/CreditHoldModal-Yuambchp.js",
+    "file": "assets/CreditHoldModal-DxRwqctO.js",
     "name": "CreditHoldModal",
     "src": "resources/js/components/overlays/CreditHoldModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-NsDeRUqP.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Modal-CU9VPOZV.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/LoadVanModal.vue": {
-    "file": "assets/LoadVanModal-BJ3qRttF.js",
+    "file": "assets/LoadVanModal-B9fadBYt.js",
     "name": "LoadVanModal",
     "src": "resources/js/components/overlays/LoadVanModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-NsDeRUqP.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Modal-CU9VPOZV.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/OutletDrawer.vue": {
-    "file": "assets/OutletDrawer-C72vtep1.js",
+    "file": "assets/OutletDrawer-DUib6eiu.js",
     "name": "OutletDrawer",
     "src": "resources/js/components/overlays/OutletDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Drawer-h15b3bJE.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Drawer-CWD4AdRR.js",
+      "_AppShell-CFnPoNa7.js"
+    ]
+  },
+  "resources/js/components/overlays/ServiceDueDrawer.vue": {
+    "file": "assets/ServiceDueDrawer-CzLwoYaf.js",
+    "name": "ServiceDueDrawer",
+    "src": "resources/js/components/overlays/ServiceDueDrawer.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Drawer-CWD4AdRR.js",
+      "_AppShell-CFnPoNa7.js",
+      "resources/js/app.js"
     ]
   },
   "resources/js/components/overlays/SettleVanModal.vue": {
-    "file": "assets/SettleVanModal-DufBk50X.js",
+    "file": "assets/SettleVanModal-BU3_yO51.js",
     "name": "SettleVanModal",
     "src": "resources/js/components/overlays/SettleVanModal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Modal-NsDeRUqP.js",
-      "_AppShell-CxSBGvRo.js"
+      "_Modal-CU9VPOZV.js",
+      "_AppShell-CFnPoNa7.js"
     ]
   },
   "resources/js/components/overlays/VansDrawer.vue": {
-    "file": "assets/VansDrawer-D-kCbvby.js",
+    "file": "assets/VansDrawer-Drvx97yW.js",
     "name": "VansDrawer",
     "src": "resources/js/components/overlays/VansDrawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_Drawer-h15b3bJE.js",
-      "_AppShell-CxSBGvRo.js",
+      "_Drawer-CWD4AdRR.js",
+      "_AppShell-CFnPoNa7.js",
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/components/overlays/VehicleDrawer.vue": {
+    "file": "assets/VehicleDrawer-EpHRIhIm.js",
+    "name": "VehicleDrawer",
+    "src": "resources/js/components/overlays/VehicleDrawer.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Drawer-CWD4AdRR.js",
+      "_AppShell-CFnPoNa7.js",
       "resources/js/app.js"
     ]
   }

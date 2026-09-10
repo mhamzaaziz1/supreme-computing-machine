@@ -17,6 +17,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('outlets/{id}', [Ops\OutletController::class, 'show'])->whereNumber('id')->name('outlets.show');
 Route::patch('outlets/{id}/credit', [Ops\OutletController::class, 'updateCredit'])->whereNumber('id')->name('outlets.credit');
+Route::get('outlets/{id}/pattern', [Ops\OutletController::class, 'pattern'])->whereNumber('id')->name('outlets.pattern');
+
+// Oil-change bay: due list, vehicle history, owner reminders
+Route::get('service-due', [Ops\ServiceDueController::class, 'index'])->name('service.due');
+Route::post('service-due/remind', [Ops\ServiceDueController::class, 'remind'])->name('service.remind');
+Route::get('vehicles/{id}', [Ops\ServiceDueController::class, 'vehicle'])->whereNumber('id')->name('vehicles.show');
 
 // Geofence check-in
 Route::post('checkin', [Ops\CheckInController::class, 'store'])->name('checkin');

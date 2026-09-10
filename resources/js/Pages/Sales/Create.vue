@@ -124,6 +124,34 @@ const pickCustomer = (c) => {
 };
 
 // -----------------------------------------------------------------
+// What this outlet usually buys, and what it has stopped buying
+// -----------------------------------------------------------------
+
+const pattern = ref(null);
+
+const loadPattern = async (id) => {
+    pattern.value = null;
+    if (!id || id === props.walkInCustomerId) return;
+    try {
+        const r = await api(`outlets/${id}/pattern`);
+        if (contactId.value === id) pattern.value = r;
+    } catch {
+        // Optional help; the sale works without it.
+    }
+};
+
+watch(contactId, loadPattern, { immediate: true });
+
+const inCart = (variationId) => lines.value.some((l) => l.variation_id === variationId);
+const basketMissing = computed(() => (pattern.value?.basket ?? []).filter((b) => !inCart(b.variation_id)));
+
+const addBasket = async () => {
+    for (const b of basketMissing.value) {
+        await addProduct({ variation_id: b.variation_id, name: b.name }, Number(b.quantity) || 1);
+    }
+};
+
+// -----------------------------------------------------------------
 // Product search
 // -----------------------------------------------------------------
 
@@ -542,6 +570,43 @@ const submit = async (saveAs) => {
                                         No customer matches that.
                                     </li>
                                 </ul>
+                            </div>
+                        </div>
+
+                        <!-- What this outlet usually takes, and what it has gone quiet on. -->
+                        <div v-if="pattern && (pattern.basket.length || pattern.stopped.length || pattern.rhythm.last_order_on)"
+                            class="mt-3 rounded-md border border-edge-subtle bg-surface-page px-3 py-2.5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="flex-1 text-xs text-content-muted">
+                                    <template v-if="pattern.rhythm.interval_days">
+                                        Orders about every {{ Math.round(pattern.rhythm.interval_days) }} days · last {{ pattern.rhythm.days_since }} days ago
+                                        <span v-if="pattern.rhythm.due" class="ml-1 font-semibold text-accent-700 dark:text-accent-300">due now</span>
+                                    </template>
+                                    <template v-else-if="pattern.rhythm.last_order_on">Last order {{ pattern.rhythm.days_since }} days ago</template>
+                                </p>
+                                <button
+                                    v-if="basketMissing.length"
+                                    type="button"
+                                    class="rounded-md border border-accent-500 bg-accent-500/10 px-2.5 py-1 text-xs font-semibold text-content-primary hover:bg-accent-500/20"
+                                    @click="addBasket"
+                                >
+                                    Add usual order · {{ basketMissing.length }} {{ basketMissing.length === 1 ? 'item' : 'items' }}
+                                </button>
+                                <button v-if="contactId" type="button" class="text-xs font-medium text-brand-600 hover:underline dark:text-brand-300" @click="openOverlay('outlet', { id: contactId })">
+                                    Outlet 360
+                                </button>
+                            </div>
+                            <div v-if="pattern.stopped.length" class="mt-2 flex flex-wrap gap-1.5">
+                                <button
+                                    v-for="s in pattern.stopped"
+                                    :key="s.variation_id"
+                                    type="button"
+                                    class="rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-xs text-content-primary hover:border-warning"
+                                    :title="`Usually every ${Math.round(s.interval_days)} days; last ${s.days_since} days ago. Click to add.`"
+                                    @click="addProduct({ variation_id: s.variation_id, name: s.name })"
+                                >
+                                    Ask about {{ s.name }} · {{ s.days_since }}d
+                                </button>
                             </div>
                         </div>
                     </section>

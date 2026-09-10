@@ -9,6 +9,8 @@ import { registerOverlay } from './store';
 registerOverlay('outlet', 'drawer', () => import('../components/overlays/OutletDrawer.vue'), 'id');
 registerOverlay('cheques', 'drawer', () => import('../components/overlays/ChequesDrawer.vue'));
 registerOverlay('vans', 'drawer', () => import('../components/overlays/VansDrawer.vue'));
+registerOverlay('serviceDue', 'drawer', () => import('../components/overlays/ServiceDueDrawer.vue'));
+registerOverlay('vehicle', 'drawer', () => import('../components/overlays/VehicleDrawer.vue'), 'id');
 
 registerOverlay('creditHold', 'modal', () => import('../components/overlays/CreditHoldModal.vue'));
 registerOverlay('collect', 'modal', () => import('../components/overlays/CollectModal.vue'));

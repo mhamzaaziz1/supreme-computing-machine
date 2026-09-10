@@ -19,6 +19,15 @@ Route::get('outlets/{id}', [Ops\OutletController::class, 'show'])->whereNumber('
 Route::patch('outlets/{id}/credit', [Ops\OutletController::class, 'updateCredit'])->whereNumber('id')->name('outlets.credit');
 Route::get('outlets/{id}/pattern', [Ops\OutletController::class, 'pattern'])->whereNumber('id')->name('outlets.pattern');
 
+// Ctrl-K record search
+Route::get('search', [Ops\SearchController::class, 'index'])->name('search');
+
+// At the outlet: visit, damage, used oil, returns
+Route::get('outlets/{id}/visit', [Ops\VisitController::class, 'form'])->whereNumber('id')->name('visits.form');
+Route::post('visits', [Ops\VisitController::class, 'store'])->name('visits.store');
+Route::post('visits/report', [Ops\VisitController::class, 'report'])->name('visits.report');
+Route::post('visits/return', [Ops\VisitController::class, 'requestReturn'])->name('visits.return');
+
 // Oil-change bay: due list, vehicle history, owner reminders
 Route::get('service-due', [Ops\ServiceDueController::class, 'index'])->name('service.due');
 Route::post('service-due/remind', [Ops\ServiceDueController::class, 'remind'])->name('service.remind');

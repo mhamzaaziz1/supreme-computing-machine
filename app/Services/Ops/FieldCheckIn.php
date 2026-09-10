@@ -97,7 +97,7 @@ class FieldCheckIn
 
         $routeId = $contact->customer_route_id ? (int) $contact->customer_route_id : null;
         $mode = $this->modeFor($routeId);
-        $out = ['mode' => $mode, 'pinned' => false, 'distance' => null, 'violation' => null, 'logged_visit' => false];
+        $out = ['mode' => $mode, 'pinned' => false, 'distance' => null, 'violation' => null, 'logged_visit' => false, 'visit_id' => null];
 
         if (! $this->isFieldUser($businessId, $userId)) {
             return $out + ['allowed' => true, 'exempt' => true, 'message' => null, 'token' => $this->token($businessId, $userId, $contactId)];
@@ -151,10 +151,11 @@ class FieldCheckIn
         }
 
         if ($allowed && $hasFix && $routeId) {
-            $this->geo->logVisit($businessId, $userId, $routeId, $contactId, self::VISIT_TYPE[$action] ?? $action,
+            $visit = $this->geo->logVisit($businessId, $userId, $routeId, $contactId, self::VISIT_TYPE[$action] ?? $action,
                 $lat, $lng, $accuracy, trim(implode(' — ', array_filter([$notes, $passed ? null : 'Outside fence: '.($reason ?: 'no reason')]))) ?: null,
                 null, null, null, $mock);
             $out['logged_visit'] = true;
+            $out['visit_id'] = (int) $visit->id;
         }
 
         return $out + [

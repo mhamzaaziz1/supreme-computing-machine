@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\LabelsController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\ProductController;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -70,6 +71,107 @@ class ProductListController extends Controller
                 'labels' => action([LabelsController::class, 'show']),
                 'import' => $can['create'] ? url('import-products') : null,
             ],
+        ]);
+    }
+
+    /**
+     * One product, as JSON for the detail drawer.
+     *
+     * The legacy "View" action renders product.view-modal, a Bootstrap
+     * fragment meant to be dropped into a modal by jQuery. The Inertia shell
+     * ships neither, so linking to it hands the user raw unstyled markup.
+     * This returns data and the drawer renders it.
+     */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        if (! auth()->user()->can('product.view') && ! auth()->user()->can('product.create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $businessId = $request->session()->get('user.business_id');
+        $permitted = auth()->user()->permitted_locations();
+
+        $product = DB::table('products')
+            ->leftJoin('brands', 'brands.id', '=', 'products.brand_id')
+            ->join('units', 'units.id', '=', 'products.unit_id')
+            ->leftJoin('categories AS c', 'c.id', '=', 'products.category_id')
+            ->leftJoin('categories AS sc', 'sc.id', '=', 'products.sub_category_id')
+            ->leftJoin('tax_rates AS t', 't.id', '=', 'products.tax')
+            ->where('products.business_id', $businessId)
+            ->where('products.id', $id)
+            ->select(
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.type',
+                'products.enable_stock',
+                'products.alert_quantity',
+                'products.is_inactive',
+                'products.not_for_selling',
+                'products.product_description',
+                'products.weight',
+                'c.name AS category',
+                'sc.name AS sub_category',
+                'brands.name AS brand',
+                'units.actual_name AS unit',
+                't.name AS tax',
+            )
+            ->first();
+
+        if (! $product) {
+            abort(404);
+        }
+
+        $variations = DB::table('variations AS v')
+            ->leftJoin('product_variations AS pv', 'pv.id', '=', 'v.product_variation_id')
+            ->where('v.product_id', $id)
+            ->whereNull('v.deleted_at')
+            ->orderBy('v.id')
+            ->get(['v.id', 'v.name', 'v.sub_sku', 'v.sell_price_inc_tax', 'v.dpp_inc_tax', 'pv.name AS group_name'])
+            ->map(fn ($v) => [
+                'id' => (int) $v->id,
+                // "DUMMY" is how a single product's only variation is stored.
+                'name' => $v->name === 'DUMMY' ? null : trim(($v->group_name ? $v->group_name.': ' : '').$v->name),
+                'sku' => $v->sub_sku,
+                'purchase_price' => (float) $v->dpp_inc_tax,
+                'sell_price' => (float) $v->sell_price_inc_tax,
+            ])
+            ->all();
+
+        // Stock per location, restricted to what this user may see.
+        $stock = DB::table('variation_location_details AS vld')
+            ->join('business_locations AS bl', 'bl.id', '=', 'vld.location_id')
+            ->join('variations AS v', 'v.id', '=', 'vld.variation_id')
+            ->where('v.product_id', $id)
+            ->whereNull('v.deleted_at')
+            ->when($permitted !== 'all', fn ($q) => $q->whereIn('vld.location_id', $permitted))
+            ->groupBy('bl.id', 'bl.name')
+            ->orderBy('bl.name')
+            ->get(['bl.name', DB::raw('SUM(vld.qty_available) AS qty')])
+            ->map(fn ($r) => ['location' => $r->name, 'qty' => (float) $r->qty])
+            ->all();
+
+        return response()->json([
+            'product' => [
+                'id' => (int) $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'type' => $product->type,
+                'category' => $product->category,
+                'sub_category' => $product->sub_category,
+                'brand' => $product->brand,
+                'unit' => $product->unit,
+                'tax' => $product->tax,
+                'tracked' => (int) $product->enable_stock === 1,
+                'alert_quantity' => $product->alert_quantity === null ? null : (float) $product->alert_quantity,
+                'inactive' => (int) $product->is_inactive === 1,
+                'not_for_selling' => (int) $product->not_for_selling === 1,
+                'description' => $product->product_description,
+                'weight' => $product->weight,
+            ],
+            'variations' => $variations,
+            'stock' => $stock,
+            'total_stock' => array_sum(array_column($stock, 'qty')),
         ]);
     }
 
@@ -259,7 +361,7 @@ class ProductListController extends Controller
         $tracked = (int) $row->enable_stock === 1;
 
         $actions = [
-            'view' => $can['view'] ? action([ProductController::class, 'view'], [$row->id]) : null,
+            'show' => $can['view'] ? route('catalog.show', [$row->id]) : null,
             'edit' => $can['update'] ? action([ProductController::class, 'edit'], [$row->id]) : null,
             'delete' => $can['delete'] ? action([ProductController::class, 'destroy'], [$row->id]) : null,
             'activate' => $can['update'] && (int) $row->is_inactive === 1

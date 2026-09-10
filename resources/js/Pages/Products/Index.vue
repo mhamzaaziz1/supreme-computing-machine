@@ -17,6 +17,7 @@ import AppShell from '../../Layouts/AppShell.vue';
 import Icon from '../../components/Icon.vue';
 import Money from '../../components/Money.vue';
 import Popover from '../../components/Popover.vue';
+import ProductDrawer from '../../components/Products/ProductDrawer.vue';
 
 const props = defineProps({
     filters: { type: Object, required: true },
@@ -95,6 +96,8 @@ const activeFilterCount = computed(
 );
 
 const hasFilters = computed(() => Boolean(activeFilterCount.value || form.value.search || form.value.stock));
+
+const viewing = ref(null);
 
 const qty = (n) => (n === null ? '—' : Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }));
 
@@ -334,13 +337,14 @@ const pages = computed(() => {
                             >
                                 <td class="px-4 py-2.5">
                                     <div class="flex items-center gap-2">
-                                        <a
-                                            v-if="p.actions.view"
-                                            :href="p.actions.view"
-                                            class="font-medium text-content-primary hover:text-brand-600"
+                                        <button
+                                            v-if="p.actions.show"
+                                            type="button"
+                                            class="text-left font-medium text-content-primary hover:text-brand-600"
+                                            @click="viewing = p"
                                         >
                                             {{ p.name }}
-                                        </a>
+                                        </button>
                                         <span v-else class="font-medium text-content-primary">{{ p.name }}</span>
 
                                         <span
@@ -395,10 +399,28 @@ const pages = computed(() => {
                                             </button>
                                         </template>
 
+                                        <template #default="{ close }">
                                         <div class="py-1">
+                                            <!--
+                                                View opens the drawer rather than
+                                                linking out: the legacy target is a
+                                                Bootstrap fragment that renders
+                                                unstyled without jQuery.
+                                            -->
+                                            <button
+                                                v-if="p.actions.show"
+                                                type="button"
+                                                class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-content-secondary hover:bg-surface-sunken hover:text-content-primary"
+                                                @click="
+                                                    close();
+                                                    viewing = p;
+                                                "
+                                            >
+                                                <Icon name="search" :size="14" /> View
+                                            </button>
+
                                             <a
                                                 v-for="item in [
-                                                    { key: 'view', label: 'View', icon: 'search' },
                                                     { key: 'edit', label: 'Edit', icon: 'adjustment' },
                                                     { key: 'openingStock', label: 'Opening stock', icon: 'stock' },
                                                     { key: 'history', label: 'Stock history', icon: 'insight' },
@@ -414,6 +436,7 @@ const pages = computed(() => {
                                                 <Icon :name="item.icon" :size="14" /> {{ item.label }}
                                             </a>
                                         </div>
+                                        </template>
                                     </Popover>
                                 </td>
                             </tr>
@@ -494,5 +517,7 @@ const pages = computed(() => {
                 </div>
             </div>
         </div>
+
+        <ProductDrawer :product="viewing" @close="viewing = null" />
     </AppShell>
 </template>

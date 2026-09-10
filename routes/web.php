@@ -152,6 +152,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     // The redesigned product catalogue (Inertia). The legacy DataTables list
     // stays on /products, which still serves its ajax feed to other screens.
     Route::get('/catalog', [Catalog\ProductListController::class, 'index'])->name('catalog.index');
+    Route::get('/catalog/{id}', [Catalog\ProductListController::class, 'show'])->whereNumber('id')->name('catalog.show');
     Route::get('/sales/pos', [Sales\SalesListController::class, 'index'])->defaults('view', 'pos')->name('sales.pos');
     Route::get('/sales/drafts', [Sales\SalesListController::class, 'index'])->defaults('view', 'drafts')->name('sales.drafts');
     Route::get('/sales/quotations', [Sales\SalesListController::class, 'index'])->defaults('view', 'quotations')->name('sales.quotations');

@@ -17,7 +17,9 @@
 @endphp
 
 <!DOCTYPE html>
-<html class="tw-bg-white tw-scroll-smooth" lang="{{ app()->getLocale() }}"
+{{-- No hardcoded background: the page surface is a token now, so it follows
+     the theme instead of forcing white behind a dark palette. --}}
+<html class="tw-scroll-smooth" lang="{{ app()->getLocale() }}"
     dir="{{ in_array(session()->get('user.language', config('app.locale')), config('constants.langs_rtl')) ? 'rtl' : 'ltr' }}">
 <head>
     <!-- Tell the browser to be responsive to screen width -->
@@ -28,6 +30,18 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <title>@yield('title') - {{ Session::get('business.name') }}</title>
+
+    {{-- Same rule, and the same storage key, as the Inertia root in
+         app.blade.php: applied before first paint so the page never flashes
+         light then dark, and so the two shells never disagree about the
+         theme when navigating between a Blade screen and an Inertia one. --}}
+    <script>
+      try {
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
 
     @include('layouts.partials.css')
     
@@ -50,7 +64,7 @@
             @include('layouts.partials.sidebar')
         @endif
 
-        @if (in_array($_SERVER['REMOTE_ADDR'], $whitelist))
+        @if (in_array($_SERVER['REMOTE_ADDR'] ?? '', $whitelist))
             <input type="hidden" id="__is_localhost" value="true">
         @endif
 
@@ -150,7 +164,8 @@
 </style>
 <style>
     .small-view-side-active {
-        display: grid !important;
+        /* The sidebar is a flex column; forcing grid here broke its layout. */
+        display: flex !important;
         z-index: 1000;
         position: absolute;
     }

@@ -228,6 +228,9 @@ return [
     'route_coverage' => 'Route Coverage',
     'route_coverage_report' => 'Route Coverage Report',
     'route_followup_report' => 'Route Followup Report',
+    'route_followups' => 'Route Followups',
+    'search_menu' => 'Search menu…',
+    'no_menu_match' => 'Nothing in the menu matches that.',
     'route_coverage_statistics' => 'Route Coverage Statistics',
     'route_wise_statistics' => 'Route-wise Statistics',
     'total_assigned' => 'Total Assigned',
@@ -1794,5 +1797,21 @@ return [
     'carousel_image' => 'Carousel Image :number',
     'display_screen' => 'Display Screen',
     'enable_customer_display_screen' => 'Enable Customer display screen',
-    'customer_display_instraction' => "For customer display screen to work, make sure it's opened in same browser as POS screen in new tab. And that tab is mirrored to another customer-facing display monitor."
+    'customer_display_instraction' => "For customer display screen to work, make sure it's opened in same browser as POS screen in new tab. And that tab is mirrored to another customer-facing display monitor.",
+    'fleet_analytics' => 'Fleet Analytics',
+
+    // Top-level navigation. Named after the job being done rather than the
+    // tables involved, so one task lives in one place.
+    'nav_today' => 'Today',
+    'nav_sell' => 'Sell',
+    'nav_routes' => 'Routes & Fleet',
+    'nav_customers' => 'Customers',
+    'nav_stock' => 'Stock',
+    'nav_money' => 'Money & Insight',
+    'nav_store' => 'Online Store',
+
+    // "Route Assignments" and "Assign Route" sat next to each other in the
+    // old menu without saying what was being assigned to what.
+    'nav_seller_assignments' => 'Salesman → Route',
+    'nav_vehicle_assignments' => 'Vehicle → Route',
 ];

@@ -15,11 +15,9 @@
         <div class="row">
             <!-- Filters Sidebar -->
             <div class="col-md-3 mb-4">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Filters</h5>
-                    </div>
-                    <div class="card-body">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4 pb-2 border-bottom">Filters</h5>
                         <form action="{{ route('ecommerce.products') }}" method="GET">
                             <!-- Categories Filter -->
                             <div class="mb-4">
@@ -84,7 +82,7 @@
                             @endif
                             
                             <!-- Apply Filters Button -->
-                            <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                            <button type="submit" class="btn btn-theme w-100">Apply Filters</button>
                             
                             <!-- Reset Filters Link -->
                             <a href="{{ route('ecommerce.products') }}" class="btn btn-outline-secondary w-100 mt-2">Reset Filters</a>
@@ -123,7 +121,7 @@
                                     @endif
                                     
                                     <input type="text" class="form-control me-2" name="search" placeholder="Search products..." value="{{ request('search') }}">
-                                    <button type="submit" class="btn btn-primary">Search</button>
+                                    <button type="submit" class="btn btn-theme px-4">Search</button>
                                 </form>
                             </div>
                             <div class="col-md-6 d-flex justify-content-md-end">
@@ -226,51 +224,65 @@
                 </div>
                 
                 <!-- Products Grid -->
-                <div class="row">
+                <div class="row g-4">
                     @forelse($products as $product)
-                        <div class="col-6 col-md-4 col-lg-3 mb-4">
-                            <div class="card product-card h-100">
-                                @if($product->on_sale)
-                                    <span class="badge-sale">Sale</span>
-                                @endif
-                                
+                        <div class="col-6 col-md-4 col-lg-4 mb-4">
+                            <div class="card h-100 product-card border-0 shadow-sm">
                                 @php
-                                    $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
+                                    $variation = $product->product_variations->first()->variations->first() ?? null;
+                                    $price = $variation->sell_price_inc_tax ?? 0;
                                     
-                                    // Try to get the first variation image
-                                    foreach($product->product_variations as $product_variation) {
-                                        foreach($product_variation->variations as $variation) {
-                                            if($variation->media->isNotEmpty()) {
-                                                $image_url = $variation->media->first()->display_url;
-                                                break 2;
-                                            }
-                                        }
+                                    $image_url = asset('img/default.png');
+                                    if ($variation && $variation->media->isNotEmpty()) {
+                                        $image_url = $variation->media->first()->display_url;
+                                    } elseif (!empty($product->image)) {
+                                        $image_url = asset('uploads/img/' . $product->image);
                                     }
                                 @endphp
                                 
-                                <a href="{{ route('ecommerce.product_details', $product->id) }}">
-                                    <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
-                                </a>
-                                <div class="card-body d-flex flex-column">
-                                    <h5 class="card-title">
-                                        <a href="{{ route('ecommerce.product_details', $product->id) }}" class="text-decoration-none text-dark">
+                                <div class="position-relative overflow-hidden">
+                                    @if($product->on_sale)
+                                        <span class="badge position-absolute top-0 start-0 m-2 z-1" style="background: var(--accent-red); font-size: 10px; font-weight: 700;">SALE</span>
+                                    @endif
+                                    
+                                    <a href="{{ route('ecommerce.product_details', $product->id) }}" class="d-block">
+                                        <div class="product-image-container" style="aspect-ratio: 1/1; background: #f9f9f9;">
+                                            <img src="{{ $image_url }}" class="card-img-top w-100 h-100 object-fit-contain p-3 transition-transform" alt="{{ $product->name }}">
+                                        </div>
+                                    </a>
+                                </div>
+
+                                <div class="card-body d-flex flex-column p-3">
+                                    <div class="text-muted small mb-1">{{ $product->category->name ?? 'Uncategorized' }}</div>
+                                    <h6 class="card-title mb-2">
+                                        <a href="{{ route('ecommerce.product_details', $product->id) }}" class="text-decoration-none text-dark fw-bold product-name-link">
                                             {{ $product->name }}
                                         </a>
-                                    </h5>
-                                    <p class="card-text small">
-                                        {{ Str::limit($product->product_description, 50) }}
-                                    </p>
-                                    <div class="mt-auto">
-                                        <p class="price mb-0">
-                                            ${{ number_format($product->sell_price_inc_tax, 2) }}
-                                            @if($product->on_sale)
-                                                <span class="original-price">${{ number_format($product->sell_price_inc_tax * 1.2, 2) }}</span>
-                                            @endif
-                                        </p>
-                                        <button class="btn btn-primary btn-sm mt-2 w-100" onclick="addToCart('{{ $product->product_variations->first()->variations->first()->id }}', 1)">
-                                            Add to Cart
-                                        </button>
+                                    </h6>
+                                    
+                                    <div class="mb-2 text-warning mt-auto" style="font-size: 11px;">
+                                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i>
                                     </div>
+                                    
+                                    <div class="product-price mb-3">
+                                        <span class="fw-bold text-dark fs-5">
+                                            {{ Session::get('currency.symbol', '$') }}{{ number_format($price, 2) }}
+                                        </span>
+                                        @if($product->on_sale)
+                                            <span class="text-muted text-decoration-line-through ms-2 small">
+                                                {{ Session::get('currency.symbol', '$') }}{{ number_format($price * 1.2, 2) }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    
+                                    <form action="{{ route('ecommerce.add_to_cart') }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="variation_id" value="{{ $variation->id ?? '' }}">
+                                        <input type="hidden" name="quantity" value="1">
+                                        <button type="submit" class="btn btn-theme w-100 rounded-1 fw-bold py-2 text-uppercase" style="font-size: 12px; letter-spacing: 0.5px;">
+                                            <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>

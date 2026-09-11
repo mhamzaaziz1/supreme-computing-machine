@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Same tokens as the Inertia surface, so the Blade pages and the SPA shell
+   share one design system while the migration is in progress. Rebranding
+   changes tokens.css alone and both surfaces follow. */
+@import './tokens.css';
+
+/* Maps those tokens onto the Bootstrap/AdminLTE classes the ~700 unmigrated
+   Blade screens are built from, so they get the new design without their
+   markup changing. Imported here rather than after the @tailwind directives
+   because postcss-import drops an @import that follows other statements; it
+   still beats vendor.css, which is a separate file loaded earlier. */
+@import './legacy-theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

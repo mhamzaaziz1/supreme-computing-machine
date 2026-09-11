@@ -71,6 +71,8 @@
 	  transform: rotate(315deg);
 	}
 </style>
+
+
 @if(!empty($__system_settings['additional_css']))
     {!! $__system_settings['additional_css'] !!}
 @endif

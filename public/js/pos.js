@@ -189,7 +189,7 @@ $(document).ready(function() {
         //Add Product
         $('#search_product')
             .autocomplete({
-                delay: 1000,
+                delay: 250,
                 source: function(request, response) {
                     var price_group = '';
                     var search_fields = [];
@@ -854,10 +854,13 @@ $(document).ready(function() {
                 var data = $(form).serialize();
                 data = data + '&status=final';
                 var url = $(form).attr('action');
+                // `extra` carries a manager's override token (or a check-in
+                // token) when the first attempt was refused; see js/ops-pos.js.
+                var send = function(extra) {
                 $.ajax({
                     method: 'POST',
                     url: url,
-                    data: data,
+                    data: data + (extra || ''),
                     dataType: 'json',
                     success: function(result) {
                         if (result.success == 1) {
@@ -873,6 +876,16 @@ $(document).ready(function() {
                             if (result.receipt.is_enabled) {
                                 pos_print(result.receipt);
                             }
+                        } else if (result.credit_hold && window.GjOps) {
+                            GjOps.creditHold(result.credit_hold, function(more) {
+                                disable_pos_form_actions();
+                                send((extra || '') + more);
+                            });
+                        } else if (result.checkin && window.GjOps && GjOps.checkin) {
+                            GjOps.checkin(result.checkin, function(more) {
+                                disable_pos_form_actions();
+                                send((extra || '') + more);
+                            });
                         } else {
                             toastr.error(result.msg);
                         }
@@ -880,6 +893,8 @@ $(document).ready(function() {
                         enable_pos_form_actions();
                     },
                 });
+                };
+                send('');
             }
             return false;
         },
@@ -1332,6 +1347,12 @@ $(document).ready(function() {
                     .find('input.pos_quantity')
                     .focus()
                     .select();
+            }
+        } else if (key == 13) {
+            // the enter key code
+            e.preventDefault();
+            if ($(this).val()) {
+                $(this).autocomplete("search");
             }
         }
     });

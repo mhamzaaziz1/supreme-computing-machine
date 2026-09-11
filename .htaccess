@@ -1,5 +1,19 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    RewriteRule ^(.*)$ public/$1 [L]
+    # Laravel's front controller lives in public/. Rewriting there internally
+    # left REQUEST_URI at /POS/<path> while SCRIPT_NAME became
+    # /POS/public/index.php, so Symfony resolved an empty base URL, treated
+    # "/POS/<path>" as the route path and 404'd every route. Redirect instead,
+    # so the browser asks for a path Laravel can actually resolve.
+
+    # Skip requests already inside public/, so the redirect cannot loop.
+    RewriteCond %{REQUEST_URI} !/public/
+
+    # An external redirect needs a URL path, not the filesystem path a bare
+    # "public/$1" expands to. Pin REQUEST_URI against the rule's capture to
+    # recover the mount prefix in %1 ("/POS" here) without hardcoding it, so
+    # this keeps working wherever the app is deployed.
+    RewriteCond %{REQUEST_URI}::$1 ^(/.+?)/(.*)::\2$
+    RewriteRule ^(.*)$ %1/public/$1 [R=302,L]
 </IfModule>

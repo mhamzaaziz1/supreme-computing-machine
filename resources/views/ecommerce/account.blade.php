@@ -116,7 +116,7 @@
                                 </table>
                             </div>
                             <div class="text-end">
-                                <a href="#orders" class="btn btn-primary" data-bs-toggle="tab">View All Orders</a>
+                                <a href="#orders" class="btn btn-theme" data-bs-toggle="tab">View All Orders</a>
                             </div>
                         </div>
                     </div>
@@ -296,7 +296,7 @@
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                            <a href="{{ route('ecommerce.track_order') }}?order_id={{ $order->id }}" class="btn btn-primary">Track Order</a>
+                                            <a href="{{ route('ecommerce.track_order') }}?order_id={{ $order->id }}" class="btn btn-theme">Track Order</a>
                                         </div>
                                     </div>
                                 </div>
@@ -399,7 +399,7 @@
                                         <div class="card-body d-flex flex-column align-items-center justify-content-center">
                                             <i class="fas fa-plus-circle fa-3x mb-3 text-primary"></i>
                                             <h5>Add New Address</h5>
-                                            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addAddressModal">Add Address</button>
+                                            <button class="btn btn-theme mt-3" data-bs-toggle="modal" data-bs-target="#addAddressModal">Add Address</button>
                                         </div>
                                     </div>
                                 </div>
@@ -461,7 +461,7 @@
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-primary">Save Address</button>
+                                            <button type="button" class="btn btn-theme">Save Address</button>
                                         </div>
                                     </div>
                                 </div>
@@ -523,7 +523,7 @@
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-primary">Update Address</button>
+                                            <button type="button" class="btn btn-theme">Update Address</button>
                                         </div>
                                     </div>
                                 </div>
@@ -552,7 +552,7 @@
                                                     <span class="original-price">$24.99</span>
                                                 </p>
                                                 <div class="d-flex mt-2">
-                                                    <button class="btn btn-primary btn-sm flex-grow-1 me-2">Add to Cart</button>
+                                                    <button class="btn btn-theme btn-sm flex-grow-1 me-2">Add to Cart</button>
                                                     <button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
                                                 </div>
                                             </div>
@@ -570,7 +570,7 @@
                                             <div class="mt-auto">
                                                 <p class="price mb-0">$29.99</p>
                                                 <div class="d-flex mt-2">
-                                                    <button class="btn btn-primary btn-sm flex-grow-1 me-2">Add to Cart</button>
+                                                    <button class="btn btn-theme btn-sm flex-grow-1 me-2">Add to Cart</button>
                                                     <button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
                                                 </div>
                                             </div>
@@ -588,7 +588,7 @@
                                             <div class="mt-auto">
                                                 <p class="price mb-0">$39.99</p>
                                                 <div class="d-flex mt-2">
-                                                    <button class="btn btn-primary btn-sm flex-grow-1 me-2">Add to Cart</button>
+                                                    <button class="btn btn-theme btn-sm flex-grow-1 me-2">Add to Cart</button>
                                                     <button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
                                                 </div>
                                             </div>
@@ -632,7 +632,7 @@
                                 </div>
 
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                                    <button type="submit" class="btn btn-theme">Save Profile</button>
                                 </div>
                             </form>
 
@@ -657,7 +657,7 @@
                                 </div>
 
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                    <button type="submit" class="btn btn-primary">Change Password</button>
+                                    <button type="submit" class="btn btn-theme">Change Password</button>
                                 </div>
                             </form>
                         </div>

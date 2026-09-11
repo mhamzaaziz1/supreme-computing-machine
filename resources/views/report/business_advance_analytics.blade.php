@@ -40,7 +40,11 @@
 
         <div class="row">
             <div id="business_analytics_data_div">
-                @include('report.partials.business_advance_analytics_details', ['data' => $data ?? []])
+                <div class="text-center" style="margin-top: 100px; margin-bottom: 100px;">
+                    <i class="fa fa-refresh fa-spin fa-fw fa-3x" style="color: #3c8dbc;"></i>
+                    <h4 style="margin-top: 15px; color: #666;">Loading Business Analytics...</h4>
+                    <p style="color: #999;">This may take a moment as we crunch the numbers.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -238,7 +242,7 @@ $(document).ready(function() {
 });
 
 function get_business_analytics_data() {
-    var loader = '<div class="text-center"><i class="fa fa-refresh fa-spin fa-fw"></i></div>';
+    var loader = '<div class="text-center" style="margin-top: 100px; margin-bottom: 100px;"><i class="fa fa-refresh fa-spin fa-fw fa-3x" style="color: #3c8dbc;"></i><h4 style="margin-top: 15px; color: #666;">Loading Business Analytics...</h4><p style="color: #999;">This may take a moment as we crunch the numbers.</p></div>';
     $('#business_analytics_data_div').html(loader);
 
     var start_date = $('#business_analytics_date_filter').data('daterangepicker').startDate.format('YYYY-MM-DD');
@@ -279,6 +283,10 @@ function get_business_analytics_data() {
                     }
                 });
             }
+        },
+        error: function(xhr, status, error) {
+            var errorMessage = '<div class="text-center" style="margin-top: 100px; margin-bottom: 100px;"><i class="fa fa-exclamation-triangle fa-3x text-danger"></i><h4 style="margin-top: 15px;" class="text-danger">Failed to load analytics</h4><p class="text-muted">The server took too long to respond or encountered an error. Please try a smaller date range.</p><div style="margin-top: 20px; font-family: monospace; color: #a94442; background: #f2dede; padding: 10px; border-radius: 4px; display: inline-block; text-align: left;"><strong>Error Code:</strong> ' + xhr.status + ' ' + xhr.statusText + '<br><strong>Details:</strong> ' + error + '</div><textarea style="width:100%; height:300px; margin-top:20px;">' + (xhr.responseText ? xhr.responseText : '') + '</textarea></div>';
+            $('#business_analytics_data_div').html(errorMessage);
         }
     });
 }

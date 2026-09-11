@@ -83,8 +83,8 @@ class CustomerRouteController extends Controller
                 })
                 ->editColumn('is_active', function ($row) {
                     return $row->is_active
-                        ? '<span class="label bg-green">'.e(__('messages.active')).'</span>'
-                        : '<span class="label bg-gray">'.e(__('messages.inactive')).'</span>';
+                        ? '<span class="label bg-green">'.e(__('business.is_active')).'</span>'
+                        : '<span class="label bg-gray">'.e(__('lang_v1.inactive')).'</span>';
                 })
                 ->editColumn('name', function ($row) {
                     $name = e($row->name);

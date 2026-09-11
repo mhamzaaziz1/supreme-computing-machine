@@ -48,6 +48,8 @@ use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Restaurant;
+use App\Http\Controllers\Catalog;
+use App\Http\Controllers\Sales;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesCommissionAgentController;
 use App\Http\Controllers\SalesOrderController;
@@ -59,6 +61,7 @@ use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\TaxonomyController;
 use App\Http\Controllers\TaxRateController;
+use App\Http\Controllers\TodayController;
 use App\Http\Controllers\TransactionPaymentController;
 use App\Http\Controllers\TypesOfServiceController;
 use App\Http\Controllers\UnitController;
@@ -136,6 +139,31 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('get-purchase-requisition-lines/{purchase_requisition_id}', [PurchaseRequisitionController::class, 'getPurchaseRequisitionLines']);
 
     Route::get('/sign-in-as-user/{id}', [ManageUserController::class, 'signInAsUser'])->name('sign-in-as-user');
+
+    // The redesigned operational dashboard (Inertia). The legacy Blade
+    // dashboard stays on /home until this fully replaces it.
+    Route::get('/today', [TodayController::class, 'index'])->name('today');
+
+    // The field app: a seller's day on a phone, usable offline.
+    Route::get('/field', [\App\Http\Controllers\Ops\FieldController::class, 'index'])->name('field');
+
+    // JSON behind the overlays (drawers, modals, popovers). See routes/ops.php.
+    Route::prefix('ops')->name('ops.')->group(base_path('routes/ops.php'));
+
+    // The redesigned sales list (Inertia). The legacy DataTables screen stays
+    // on /sells, which still serves its ajax feed to the sales reports.
+    Route::get('/sales', [Sales\SalesListController::class, 'index'])->name('sales.index');
+    Route::get('/sales/create', [Sales\SaleFormController::class, 'create'])->name('sales.create');
+
+    // The redesigned product catalogue (Inertia). The legacy DataTables list
+    // stays on /products, which still serves its ajax feed to other screens.
+    Route::get('/catalog', [Catalog\ProductListController::class, 'index'])->name('catalog.index');
+    Route::get('/catalog/{id}', [Catalog\ProductListController::class, 'show'])->whereNumber('id')->name('catalog.show');
+    Route::get('/sales/pos', [Sales\SalesListController::class, 'index'])->defaults('view', 'pos')->name('sales.pos');
+    Route::get('/sales/drafts', [Sales\SalesListController::class, 'index'])->defaults('view', 'drafts')->name('sales.drafts');
+    Route::get('/sales/quotations', [Sales\SalesListController::class, 'index'])->defaults('view', 'quotations')->name('sales.quotations');
+    // Constrained so the named screens above are never swallowed by {id}.
+    Route::get('/sales/{id}', [Sales\SalesListController::class, 'show'])->whereNumber('id')->name('sales.show');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/home/get-totals', [HomeController::class, 'getTotals']);
@@ -642,4 +670,3 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/readykit-test', function () { return view('readykit-test'); });
-

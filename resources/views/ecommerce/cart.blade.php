@@ -71,7 +71,7 @@
                     
                     <!-- Continue Shopping and Clear Cart -->
                     <div class="d-flex justify-content-between mb-4">
-                        <a href="{{ route('ecommerce.products') }}" class="btn btn-outline-primary">
+                        <a href="{{ route('ecommerce.products') }}" class="btn btn-outline-dark">
                             <i class="fas fa-arrow-left me-2"></i> Continue Shopping
                         </a>
                         <button class="btn btn-outline-danger" onclick="clearCart()">
@@ -122,7 +122,7 @@
                             </div>
                             
                             <!-- Checkout Button -->
-                            <a href="{{ route('ecommerce.checkout') }}" class="btn btn-primary w-100 mt-3">
+                            <a href="{{ route('ecommerce.checkout') }}" class="btn btn-theme w-100 mt-3">
                                 Proceed to Checkout
                             </a>
                             
@@ -142,12 +142,12 @@
             </div>
         @else
             <!-- Empty Cart -->
-            <div class="card text-center py-5">
+            <div class="card border-0 shadow-sm text-center py-5">
                 <div class="card-body">
                     <i class="fas fa-shopping-cart fa-4x mb-3 text-muted"></i>
                     <h3>Your cart is empty</h3>
-                    <p class="mb-4">Looks like you haven't added any products to your cart yet.</p>
-                    <a href="{{ route('ecommerce.products') }}" class="btn btn-primary">Start Shopping</a>
+                    <p class="mb-4 text-muted">Looks like you haven't added any products to your cart yet.</p>
+                    <a href="{{ route('ecommerce.products') }}" class="btn btn-theme px-4 py-2">Start Shopping</a>
                 </div>
             </div>
         @endif
@@ -168,20 +168,24 @@
                 
                 @foreach($recommended_products as $product)
                     <div class="col-6 col-md-3 mb-4">
-                        <div class="card product-card h-100">
+                        <div class="card product-card">
                             @if($product->on_sale)
                                 <span class="badge-sale">Sale</span>
                             @endif
                             
                             @php
-                                $image_url = 'https://via.placeholder.com/300x300?text=Product+Image';
+                                $image_url = 'https://dummyimage.com/300x300/f8f9fa/6c757d.png&text=No+Image';
                                 
                                 // Try to get the first variation image
-                                foreach($product->product_variations as $product_variation) {
-                                    foreach($product_variation->variations as $variation) {
-                                        if($variation->media->isNotEmpty()) {
-                                            $image_url = $variation->media->first()->display_url;
-                                            break 2;
+                                if(isset($product->product_variations) && is_iterable($product->product_variations)) {
+                                    foreach($product->product_variations as $product_variation) {
+                                        if(isset($product_variation->variations) && is_iterable($product_variation->variations)) {
+                                            foreach($product_variation->variations as $variation) {
+                                                if(isset($variation->media) && $variation->media->isNotEmpty()) {
+                                                    $image_url = $variation->media->first()->display_url;
+                                                    break 2;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -191,23 +195,30 @@
                                 <img src="{{ $image_url }}" class="card-img-top" alt="{{ $product->name }}">
                             </a>
                             <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">
+                                <div class="text-muted small mb-1">{{ $product->category->name ?? 'Uncategorized' }}</div>
+                                <h5 class="card-title text-truncate">
                                     <a href="{{ route('ecommerce.product_details', $product->id) }}" class="text-decoration-none text-dark">
                                         {{ $product->name }}
                                     </a>
                                 </h5>
-                                <p class="card-text small">
-                                    {{ Str::limit($product->product_description, 50) }}
-                                </p>
+                                
+                                <div class="mb-2 text-warning" style="font-size: 12px;">
+                                    <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i>
+                                </div>
+                                
                                 <div class="mt-auto">
-                                    <p class="price mb-0">
-                                        ${{ number_format($product->sell_price_inc_tax, 2) }}
-                                        @if($product->on_sale)
-                                            <span class="original-price">${{ number_format($product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                    <div class="price mb-3">
+                                        @if(isset($product->sell_price_inc_tax))
+                                            ${{ number_format($product->sell_price_inc_tax, 2) }}
+                                            @if($product->on_sale)
+                                                <span class="original-price">${{ number_format($product->sell_price_inc_tax * 1.2, 2) }}</span>
+                                            @endif
+                                        @else
+                                            $0.00
                                         @endif
-                                    </p>
-                                    <button class="btn btn-primary btn-sm mt-2 w-100" onclick="addToCart('{{ $product->product_variations->first()->variations->first()->id }}', 1)">
-                                        Add to Cart
+                                    </div>
+                                    <button class="btn w-100" style="background:#f5f5f5; border:1px solid #e5e5e5; font-size:13px; font-weight:600;" onclick="addToCart('{{ isset($product->product_variations) && $product->product_variations->isNotEmpty() && $product->product_variations->first()->variations->isNotEmpty() ? $product->product_variations->first()->variations->first()->id : 0 }}', 1)">
+                                        ADD TO CART
                                     </button>
                                 </div>
                             </div>

@@ -34,6 +34,11 @@ class Navigation
     public static function forCurrentUser(): array
     {
         $tree = [
+            // The day's board (the hub for the field-operations overlays) and
+            // the sellers' phone app. Both were otherwise reachable only by
+            // typing their URL.
+            self::link('Today', 'today', ['App\Http\Controllers\TodayController', 'index'], spa: true),
+            self::link('Field app', 'route', ['App\Http\Controllers\Ops\FieldController', 'index'], can: ['customer.view', 'customer.view_own'], spa: true),
             self::home(),
             self::advancedDashboard(),
             self::userManagement(),

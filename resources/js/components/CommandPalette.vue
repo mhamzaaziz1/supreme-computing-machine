@@ -61,6 +61,7 @@ const actions = [
     { label: 'Trade schemes', keywords: 'scheme schemes promotion discount slab free rebate target', icon: 'target', run: () => openOverlay('schemes') },
     { label: 'Cost to serve by route', keywords: 'route margin profit cost serve van economics', icon: 'insight', run: () => openOverlay('routeEconomics') },
     { label: 'Principal sales file & targets', keywords: 'principal secondary sales export csv target litres', icon: 'download', run: () => openOverlay('principal') },
+    { label: 'Field app (phone, works offline)', keywords: 'field phone mobile offline seller route app', icon: 'route', run: () => (window.location.href = `${appBase()}/field`) },
 ];
 
 /** Flatten the nav tree into one searchable list, keeping the group name. */

@@ -19,6 +19,9 @@ Route::get('outlets/{id}', [Ops\OutletController::class, 'show'])->whereNumber('
 Route::patch('outlets/{id}/credit', [Ops\OutletController::class, 'updateCredit'])->whereNumber('id')->name('outlets.credit');
 Route::get('outlets/{id}/pattern', [Ops\OutletController::class, 'pattern'])->whereNumber('id')->name('outlets.pattern');
 
+// Field app: queued offline actions arriving
+Route::post('field/sync', [Ops\FieldSyncController::class, 'sync'])->name('field.sync');
+
 // Ctrl-K record search
 Route::get('search', [Ops\SearchController::class, 'index'])->name('search');
 

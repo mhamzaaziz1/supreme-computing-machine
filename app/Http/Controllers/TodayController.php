@@ -38,6 +38,7 @@ class TodayController extends Controller
                 'violations' => action([GeofenceViolationLogController::class, 'index']),
                 'contacts' => action([ContactController::class, 'index'], ['type' => 'customer']),
                 'routes' => action([CustomerRouteController::class, 'index']),
+                'field' => route('field'),
             ],
         ]);
     }

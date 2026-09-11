@@ -144,6 +144,9 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     // dashboard stays on /home until this fully replaces it.
     Route::get('/today', [TodayController::class, 'index'])->name('today');
 
+    // The field app: a seller's day on a phone, usable offline.
+    Route::get('/field', [\App\Http\Controllers\Ops\FieldController::class, 'index'])->name('field');
+
     // JSON behind the overlays (drawers, modals, popovers). See routes/ops.php.
     Route::prefix('ops')->name('ops.')->group(base_path('routes/ops.php'));
 

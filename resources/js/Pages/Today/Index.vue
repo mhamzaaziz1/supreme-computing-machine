@@ -134,6 +134,9 @@ const targetUnit = { qty: 'units', litres: 'L' };
         <div class="mx-auto max-w-[1400px] p-5">
             <div class="mb-4 flex flex-wrap items-center gap-2">
                 <p class="mr-auto text-sm text-content-muted">{{ longDate(date) }}</p>
+                <a :href="links.field" class="inline-flex items-center gap-1.5 rounded-md border border-edge-subtle bg-surface-raised px-2.5 py-1.5 text-xs font-medium text-content-secondary hover:border-edge-strong hover:text-content-primary">
+                    <Icon name="route" :size="14" /> Field app
+                </a>
                 <button v-if="ops.can?.economics" type="button" class="inline-flex items-center gap-1.5 rounded-md border border-edge-subtle bg-surface-raised px-2.5 py-1.5 text-xs font-medium text-content-secondary hover:border-edge-strong hover:text-content-primary" @click="openOverlay('routeEconomics')">
                     <Icon name="insight" :size="14" /> Cost to serve
                 </button>

@@ -224,30 +224,15 @@
 				$hide_tax = 'hide';
 			}
 		@endphp
-		<table class="table table-condensed table-bordered table-striped table-responsive" id="pos_table">
-			<thead>
-				<tr>
-					<th class="tex-center tw-text-sm md:!tw-text-base tw-font-bold @if(!empty($pos_settings['inline_service_staff'])) col-md-3 @else col-md-4 @endif">	
-						@lang('sale.product') @show_tooltip(__('lang_v1.tooltip_sell_product_column'))
-					</th>
-					<th class="text-center tw-text-sm md:!tw-text-base tw-font-bold col-md-3">
-						@lang('sale.qty')
-					</th>
-					@if(!empty($pos_settings['inline_service_staff']))
-						<th class="text-center tw-text-sm md:!tw-text-base tw-font-bold col-md-2">
-							@lang('restaurant.service_staff')
-						</th>
-					@endif
-					<th class="text-center tw-text-sm md:!tw-text-base tw-font-bold col-md-2 {{$hide_tax}}">
-						@lang('sale.price_inc_tax')
-					</th>
-					<th class="text-center tw-text-sm md:!tw-text-base tw-font-bold col-md-2">
-						@lang('sale.subtotal')
-					</th>
-					<th class="text-center"><i class="fas fa-times tw-text-base" aria-hidden="true"></i></th>
-				</tr>
-			</thead>
-			<tbody></tbody>
-		</table>
+		<div class="pos_table_wrap" style="overflow-x:auto;border:1px solid #e9ecf5;border-radius:16px;background:#fff;padding:8px;">
+			<table id="pos_table" style="width:100%;border-collapse:separate;border-spacing:0 8px;">
+				@include('sale_pos.partials.pos_table_head')
+				<tbody></tbody>
+			</table>
+			<div class="pos_empty_hint" style="display:none;padding:34px 16px;text-align:center;color:#9aa3b6;">
+				<i class="fas fa-shopping-basket" style="font-size:26px;display:block;margin-bottom:8px;opacity:.5;"></i>
+				<span style="font-size:13px;">@lang('lang_v1.search_product_placeholder')</span>
+			</div>
+		</div>
 	</div>
 </div>

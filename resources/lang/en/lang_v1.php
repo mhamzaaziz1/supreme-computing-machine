@@ -21,6 +21,11 @@ return [
     'previous_mileage' => 'Previous Mileage',
     'oil_change_mileage' => 'Oil Change Mileage',
     'next_mileage' => 'Next Mileage',
+    'select_vehicle' => 'Select vehicle',
+    'oil_change_details' => 'Oil change details',
+    'vehicle_required_for_oil_change' => 'Select a vehicle for an oil change point sale',
+    'no_vehicle_for_customer' => 'This customer has no vehicle yet. Add one to continue.',
+    'vehicle_added_and_selected' => 'Vehicle added and selected',
     'date' => 'Date',
     'invoice_no' => 'Invoice No.',
 

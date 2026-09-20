@@ -87,6 +87,9 @@
     <!-- quick product modal -->
     <div class="modal fade quick_add_product_modal" tabindex="-1" role="dialog" aria-labelledby="modalTitle"></div>
 
+    <!-- add vehicle modal, filled on demand from the oil change panel -->
+    <div class="modal fade vehicle_modal" tabindex="-1" role="dialog" aria-labelledby="modalTitle"></div>
+
     <div class="modal fade" id="expense_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel">
     </div>
 
@@ -135,6 +138,7 @@
 
 @stop
 @section('css')
+    @include('sale_pos.partials.pos_screen_css')
     <style>
         /* Premium Camera Scanner Styles */
         .camera-scanner-content {
@@ -289,6 +293,7 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="{{ asset('js/camera_barcode_scanner.js?v=' . $asset_v) }}"></script>
     @include('sale_pos.partials.keyboard_shortcuts')
+    @include('sale_pos.partials.vehicle_selection_javascript')
 
     <!-- Call restaurant module if defined -->
     @if (in_array('tables', $enabled_modules) ||

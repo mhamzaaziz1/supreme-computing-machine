@@ -218,8 +218,12 @@ class CustomerVehicleController extends Controller
 
             $vehicle = CustomerVehicle::create($input);
 
+            //id/text let a caller select the new vehicle straight away, which
+            //the POS oil change panel does after its add-vehicle popup saves.
             $output = ['success' => true,
-                        'msg' => __("lang_v1.added_success")
+                        'msg' => __("lang_v1.added_success"),
+                        'id' => $vehicle->id,
+                        'text' => CustomerVehicle::forDropdown($business_id, $input['contact_id'])[$vehicle->id] ?? $vehicle->make,
                     ];
         } catch (\Exception $e) {
             \Log::emergency("File:" . $e->getFile(). "Line:" . $e->getLine(). "Message:" . $e->getMessage());

@@ -51,7 +51,8 @@ class BusinessLocation extends Model
                 'default_payment_accounts',
                 'invoice_scheme_id',
                 'invoice_layout_id',
-                'sale_invoice_scheme_id'
+                'sale_invoice_scheme_id',
+                'is_oil_change_point'
             );
         }
 
@@ -80,6 +81,9 @@ class BusinessLocation extends Model
                     'data-default_sale_invoice_scheme_id' => $item->sale_invoice_scheme_id,
                     'data-default_invoice_scheme_id' => $item->invoice_scheme_id,
                     'data-default_invoice_layout_id' => $item->invoice_layout_id,
+                    //Drives the oil-change (vehicle + mileage) panel on the POS
+                    //screen, which follows the location the cashier picks.
+                    'data-is_oil_change_point' => ! empty($item->is_oil_change_point) ? 1 : 0,
                 ],
                 ];
             })->all();

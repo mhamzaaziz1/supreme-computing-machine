@@ -109,6 +109,7 @@
 @endsection
 
 @section('css')
+	@include('sale_pos.partials.pos_screen_css')
 	<style type="text/css">
 		/*CSS to print receipts*/
 		.print_section{

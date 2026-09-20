@@ -195,9 +195,6 @@ class SellPosController extends Controller
         $bl_attributes = $business_locations['attributes'];
         $business_locations = $business_locations['locations'];
 
-        // Check if default location is an oil change point
-        $is_oil_change_point = !empty($default_location) ? $default_location->is_oil_change_point : false;
-
         //set first location as default locaton
         if (empty($default_location)) {
             foreach ($business_locations as $id => $name) {
@@ -205,6 +202,12 @@ class SellPosController extends Controller
                 break;
             }
         }
+
+        //Whether the location the screen opens on is an oil change point. The
+        //panel is always rendered; this only decides its initial state, since
+        //the cashier can switch locations without reloading the screen and the
+        //dropdown carries data-is_oil_change_point for every location.
+        $is_oil_change_point = !empty($default_location) ? (bool) $default_location->is_oil_change_point : false;
 
         $payment_types = $this->productUtil->payment_types(null, true, $business_id);
 
@@ -381,6 +384,20 @@ class SellPosController extends Controller
 
                 $user_id = $request->session()->get('user.id');
 
+                //A vehicle only makes sense (and is only demanded) when the
+                //sale is booked at an oil change point. The POS screen toggles
+                //the field with the location dropdown; this is the same rule
+                //applied server side, so a stale page cannot slip past it.
+                //Only the POS screen carries the field, so other entry points
+                //(Add sale, API, field app) are left alone.
+                if (!$is_direct_sale
+                    && empty($input['customer_vehicle_id'])
+                    && $this->isOilChangePoint($input['location_id'])) {
+                    return ['success' => 0,
+                        'msg' => __('lang_v1.vehicle_required_for_oil_change'),
+                    ];
+                }
+
                 $input['business_id'] = $business_id;
                 $input['created_by'] = $user_id;
 
@@ -499,6 +516,8 @@ class SellPosController extends Controller
 
                 $sale_guard->settle($guard, $transaction, $input);
 
+                $this->recordVehicleMileage($transaction, $input);
+
                 SellCreatedOrModified::dispatch($transaction);
 
                 if ($request->input('is_save_and_print') == 1) {
@@ -596,6 +615,69 @@ class SellPosController extends Controller
                     ->action([\App\Http\Controllers\SellController::class, 'index'])
                     ->with('status', $output);
             }
+        }
+    }
+
+    /**
+     * Whether a location is flagged as an oil change point, which is what makes
+     * the vehicle + mileage details on the POS screen mandatory.
+     *
+     * @param  int|null  $location_id
+     * @return bool
+     */
+    private function isOilChangePoint($location_id)
+    {
+        if (empty($location_id)) {
+            return false;
+        }
+
+        $business_id = request()->session()->get('user.business_id');
+
+        return BusinessLocation::where('business_id', $business_id)
+            ->where('id', $location_id)
+            ->value('is_oil_change_point') ? true : false;
+    }
+
+    /**
+     * Store the odometer reading captured on the POS screen against the invoice
+     * it was taken for. It is what the service-due views and the vehicle's
+     * mileage history read back, and what prefills "previous mileage" on the
+     * customer's next visit.
+     *
+     * @param  \App\Transaction  $transaction
+     * @param  array  $input
+     * @return void
+     */
+    private function recordVehicleMileage($transaction, array $input)
+    {
+        if (empty($input['customer_vehicle_id'])) {
+            return;
+        }
+
+        $previous = $input['previous_mileage'] ?? null;
+        $reading = $input['oil_change_mileage'] ?? null;
+
+        $has_previous = ($previous !== null && $previous !== '');
+        $has_reading = ($reading !== null && $reading !== '');
+
+        //Recomputed rather than trusting the read-only field the screen fills
+        //in, so the stored figure always matches the two it is derived from.
+        $next = ($has_previous || $has_reading) ? (int) $previous + (int) $reading : null;
+
+        //The sale is already committed by this point, so a mileage row that
+        //cannot be written is logged rather than allowed to fail the invoice.
+        try {
+            \App\VehicleMileageRecord::create([
+                'business_id' => $transaction->business_id,
+                'customer_id' => $transaction->contact_id,
+                'vehicle_id' => $input['customer_vehicle_id'],
+                'invoice_id' => $transaction->id,
+                'previous_mileage' => $has_previous ? (int) $previous : null,
+                'oil_change_mileage' => $has_reading ? (int) $reading : null,
+                'next_mileage' => $next,
+            ]);
+        } catch (\Exception $e) {
+            \Log::emergency('File:' . $e->getFile() . 'Line:' . $e->getLine() . 'Message:' . $e->getMessage());
         }
     }
 
